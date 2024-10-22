@@ -1,0 +1,59 @@
+#
+# Build executables
+#
+
+add_executable(
+  runnerPostExecutable ${SOURCES}
+)
+
+target_link_libraries(
+  runnerPostExecutable
+)
+
+target_include_directories(
+  runnerPostExecutable
+  PUBLIC
+    $<BUILD_INTERFACE: 
+      ${CMAKE_CURRENT_SOURCE_DIR}/
+      ${CMAKE_CURRENT_SOURCE_DIR}/src
+    >
+    $<INSTALL_INTERFACE: 
+      ${CMAKE_INSTALL_INCLUDEDIR}/src
+    >
+)
+
+if(OpenMP_CXX_FOUND)
+  target_link_libraries(
+    runnerpostExecutable
+    PUBLIC OpenMP::OpenMP_CXX
+  )
+endif()
+
+set_target_properties(
+  runnerPostExecutable
+  PROPERTIES
+    INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}"
+)
+
+
+set_target_properties(
+  runnerPostExecutable
+  PROPERTIES 
+    VERSION "${RUNNERPOST_VERSION}"
+    SOVERSION "${RUNNERPOST_VERSION_MAJOR}.${RUNNERPOST_VERSION_MINOR}"
+    OUTPUT_NAME runnerPost
+)
+
+#
+# Install executable
+#
+
+# installing executables and libraries
+install(
+  TARGETS
+    runnerPostExecutable
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/
+)
+

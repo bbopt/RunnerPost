@@ -1,0 +1,59 @@
+# Shared libraries
+#
+
+# Utils
+add_library (
+    runnerPost 
+    SHARED 
+    ${SOURCES})
+
+target_include_directories(
+    runnerPost 
+    PUBLIC
+    $<BUILD_INTERFACE: 
+     ${CMAKE_SOURCE_DIR}/src
+    >
+    $<INSTALL_INTERFACE: 
+     ${CMAKE_INSTALL_INCLUDEDIR}/src
+    >
+)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(
+      runnerPost
+      PUBLIC
+        OpenMP::OpenMP_CXX
+    )
+endif()
+
+set_target_properties(
+    runnerPost
+    PROPERTIES
+       VERSION "${RUNNERPOST_VERSION}"
+       SOVERSION "${RUNNERPOST_VERSION_MAJOR}.${RUNNERPOST_VERSION_MINOR}"
+       OUTPUT_NAME runnerPost
+)
+
+if (WIN32)
+    target_compile_definitions(
+      runnerPost
+      PRIVATE 
+        -DDLL_RUNNERPOST_EXPORTS
+    )
+endif()
+
+
+
+
+#
+# Install library
+#
+
+# installing executables and libraries
+install(
+  TARGETS
+    runnerPost
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/
+)
+

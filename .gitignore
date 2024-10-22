@@ -1,0 +1,10 @@
+XCode/
+*.vscode
+*.vs
+.DS_Store
+*/**/.DS_Store
+VisualStudio/**
+build/
+build/release/**
+builds/
+Icon
