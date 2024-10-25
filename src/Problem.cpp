@@ -3,24 +3,24 @@
 #include <cctype>
 
 // static members initialization:
-std::set<std::string> Problem::_all_keywords;
+// std::set<std::string> Problem::_all_keywords;
 
 // Default values. Can be set.
-int Problem::_nbSimplexEvals = 100;
-int Problem::_overallMaxBBEvals = 20000;
+int RUNNERPOST::Problem::_nbSimplexEvals = 100;
+int RUNNERPOST::Problem::_overallMaxBBEvals = 20000;
 
 
 
 /*----------------------------------------------*/
 /*                   constructor #1             */
 /*----------------------------------------------*/
-Problem::Problem ( const std::string & pb_dir       )
-: _index           ( -1                          ) ,
-  _id              ( ""                          ) ,
-  _pb_dir          ( PROBLEMS_DIR + pb_dir + "/" ) ,
-  _xe_file_name    ( ""                          ) ,
-  _n               ( -1                          ) ,
-  _m               ( -1                          )
+//Problem::Problem ( const std::string & pb_dir       )
+//: _index           ( -1                          ) ,
+//  _id              ( ""                          ) ,
+//  _pb_dir          ( pb_dir ) ,
+//   _xe_file_name    ( ""                          ) ,
+//  _n               ( -1                          ) ,
+//  _m               ( -1                          )
 //  _bb_exe          (""                           ) ,
 //  _batch_eval      ( false                       ) ,
 //  _has_constraints ( false                       ) ,
@@ -28,23 +28,23 @@ Problem::Problem ( const std::string & pb_dir       )
 //  _has_binaries    ( false                       ) ,
 //  _x0_feas_info    ( false                       ) ,
 //  _x0_is_feas      ( false                       )
-{};
+//{};
 
 
 /*----------------------------------------------*/
 /*                   constructor #2             */
 /*----------------------------------------------*/
-Problem::Problem ( const std::string & id           ,
-                  const std::string & pb_dir       ,
-                  const std::string & xe_file_name ,
-                  int                 n            ,
-                  int                 m              )
-: _index           ( -1                          ) ,
-_id              ( id                            ) ,
-_pb_dir          ( PROBLEMS_DIR + pb_dir + "/" ) ,
-_xe_file_name    ( xe_file_name                ) ,
-_n               ( n                           ) ,
-_m               ( m                           )
+//Problem::Problem ( const std::string & id           ,
+//                  const std::string & pb_dir       ,
+//                  const std::string & xe_file_name ,
+//                  int                 n            ,
+//                  int                 m              )
+//: _index           ( -1                          ) ,
+//_id              ( id                            ) ,
+//_pb_dir          ( PROBLEMS_DIR + pb_dir + "/" ) ,
+//_xe_file_name    ( xe_file_name                ) ,
+//_n               ( n                           ) ,
+//_m               ( m                           )
 //_bb_exe          (""                           ) ,
 //_batch_eval      ( false                       ) ,
 //_bbit            ( n                           ) ,
@@ -62,7 +62,7 @@ _m               ( m                           )
 //_trend_matrix    ( m                           ) ,
 //_x0_feas_info    ( false                       ) ,
 //_x0_is_feas      ( false                       )
-{
+//{
     
 //    std::ifstream in ( (_pb_dir + xe_file_name).c_str() );
 //
@@ -85,7 +85,7 @@ _m               ( m                           )
 //    }
 //    in.close();
     
-}
+//}
 
 ///*----------------------------------------------*/
 ///*     add a keyword describing the problem     */
@@ -109,7 +109,7 @@ _m               ( m                           )
 
 
 
-int Problem::getMaxBBEvals() const
+int RUNNERPOST::Problem::getMaxBBEvals() const
 {
     int maxBBEvals = -1;
 
@@ -239,14 +239,11 @@ int Problem::getMaxBBEvals() const
 //        add_keyword ( "bounded" );
 //}
 
-/*------------------------------------------------------------*/
-/*  get the problem name and replace '_' with '\_' for latex  */
-/*------------------------------------------------------------*/
-std::string Problem::get_id ( bool latex ) const {
-    
-    if ( !latex )
-        return _id;
-    
+/*-----------------------*/
+/*  get the problem id   */
+/*-----------------------*/
+std::string RUNNERPOST::Problem::get_id ( ) const
+{
     std::string s;
     size_t n = _id.size() , k;
     for ( k = 0 ; k < n ; ++k ) {
@@ -260,11 +257,11 @@ std::string Problem::get_id ( bool latex ) const {
 /*----------------------------------------------*/
 /*                    display                   */
 /*----------------------------------------------*/
-void Problem::display ( void ) const
+void RUNNERPOST::Problem::display ( void ) const
 {
-    std::cout << "[" << _id 
-    << "] [n=" << _n
-    << "] [m=" << _m ;
+    std::cout << _id << ": "
+    << "(" << _name << ") [n=" << _n
+    << "] [m=" << _m << "]";;
 //    << "] [bnds=" << has_bounds()
 //    << "] [cstr=" << _has_constraints
 //    << "] [trend=" << _has_trend_matrix
@@ -274,27 +271,27 @@ void Problem::display ( void ) const
 //    << "] [f*=" << _fxe << "]";
 }
 
-/*----------------------------------------------*/
-/*       display keywords (static, private)     */
-/*----------------------------------------------*/
-void Problem::display_keywords ( const std::set<std::string> & keywords )
-{
-    size_t n = keywords.size();
-    
-    if ( n == 0 )
-    {
-        std::cout << "no keywords" << std::endl;
-        return;
-    }
-    
-    std::ostringstream msg;
-    msg << "keywords(" << n << ")";
-    std::set<std::string>::const_iterator it , end = keywords.end();
-    int i = 1;
-    for ( it = keywords.begin() ; it != end ; ++it , ++i ) {
-        std::cout << i << ": " << *it << std::endl;
-    }
-}
+///*----------------------------------------------*/
+///*       display keywords (static, private)     */
+///*----------------------------------------------*/
+//void Problem::display_keywords ( const std::set<std::string> & keywords )
+//{
+//    size_t n = keywords.size();
+//    
+//    if ( n == 0 )
+//    {
+//        std::cout << "no keywords" << std::endl;
+//        return;
+//    }
+//    
+//    std::ostringstream msg;
+//    msg << "keywords(" << n << ")";
+//    std::set<std::string>::const_iterator it , end = keywords.end();
+//    int i = 1;
+//    for ( it = keywords.begin() ; it != end ; ++it , ++i ) {
+//        std::cout << i << ": " << *it << std::endl;
+//    }
+//}
 
 
 ///*----------------------------------------------*/

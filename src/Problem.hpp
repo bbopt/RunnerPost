@@ -2,19 +2,20 @@
 #define __PROBLEM__
 
 #include "runner_defines.hpp"
-
 #include <set>
+
+#include "runnerpost_nsbegin.hpp"
 
 class Problem {
 
 private:
-    
-    int                                _index;
+
     std::string                        _id;
-    std::string                        _pb_dir;
-    std::string                        _xe_file_name;
+    std::string                        _name;
+    // std::string                        _xe_file_name;
     int                                _n;
     int                                _m;
+    
 
 //    std::string                        _bb_exe;
 //    bool                               _batch_eval;
@@ -37,52 +38,71 @@ private:
     static int                         _nbSimplexEvals; // if <=0 ==> other termination criterions will be used
     static int                         _overallMaxBBEvals; // if <= 0 ==> other termination criterions will be used
     
-    std::set<std::string>              _keywords;
-    static std::set<std::string>       _all_keywords;
+    // TODO
+    // std::set<std::string>              _keywords;
+    // static std::set<std::string>       _all_keywords;
     
     // display keywords:
-    static void display_keywords ( const std::set<std::string> & keywords );
+    // TODO
+    // static void display_keywords ( const std::set<std::string> & keywords );
     
 public:
     
     // constructor #1
-    Problem (const std::string & pb_dir       );
+    Problem (const std::string & id       )
+    : _id              ( id     ) ,
+      _name            ( ""     ) ,
+      _n               ( -1     ) ,
+      _m               ( -1     )
+    {};
     
     // constructor #2:
     Problem ( const std::string & id          ,
-             const std::string & pb_dir       ,
-             const std::string & xe_file_name ,
-             int                 n            ,
-             int                 m            );
+             const std::string & name )
+    : _id              ( id     ) ,
+      _name            ( name   ) ,
+      _n               ( -1     ) ,
+      _m               ( -1     )
+    {};
     
-
+    // constructor #3:
+    Problem ( const std::string & id          ,
+             const std::string & name         ,
+             int                 n            ,
+             int                 m            )
+    : _id              ( id     ) ,
+      _name            ( name   ) ,
+      _n               ( n      ) ,
+      _m               ( m      )
+    {};
     
     // destructor:
     virtual ~Problem ( void ) {}
 
-    void set_pb_id ( std::string id) { _id = id ;}
+    // SET methods:
+    void set_name ( std::string name) { _name = name ;}
     void set_n ( int n ) { _n = n; }
     void set_m ( int m ) { _m = m; }
-    void set_xe_file_name( std::string f){ _xe_file_name = f ;}
+    
+    // void set_xe_file_name( std::string f){ _xe_file_name = f ;}
     
     
     void display ( void ) const;
     
-    void display_keywords ( ) const
-    {
-        Problem::display_keywords ( _keywords );
-    }
-    
-    static void display_all_keywords ( )
-    {
-        Problem::display_keywords ( Problem::_all_keywords );
-    }
+//    void display_keywords ( ) const
+//    {
+//        Problem::display_keywords ( _keywords );
+//    }
+//    
+//    static void display_all_keywords ( )
+//    {
+//        Problem::display_keywords ( Problem::_all_keywords );
+//    }
     
     // GET methods:
-    std::string         get_id        ( bool latex = false ) const;
-    int                 get_index     ( void ) const { return _index;            }
-    const std::string & get_pb_dir    ( void ) const { return _pb_dir;           }
-    std::string         get_tests_dir ( void ) const { return _pb_dir+TESTS_DIR; }
+    std::string         get_id        ( ) const;
+    const std::string & get_name    ( void ) const { return _name;           }
+    // std::string         get_tests_dir ( void ) const { return _pb_dir+TESTS_DIR; }
     int                 get_n         ( void ) const { return _n;                }
     int                 get_m         ( void ) const { return _m;                }
     
@@ -111,9 +131,6 @@ public:
 //    bool is_batch ( void ) const { return _batch_eval; }
     
     int getMaxBBEvals() const;
-
-    // SET methods:
-    void set_index ( int i ) { _index = i; }
     
     static void setOverallMaxBBEvals ( int overallMaxBBEvals ) { _overallMaxBBEvals = overallMaxBBEvals; }
     static void setNbSimplexEvals ( int nbSimplexEvals )  { _nbSimplexEvals = nbSimplexEvals; }
@@ -142,6 +159,8 @@ protected:
 //
 //    void add_keyword ( std::string s );
 };
+
+#include "runnerpost_nsend.hpp"
 
 #endif
 

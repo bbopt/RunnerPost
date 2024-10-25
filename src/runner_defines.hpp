@@ -12,10 +12,19 @@
 
 
 // All directories are relative to the run directory
-const std::string PROBLEMS_DIR         = "./problems/";
+//const std::string PROBLEMS_DIR         = "./problems/";
 
 // The test directory for a problem is relative to the problem 
-const std::string TESTS_DIR            = "tests/";
+//const std::string TESTS_DIR            = "tests/";
+
+// Directory separator
+#ifdef WINDOWS
+const char        DIR_SEP = '\\';           ///< Directory separator
+#else
+const char        DIR_SEP = '/';            ///< Directory separator
+#endif
+
+#include "runnerpost_nsbegin.hpp"
 
 const double INF = std::numeric_limits<double>::max(); ///< Infinity
 const double M_INF = std::numeric_limits<double>::lowest(); ///< -Infinity
@@ -26,6 +35,18 @@ const size_t INF_SIZE_T = std::numeric_limits<size_t>::max();///< The infinity f
 
 typedef std::vector<double> ArrayOfDouble;
 
-const std::string STATS_FILE = "stats.txt";
+
+// TODO pass these options in the algo configuration file
+const std::string STATS_FILE = "history.txt";
+// If true we add seed in stats file name. For example history.txt -> history.0.txt
+const bool ADD_SEED_TO_STATS_FILE = true;
+
+const std::string STATS_FILE_RUN_DIR_BASE = "Run";
+
+// If true we have a directory structure AlgoId/PbId
+// If false we have PbId/AlgoId
+const bool DIR_ORDER_IS_ALGO_PB = true;
+
+#include "runnerpost_nsend.hpp"
 
 #endif

@@ -6,9 +6,9 @@
 /*----------------------------------*/
 /*            constructor           */
 /*----------------------------------*/
-Runner::Runner ( ) : _n_pb       ( 0    ) ,
+RUNNERPOST::Runner::Runner ( ) : _n_pb       ( 0    ) ,
 _n_algo     ( 0    ) ,
-_n_seed_run ( 0    ) ,
+// _n_seed_run ( 0    ) ,
 _results    ( NULL ) ,
 _test_id    ( NULL ) ,
 _use_avg_fx_first_feas( false ) ,
@@ -23,28 +23,34 @@ _feasibilityThreshold (0.0)
 /*----------------------------------*/
 /*             destructor           */
 /*----------------------------------*/
-Runner::~Runner ( void )
+RUNNERPOST::Runner::~Runner ( void )
 {
 
     clear_memory();
 
-//    // clear list of all problems:
-//    size_t n = _all_pbs.size();
-//    for ( size_t k = 0 ; k < n ; ++k )
-//        delete _all_pbs[k];
-//    _all_pbs.clear();
-//
     size_t n = _selected_algos.size();
     for ( size_t k = 0 ; k < n ; ++k )
         delete _selected_algos[k];
     _selected_algos.clear();
+    
+    n = _selected_pbs.size();
+    for ( size_t k = 0 ; k < n ; ++k )
+        delete _selected_pbs[k];
+    _selected_pbs.clear();
+    
+    n = _selected_outputs.size();
+    for ( size_t k = 0 ; k < n ; ++k )
+        delete _selected_outputs[k];
+    _selected_outputs.clear();
+    
+    
 
 }
 
 /*-------------------------------------*/
 /*        clear memory (private)       */
 /*-------------------------------------*/
-void Runner::clear_memory ( )
+void RUNNERPOST::Runner::clear_memory ( )
 {
 
     size_t i_pb, i_algo;
@@ -366,7 +372,7 @@ void Runner::clear_memory ( )
 /*------------------------------------------*/
 /*  clear the list of selected algo params  */
 /*------------------------------------------*/
-void Runner::clear_selected_algos ( void )
+void RUNNERPOST::Runner::clear_selected_algos ( void )
 {
     size_t n = _selected_algos.size();
     for ( size_t k = 0 ; k < n ; ++k )
@@ -377,10 +383,10 @@ void Runner::clear_selected_algos ( void )
     _n_algo = 0;
 }
 
-/*----------------------------------*/
-/*                 run              */
-/*----------------------------------*/
-bool Runner::run ( std::string & error_msg )
+/*---------------------------------------------------*/
+/*   Post processing of optimization runs on pbs     */
+/*---------------------------------------------------*/
+bool RUNNERPOST::Runner::run_post_processing ( std::string & error_msg )
 {
     
     error_msg.clear();
@@ -401,12 +407,11 @@ bool Runner::run ( std::string & error_msg )
         return false;
     }
     
-    _n_seed_run = static_cast<int>(_algoRunSeeds.size()) ;
-    size_t nn = _n_pb * _n_algo * _n_seed_run;
+    size_t nn = _n_pb * _n_algo;
     
     
     std::ostringstream msg;
-    msg << "test execution";
+    msg << "algos results on pb";
     if ( nn > 1 )
     {
         msg << "s (" << nn << ")";
@@ -435,35 +440,45 @@ bool Runner::run ( std::string & error_msg )
         _test_id [i_pb] = nullptr;
     }
     
-    // Get the results:
-    // -----------------------
-    std::list<size_t>::const_iterator it = run_list.begin() , end = run_list.end();
-    while ( it != end )
+    // loop on the problems:
+    for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
     {
         
-        i_pb   = *it;
-        ++it;
-        i_algo = *it;
-        ++it;
+        _results [i_pb] = new Result    * [_n_algo];
+        _test_id [i_pb] = new std::string [_n_algo];
         
-        
-        if ( !Runner::get_results ( _test_id              [i_pb][i_algo]  ,
-                                   *_selected_pbs         [i_pb]          ,
-                                   *_selected_algos [i_algo] ,
-                                   _results               [i_pb][i_algo]   ) )
+        // loop on the algorithm parameters:
+        for ( i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
         {
-            display_instance_name ( i_pb , i_algo );
-            std::cout << ": cannot get result " << _test_id[i_pb][i_algo] << std::endl << std::endl;
-            error_msg = "cannot get result";
-            return false;
+            auto n_seed = _selected_algos[i_algo]->get_n_seeds();
+            
+            // result:
+            _results [i_pb][i_algo] = new Result [ n_seed ];
+            
+            for (size_t i_seed = 0 ; i_seed < n_seed ; i_seed++)
+            {
+                _results[i_pb][i_algo][i_seed].reset( _use_hypervolume_for_profiles, _use_h_for_profiles );
+            }
+            
+            if ( !RUNNERPOST::Runner::get_results ( _test_id              [i_pb][i_algo]  ,
+                                       *_selected_pbs         [i_pb]          ,
+                                       *_selected_algos       [i_algo]        ,
+                                       _results               [i_pb][i_algo]   ) )
+            {
+                display_instance_name ( *_selected_pbs[i_pb] , *_selected_algos[i_algo] );
+                std::cout << ": cannot get result" << std::endl << std::endl;
+                error_msg = "cannot get result";
+                return false;
+            }
+            
+            // set the result:
+            set_result ( _test_id              [i_pb][i_algo] ,
+                        _results               [i_pb][i_algo] ,
+                        *_selected_pbs         [i_pb  ]       ,
+                        *_selected_algos       [i_algo]         );
         }
-        
-        // set the result:
-        set_result ( _test_id              [i_pb][i_algo] ,
-                    _results               [i_pb][i_algo] ,
-                    *_selected_pbs         [i_pb  ]       ,
-                    *_selected_algos       [i_algo]         );
     }
+    
     
     // 4- Set the combined pareto results
     if ( _use_hypervolume_for_profiles )
@@ -476,11 +491,81 @@ bool Runner::run ( std::string & error_msg )
     return true;
 }
 
+/*---------------------------------------------------*/
+/*   Post processing of optimization runs on pbs     */
+/*---------------------------------------------------*/
+bool RUNNERPOST::Runner::generate_outputs(std::string &error_msg)
+{
+    
+    error_msg.clear();
+    
+    size_t n_output = static_cast<int>(_selected_outputs.size());
+    if ( n_output == 0 )
+    {
+        error_msg = "no output configurations";
+        return false;
+    }
+    
+    std::ostringstream msg;
+    msg << "output";
+    if ( n_output > 1 )
+    {
+        msg << "s (" << n_output << ")";
+    }
+    
+    if ( _use_h_for_profiles )
+    {
+        msg << " [ h(x)=sum_j ( max(c_j(x),0)^2) -- > replaces f ]" ;
+    }
+    
+    if ( _use_hypervolume_for_profiles )
+    {
+        msg << " [ Pareto hypervolume is used for f ]" ;
+    }
+    
+    msg << ": \n";
+    std::cout << msg.str();
+
+    // loop on outputs:
+    for ( const auto & out: _selected_outputs )
+    {
+        auto pt = out->get_profile_type();
+        
+        if (Output::Profile_Type::DATA_PROFILE == pt)
+        {
+            auto xSel = out->get_x_select();
+            auto ySel = out->get_y_select();
+            if (Output::X_Select::TIME == xSel)
+            {
+                output_time_data_profile_plain(out->get_tau(), out->get_file_name());
+            }
+            else
+            {
+                output_data_profile_plain(out->get_tau(), out->get_file_name(), xSel);
+            }
+        }
+        else if (Output::Profile_Type::PERFORMANCE_PROFILE == pt)
+        {
+            
+        }
+        else
+        {
+            error_msg = "Profile type not handled.";
+            return false;
+        }
+        
+    }
+    std::cout << std::endl;
+    
+    return true;
+}
+
+
 /*-----------------------------------------------------*/
 /*  check if fx is at alpha % relatively close to fxe  */
 /*  (static, private)                                  */
 /*-----------------------------------------------------*/
-bool Runner::is_within ( const double & fx    ,
+bool RUNNERPOST::Runner::is_within ( const double & fx    ,
                         const double & fxe   ,
                         const double & alpha   )
 {
@@ -494,7 +579,7 @@ bool Runner::is_within ( const double & fx    ,
 /*  compute relative error between fx and fxe  */
 /*  (static, private)                          */
 /*---------------------------------------------*/
-double Runner::compute_alpha ( const double & fx  ,
+double RUNNERPOST::Runner::compute_alpha ( const double & fx  ,
                                           const double & fxe   )
 {
     if ( fxe != 0.0 )
@@ -505,7 +590,7 @@ double Runner::compute_alpha ( const double & fx  ,
 /*---------------------------------------*/
 /*      display algorithm differences    */
 /*---------------------------------------*/
-void Runner::display_algo_diff ( void ) const
+void RUNNERPOST::Runner::display_algo_diff ( void ) const
 {
 
     if ( _n_algo == 1 )
@@ -560,7 +645,7 @@ void Runner::display_algo_diff ( void ) const
 /*---------------------------------------*/
 /*       display performance profiles    */
 /*---------------------------------------*/
-bool Runner::output_perf_profile_plain ( const double & tau , const std::string & pp_file_name ) const
+bool RUNNERPOST::Runner::output_perf_profile_plain ( const double & tau , const std::string & pp_file_name ) const
 {
 
     if ( tau < 0 || _n_pb == 0 || _n_algo == 0 )
@@ -588,7 +673,7 @@ bool Runner::output_perf_profile_plain ( const double & tau , const std::string 
     {
         for ( i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
         {
-            for ( i_seed = 0 ; i_seed < _n_seed_run ; ++i_seed )
+            for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed )
             {
 
                 if ( !_results[i_pb][i_algo][i_seed].has_solution()  )
@@ -619,7 +704,7 @@ bool Runner::output_perf_profile_plain ( const double & tau , const std::string 
             i_pb = *it;
             ++it;
             i_algo = *it;
-            display_instance_name ( i_pb , i_algo );
+            display_instance_name ( *_selected_pbs[i_pb] , *_selected_algos[i_algo]);
             ++it;
             i_seed = *it;
             std::cout << " seed run#" << i_seed ;
@@ -665,7 +750,7 @@ bool Runner::output_perf_profile_plain ( const double & tau , const std::string 
         {
             for ( i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
             {
-                for ( i_seed = 0 ; i_seed < _n_seed_run ; ++i_seed )
+                for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed )
                 {
                     if ( _results[i_pb][i_algo][i_seed].has_solution() )
                     {
@@ -707,7 +792,7 @@ bool Runner::output_perf_profile_plain ( const double & tau , const std::string 
         {
             cnt = 0;
             for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
-                for ( i_seed = 0 ; i_seed < _n_seed_run ; ++i_seed )
+                for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds(); ++i_seed )
                     if ( _results[i_pb][i_algo][i_seed].has_solution() )
                     {
 
@@ -739,7 +824,7 @@ bool Runner::output_perf_profile_plain ( const double & tau , const std::string 
 /*              data profiles .........            */
 /* Use Moré and Wild SIAM JOPT 2009 eq 2.9         */
 /*-------------------------------------------------*/
-bool Runner::output_data_profile_plain ( const double & tau , const std::string & dp_file_name ) const
+bool RUNNERPOST::Runner::output_data_profile_plain ( const double & tau , const std::string & dp_file_name, const Output::X_Select & xSel ) const
 {
     if ( tau < 0 || _n_pb == 0 || _n_algo == 0 )
     {
@@ -765,7 +850,7 @@ bool Runner::output_data_profile_plain ( const double & tau , const std::string 
     {
         for ( i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
         {
-            for ( i_seed = 0 ; i_seed < _n_seed_run ; ++i_seed )
+            for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed )
             {
                 if ( !_results[i_pb][i_algo][i_seed].has_solution()  )
                 {
@@ -795,7 +880,7 @@ bool Runner::output_data_profile_plain ( const double & tau , const std::string 
             i_pb = *it;
             ++it;
             i_algo = *it;
-            display_instance_name ( i_pb , i_algo );
+            display_instance_name (*_selected_pbs[i_pb] , *_selected_algos[i_algo] );
             ++it;
             i_seed = *it;
             std::cout << " seed run#" << i_seed +1 ;
@@ -901,6 +986,7 @@ bool Runner::output_data_profile_plain ( const double & tau , const std::string 
 
         for (i_algo = 0 ; i_algo < _n_algo ; ++i_algo)
         {
+            auto n_seed = _selected_algos[i_algo]->get_n_seeds();
             cnt = 0;
             for (i_pb = 0 ; i_pb < _n_pb ; ++i_pb)
             {
@@ -908,14 +994,14 @@ bool Runner::output_data_profile_plain ( const double & tau , const std::string 
                 size_t dimPb= ( _use_evals_for_dataprofiles ) ? 0 : _selected_pbs[i_pb]->get_n();
                 if ( fx0s[i_pb] < INF && fxe[i_pb] < INF )
                 {
-                    for ( i_seed = 0 ; i_seed < _n_seed_run ; ++i_seed )
+                    for ( i_seed = 0 ; i_seed < n_seed ; ++i_seed )
                     {
                         if ( fx0s[i_pb]-_results[i_pb][i_algo] [i_seed].get_sol(alpha*(dimPb+1)) >= (1-tau)*(fx0s[i_pb]-fxe[i_pb]) )
                             ++cnt;
                     }
                 }
             }
-            fout << (100.0 * cnt ) / (_n_pb*_n_seed_run) << " " ;
+            fout << (100.0 * cnt ) / (_n_pb*n_seed) << " " ;
         }
         fout << std::endl;
 
@@ -927,7 +1013,7 @@ bool Runner::output_data_profile_plain ( const double & tau , const std::string 
     return true;
 }
 
-bool Runner::output_time_profile_plain(const std::string& fileName) const
+bool RUNNERPOST::Runner::output_time_profile_plain(const std::string& fileName) const
 {
     const std::string profileName = "time profile";
     if (_n_pb == 0 || _n_algo == 0)
@@ -941,7 +1027,7 @@ bool Runner::output_time_profile_plain(const std::string& fileName) const
     {
         for (size_t i_algo = 0; i_algo < _n_algo; ++i_algo)
         {
-            for (size_t i_seed = 0; i_seed < _n_seed_run; ++i_seed)
+            for (size_t i_seed = 0; i_seed < _selected_algos[i_algo]->get_n_seeds(); ++i_seed)
             {
                 if (!_results[i_pb][i_algo][i_seed].has_solution())
                 {
@@ -971,7 +1057,7 @@ bool Runner::output_time_profile_plain(const std::string& fileName) const
             size_t i_pb = *it;
             ++it;
             size_t i_algo = *it;
-            display_instance_name (i_pb, i_algo);
+            display_instance_name (*_selected_pbs[i_pb], *_selected_algos[i_algo]);
             ++it;
             size_t i_seed = *it;
             std::cout << " seed run #" << i_seed ;
@@ -996,6 +1082,8 @@ bool Runner::output_time_profile_plain(const std::string& fileName) const
     // Write one file for each algo. It makes it easier to plot.
     for (size_t i_algo = 0; i_algo < _n_algo; ++i_algo)
     {
+        auto n_seed = _selected_algos[i_algo]->get_n_seeds();
+        
         std::string algoFileName = fileName;
         size_t lastPointIndex = fileName.rfind(".");
         algoFileName.insert(lastPointIndex, std::to_string(i_algo));
@@ -1010,7 +1098,7 @@ bool Runner::output_time_profile_plain(const std::string& fileName) const
         // ------------------------
         for (size_t i_pb = 0; i_pb < _n_pb; ++i_pb)
         {
-            for (size_t i_seed = 0 ; i_seed < _n_seed_run ; ++i_seed)
+            for (size_t i_seed = 0 ; i_seed < n_seed ; ++i_seed)
             {
                 int bbe = _results[i_pb][i_algo][i_seed].getTotalBbe();
                 double time = _results[i_pb][i_algo][i_seed].getTotalTime();
@@ -1025,7 +1113,7 @@ bool Runner::output_time_profile_plain(const std::string& fileName) const
     }
     return true;
 }
-bool Runner::output_time_data_profile_plain ( const double & tau , const std::string & tdp_file_name ) const
+bool RUNNERPOST::Runner::output_time_data_profile_plain ( const double & tau , const std::string & tdp_file_name ) const
 {
     if ( tau < 0 || _n_pb == 0 || _n_algo == 0 )
     {
@@ -1046,7 +1134,7 @@ bool Runner::output_time_data_profile_plain ( const double & tau , const std::st
     {
         for ( i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
         {
-            for ( i_seed = 0 ; i_seed < _n_seed_run ; ++i_seed )
+            for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds(); ++i_seed )
             {
                 if ( !_results[i_pb][i_algo][i_seed].has_solution()  )
                 {
@@ -1072,7 +1160,7 @@ bool Runner::output_time_data_profile_plain ( const double & tau , const std::st
             i_pb = *it;
             ++it;
             i_algo = *it;
-            display_instance_name ( i_pb , i_algo );
+            display_instance_name ( *_selected_pbs[i_pb] , *_selected_algos[i_algo] );
             ++it;
             i_seed = *it;
             std::cout << " seed run#" << i_seed ;
@@ -1129,7 +1217,7 @@ bool Runner::output_time_data_profile_plain ( const double & tau , const std::st
         size_t dimPb = (_use_evals_for_dataprofiles) ? 0 : _selected_pbs[i_pb]->get_n();
         for (i_algo = 0 ; i_algo < _n_algo ; ++i_algo)
         {
-            for ( i_seed = 0 ; i_seed < _n_seed_run ; ++i_seed )
+            for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds(); ++i_seed )
             {
                 int beta = std::round(_results[i_pb][i_algo][i_seed].get_time()) / dimPb;
                 if (beta > max_beta)
@@ -1145,6 +1233,7 @@ bool Runner::output_time_data_profile_plain ( const double & tau , const std::st
         fout << beta << " ";
         for (i_algo = 0 ; i_algo < _n_algo ; ++i_algo)
         {
+            auto n_seed = _selected_algos[i_algo]->get_n_seeds();
             cnt = 0;
             for (i_pb = 0 ; i_pb < _n_pb ; ++i_pb)
             {
@@ -1152,7 +1241,7 @@ bool Runner::output_time_data_profile_plain ( const double & tau , const std::st
                 size_t dimPb= ( _use_evals_for_dataprofiles ) ? 0 : _selected_pbs[i_pb]->get_n();
                 if ( fx0s[i_pb] < INF && fxe[i_pb] < INF )
                 {
-                    for ( i_seed = 0 ; i_seed < _n_seed_run ; ++i_seed )
+                    for ( i_seed = 0 ; i_seed < n_seed ; ++i_seed )
                     {
                         if (fx0s[i_pb] - _results[i_pb][i_algo][i_seed].get_sol_by_time(beta*(dimPb+1)) >= (1-tau) * (fx0s[i_pb]-fxe[i_pb]))
                         {
@@ -1161,7 +1250,7 @@ bool Runner::output_time_data_profile_plain ( const double & tau , const std::st
                     }
                 }
             }
-            fout << (100.0 * cnt ) / (_n_pb*_n_seed_run) << " " ;
+            fout << (100.0 * cnt ) / (_n_pb*n_seed) << " " ;
         }
         fout << std::endl;
     }
@@ -1170,7 +1259,7 @@ bool Runner::output_time_data_profile_plain ( const double & tau , const std::st
     return true;
 }
 
-void Runner::output_problems_unsolved ( const double & tau , const double & nbSimplexEval ) const
+void RUNNERPOST::Runner::output_problems_unsolved ( const double & tau , const double & nbSimplexEval ) const
 {
     if ( tau < 0 || _n_pb == 0 || _n_algo == 0 )
     {
@@ -1188,7 +1277,7 @@ void Runner::output_problems_unsolved ( const double & tau , const double & nbSi
     {
         for ( i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
         {
-            for ( i_seed = 0 ; i_seed < _n_seed_run ; ++i_seed )
+            for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds(); ++i_seed )
             {
                 if ( !_results[i_pb][i_algo][i_seed].has_solution()  )
                 {
@@ -1229,15 +1318,19 @@ void Runner::output_problems_unsolved ( const double & tau , const double & nbSi
         if ( fx0s[i_pb] < INF && fxe[i_pb] < INF )
         {
             size_t dimPb= _selected_pbs[i_pb]->get_n();
-            for ( i_seed = 0 ; i_seed < _n_seed_run ; ++i_seed )
+            
+            for (i_algo = 0 ; i_algo < _n_algo ; ++i_algo)
             {
-                
-                for (i_algo = 0 ; i_algo < _n_algo ; ++i_algo)
+                size_t n_seed = _selected_algos[i_algo]->get_n_seeds();
+                for ( i_seed = 0 ; i_seed < n_seed ; ++i_seed )
                 {
                     if ( fx0s[i_pb]-_results[i_pb][i_algo] [i_seed].get_sol(alpha*(dimPb+1)) < (1-tau)*(fx0s[i_pb]-fxe[i_pb]) )
                     {
-                        display_instance_name ( i_pb , i_algo );
-                        std::cout << " seed run#" << i_seed << std::endl;
+                        display_instance_name ( *_selected_pbs[i_pb] , *_selected_algos[i_algo] );
+                        if ( n_seed > 1)
+                        {
+                            std::cout << " seed run#" << i_seed << std::endl;
+                        }
                         nbUnsolved[i_algo]++;
                         nbUnsolvedByPb[i_algo]++;
                     }
@@ -1263,7 +1356,7 @@ void Runner::output_problems_unsolved ( const double & tau , const double & nbSi
 /*-------------------------------------------------------*/
 /* get the value of f at x0 for all problems (private)   */
 /*-------------------------------------------------------*/
-ArrayOfDouble Runner::get_fx0s() const
+RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
 {
     ArrayOfDouble fx0s(_n_pb, INF);
     double fx0;
@@ -1279,7 +1372,7 @@ ArrayOfDouble Runner::get_fx0s() const
         fx0s[i_pb] = fx0;
         for (size_t i_algo = 1 ; i_algo < _n_algo ; ++i_algo )
         {
-            for (size_t i_seed=1 ; i_seed < _n_seed_run ; ++i_seed)
+            for (size_t i_seed=1 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed)
             {
                 fx0 = _results[i_pb][i_algo][i_seed].get_sol(1);
 
@@ -1302,7 +1395,7 @@ ArrayOfDouble Runner::get_fx0s() const
             fx0s[i_pb]=0.0;
             for (size_t  i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
             {
-                for (size_t i_seed=0 ; i_seed < _n_seed_run ; ++i_seed)
+                for (size_t i_seed=0 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed)
                 {
                     first_fx = _results[i_pb][i_algo][i_seed].get_first_fx();
                     if ( first_fx != INF )
@@ -1342,7 +1435,7 @@ ArrayOfDouble Runner::get_fx0s() const
 /*-------------------------------------------------------*/
 /* get the best solution for all problems (private)      */
 /*-------------------------------------------------------*/
-ArrayOfDouble Runner::get_best_fx() const
+RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx() const
 {
     ArrayOfDouble fxe(_n_pb, INF);
     double fxe_tmp, fxe_bb;
@@ -1362,7 +1455,7 @@ ArrayOfDouble Runner::get_best_fx() const
         {
             for (size_t i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
             {
-                for (size_t i_seed = 0 ; i_seed < _n_seed_run ; ++i_seed )
+                for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed )
                 {
                     size_t max_bb_evals=_selected_pbs[i_pb]->getMaxBBEvals();
                     fxe_tmp = _results[i_pb][i_algo][i_seed].get_sol ( max_bb_evals );
@@ -1381,7 +1474,7 @@ ArrayOfDouble Runner::get_best_fx() const
 /*------------------------------------------------------*/
 /* get the mean value of elapsed time over all problems */
 /*------------------------------------------------------*/
-ArrayOfDouble Runner::get_mean_algo_times(size_t bbe) const
+RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_mean_algo_times(size_t bbe) const
 {
     ArrayOfDouble times(_n_algo, INF);
     for (size_t i_algo = 0 ; i_algo < _n_algo; ++i_algo)
@@ -1396,7 +1489,7 @@ ArrayOfDouble Runner::get_mean_algo_times(size_t bbe) const
                 // time for this problem and algo should not be counted for this bbe.
                 continue;
             }
-            for (size_t i_seed = 0 ; i_seed < _n_seed_run; ++i_seed)
+            for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds(); ++i_seed)
             {
                 totalAlgoTime += _results[i_pb][i_algo][i_seed].get_time(bbe);
                 totalNbPbAndSeeds++;
@@ -1419,7 +1512,7 @@ ArrayOfDouble Runner::get_mean_algo_times(size_t bbe) const
 /*---------------------------------------------------------------------------*/
 /* get the time values, relative to first algo, mean value over all problems */
 /*---------------------------------------------------------------------------*/
-ArrayOfDouble Runner::get_relative_algo_times(size_t bbe) const
+RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_relative_algo_times(size_t bbe) const
 {
     ArrayOfDouble relTimes(_n_algo, 0);
     relTimes[0] = 100;
@@ -1441,7 +1534,7 @@ ArrayOfDouble Runner::get_relative_algo_times(size_t bbe) const
                 // time for this problem and algo should not be counted for this bbe.
                 continue;
             }
-            for (size_t i_seed = 0 ; i_seed < _n_seed_run; ++i_seed)
+            for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds(); ++i_seed)
             {
                 totalAlgoTime += _results[i_pb][i_algo][i_seed].get_time(bbe);
                 meanTime0     += _results[i_pb][0][i_seed].get_time(bbe);
@@ -1465,7 +1558,7 @@ ArrayOfDouble Runner::get_relative_algo_times(size_t bbe) const
 /*----------------------------------------------------------------------*/
 /* get the overall maximum of iteration for all problems (private)      */
 /*----------------------------------------------------------------------*/
-size_t Runner::get_bbe_max() const
+size_t RUNNERPOST::Runner::get_bbe_max() const
 {
 
     size_t tmp = 0;
@@ -1474,7 +1567,7 @@ size_t Runner::get_bbe_max() const
     {
         for (size_t i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
         {
-            for (size_t i_seed = 0 ; i_seed < _n_seed_run ; ++i_seed )
+            for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed )
             {
                 tmp = _results[i_pb][i_algo][i_seed].get_sol_bbe();
                 if ( tmp > bbe_max )
@@ -1491,13 +1584,13 @@ size_t Runner::get_bbe_max() const
 /*-----------------------------------------------------*/
 /* get the maximum of iteration for a specific algorithm */
 /*-----------------------------------------------------*/
-size_t Runner::get_bbe_max(size_t i_algo) const
+size_t RUNNERPOST::Runner::get_bbe_max(size_t i_algo) const
 {
     size_t tmp = 0;
     size_t bbe_max = 0;
     for (size_t i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
     {
-        for (size_t i_seed = 0 ; i_seed < _n_seed_run ; ++i_seed)
+        for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed)
         {
             tmp = _results[i_pb][i_algo][i_seed].get_sol_bbe();
             if (tmp > bbe_max)
@@ -1514,12 +1607,12 @@ size_t Runner::get_bbe_max(size_t i_algo) const
 /*-----------------------------------------------------*/
 /* get the maximum of iteration for a specific problem and specific algorithm */
 /*-----------------------------------------------------*/
-size_t Runner::get_bbe_max(size_t i_pb, size_t i_algo) const
+size_t RUNNERPOST::Runner::get_bbe_max(size_t i_pb, size_t i_algo) const
 {
 
     size_t tmp = 0;
     size_t bbe_max = 0;
-    for (size_t i_seed = 0 ; i_seed < _n_seed_run ; ++i_seed)
+    for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed)
     {
         tmp = _results[i_pb][i_algo][i_seed].get_sol_bbe();
         if (tmp > bbe_max)
@@ -1535,7 +1628,7 @@ size_t Runner::get_bbe_max(size_t i_pb, size_t i_algo) const
 /*----------------------------------------------------------------------*/
 /* get the minimum problems dimension                                   */
 /*----------------------------------------------------------------------*/
-int Runner::get_dimPbMin() const
+int RUNNERPOST::Runner::get_dimPbMin() const
 {
 
     int tmp , dimMin = _selected_pbs[0]->get_n() ;;
@@ -1552,27 +1645,22 @@ int Runner::get_dimPbMin() const
 /*---------------------------------------*/
 /*        display selected problems      */
 /*---------------------------------------*/
-int Runner::display_selected_problems ( void ) const
+void RUNNERPOST::Runner::display_selected_problems ( void ) const
 {
-
-    size_t n = _selected_pbs.size();
-
     std::cout << std::endl;
 
-    if ( n == 0 )
+    if ( _n_pb == 0 )
         std::cout << "no problem has been selected" << std::endl;
     else
     {
         std::ostringstream msg;
         msg << "selected problem";
-        if ( n > 1 )
-            msg << "s (" << n << ")";
+        if ( _n_pb > 1 )
+            msg << "s (" << _n_pb << ")";
         std::cout << msg.str() << std::endl ;
         display_pbs ( _selected_pbs );
     }
     std::cout << std::endl;
-
-    return static_cast<int>(n);
 }
 
 ///*---------------------------------------*/
@@ -1601,26 +1689,13 @@ int Runner::display_selected_problems ( void ) const
 /*       display a list of problems      */
 /*       (private)                       */
 /*---------------------------------------*/
-void Runner::display_pbs ( const std::vector<Problem *> & pbs ) const
+void RUNNERPOST::Runner::display_pbs ( const std::vector<Problem *> & pbs ) const
 {
-    size_t k , n = pbs.size() , w_id = 0;
-    //int    w_batch = 3;
-    int    max_n = 0 , max_m = 0;
 
-    for ( k = 0 ; k < n ; ++k )
+    for ( const auto &pb: pbs )
     {
-        if ( pbs[k]->get_id().size() > w_id )
-            w_id = pbs[k]->get_id().size();
-        if ( pbs[k]->get_n() > max_n )
-            max_n = pbs[k]->get_n();
-        if ( pbs[k]->get_m() > max_m )
-            max_m = pbs[k]->get_m();
-    }
-
-    for ( k = 0 ; k < n ; ++k )
-    {
-        std::cout << "\t pb #" << k+1.0 << ": ";
-        pbs[k]->display ( );
+        std::cout << "\t " ;
+        pb->display ( );
         std::cout << std::endl;
     }
 }
@@ -1628,7 +1703,7 @@ void Runner::display_pbs ( const std::vector<Problem *> & pbs ) const
 /*---------------------------------------*/
 /*           display all problems        */
 /*---------------------------------------*/
-void Runner::display_special_options ( void ) const
+void RUNNERPOST::Runner::display_special_options ( void ) const
 {
 
     if ( _use_h_for_profiles || _use_avg_fx_first_feas || _use_evals_for_dataprofiles )
@@ -1656,10 +1731,10 @@ void Runner::display_special_options ( void ) const
 /*------------------------------------------------*/
 /*          display instance name (private)       */
 /*------------------------------------------------*/
-void Runner::display_instance_name (size_t i_pb, size_t i_algo, size_t i_seed) const
+void RUNNERPOST::Runner::display_instance_name (const Problem & pb, const  Algorithm & ac, size_t i_seed) const
 {
-    std::cout << "\t pb #" << i_pb + 1 << ", algo #" << i_algo + 1;
-    if (i_seed < INF_SIZE_T)
+    std::cout << "\t " << pb.get_id() << ", " << ac.get_id();
+    if (i_seed < INF_SIZE_T && ac.get_n_seeds()> 1)
     {
         std::cout << ", seed run #" << i_seed + 1;
     }
@@ -1669,7 +1744,7 @@ void Runner::display_instance_name (size_t i_pb, size_t i_algo, size_t i_seed) c
 /*------------------------------------*/
 /*        display test configs        */
 /*------------------------------------*/
-void Runner::display_selected_algos ( void ) const
+void RUNNERPOST::Runner::display_selected_algos ( void ) const
 {
 
 
@@ -1678,12 +1753,12 @@ void Runner::display_selected_algos ( void ) const
     std::cout << std::endl;
 
     if ( n == 0 )
-        std::cout << "there is no test configuration" << std::endl;
+        std::cout << "there is no algo configuration" << std::endl;
     else
     {
 
         std::ostringstream msg;
-        msg << "test configuration";
+        msg << "selected algo";
         if ( n > 1 )
             msg << "s (" << n << ")";
         msg << ":\n";
@@ -1691,15 +1766,20 @@ void Runner::display_selected_algos ( void ) const
         std::cout << msg.str();
         for ( size_t k = 0 ; k < n ; ++k )
         {
-            std::cout << "\t algo #" << k+1;
-            std::cout << " (" << _selected_algos[k]->getSolverNameAndVersion() << "): ";
-            if ( _selected_algos[k]->getAttributesNameAndValue().size() == 0 )
-                std::cout << "All attributes have default value ";
-            else
-                for ( auto attributeNameAndValue : _selected_algos[k]->getAttributesNameAndValue() )
-                    std::cout << "[" << attributeNameAndValue << "] ";
-            std::cout << std::endl;
+            std::cout << "\t " << _selected_algos[k]->get_id();
+            std::cout << ": (" << _selected_algos[k]->get_name() << ") ";
+            std::cout << _selected_algos[k]->get_options() << std::endl;
+            if (_selected_algos[k]->get_n_seeds() > 1)
+            {
+                std::cout << " { ";
+                for ( const auto & s: _selected_algos[k]->get_run_seeds())
+                {
+                    std::cout << s << ", ";
+                }
+                std::cout << " }" << std::endl;
+            }
         }
+        
     }
     std::cout << std::endl;
 }
@@ -1754,19 +1834,16 @@ void Runner::display_selected_algos ( void ) const
 /*------------------------------------------------*/
 /*              set a result (private)            */
 /*------------------------------------------------*/
-void Runner::set_result (const std::string        & test_id ,
+void RUNNERPOST::Runner::set_result (const std::string        & test_id /*not used*/ ,
                          Result                     result[],
-                         Problem                  & pb      ,
-                         const  AlgoParameters    & ap        ) 
+                         const Problem            & pb      ,
+                         const  Algorithm         & ac        )
 {
     // Set single objective result
-    
     
     if ( _use_hypervolume_for_profiles )
         return;
     
-    size_t  i_pb   = pb.get_index();
-    size_t  i_algo = ap.getIndex();
     size_t  bbe = pb.getMaxBBEvals();
     
     // bbe corresponds to the desired max number of bb evaluations,
@@ -1774,16 +1851,22 @@ void Runner::set_result (const std::string        & test_id ,
     //  xe and fxe  correspond to the best solution (last entry in the
     //  stats file).
     
-    for (size_t i_seed=0 ; i_seed < _n_seed_run ; ++i_seed )
+    for (size_t i_seed=0 ; i_seed < ac.get_n_seeds() ; ++i_seed )
     {
-        display_instance_name ( i_pb , i_algo , i_seed );
-        std::cout << ": found in " << Runner::get_test_dir ( test_id , pb ) << ": ";
+        display_instance_name ( pb , ac , i_seed );
+        std::cout << ": found in " << Runner::get_test_dir ( ac , pb ) << ": ";
         
         if ( result[i_seed].compute_solution ( pb.get_n() ,
-                                              bbe        ))
+                                               bbe        ))
         {
+            auto time = result[i_seed].get_time(result[i_seed].get_sol_bbe());
+            std::string time_str = "";
+            if (time > 0)
+            {
+                time_str = " time=" + std::to_string(time);
+            }
             std::cout << "bbe="   << result[i_seed].get_sol_bbe ()
-            << " time=" << result[i_seed].get_time(result[i_seed].get_sol_bbe())
+            << time_str
             << " f="    << result[i_seed].get_sol_fx  ()
             << " fx0=" << result[i_seed].get_sol(1)
             << " ffx=" << result[i_seed].get_first_fx();
@@ -2116,6 +2199,187 @@ void Runner::set_result (const std::string        & test_id ,
 //}
 
 
+/*-------------------------------------------------------*/
+/*               read and add algo config file           */
+/*-------------------------------------------------------*/
+bool RUNNERPOST::Runner::read_algo_selection_file ( const std::string  & algo_selection_file_name ,
+                                    std::string        & error_msg        )
+{
+
+    error_msg.clear();
+
+    std::ifstream fin ( algo_selection_file_name.c_str(), std::ios::in );
+    if ( fin.fail() )
+    {
+        fin.close();
+        error_msg = "Error(0). Cannot read file " + algo_selection_file_name;
+        return false;
+    }
+
+    std::string s;
+    while(std::getline(fin, s) && !s.empty())
+    {
+        // Get algo id as the first word on the line
+        size_t i = s.find_first_not_of(" ");
+        if (i > 0)
+        {
+            s.erase(i) ;  // Remove initial white spaces
+        }
+        i = s.find(" ");
+        std::string id = s.substr(0,i);
+        
+        // Algo name and version are provided between parenthesis
+        size_t i0 = s.find("(",0);
+        size_t i1 = s.find(")",i0+1);
+
+        if ( i0 == std::string::npos || i1 == std::string::npos )
+        {
+            error_msg = "Error(2) in file " + algo_selection_file_name + ". Line #" + std::to_string(_n_algo+1) + ". Algo name and version must be provided between parentheses after algo ID.";
+            return false;
+        }
+        std::string nameAndVersion = s.substr(i0+1,i1-i0-1);
+
+        if (nameAndVersion.empty())
+        {
+            error_msg = "Error(3) in file " + algo_selection_file_name + ". Line #" + std::to_string(_n_algo+1) + ". Algo name is empty.";
+            return false;
+        }
+        
+        
+        std::string options = s.substr(i1+1);
+
+        _selected_algos.push_back ( new Algorithm ( _n_algo, id, nameAndVersion , options ) );
+
+        _n_algo++ ;
+        
+
+    }
+    fin.close();
+    
+    if (_selected_algos.empty())
+    {
+        fin.close();
+        error_msg = "Error(1) in file " + algo_selection_file_name + ". Cannot read a single algo config. First line in file must contain an algo config." ;
+        return false;
+    }
+    
+    // TODO each algo can have different seed runs 
+    _algoRunSeeds.push_back(1); // TMP 1 set of algos -> 1 seed
+
+    return true;
+}
+
+std::vector<std::string> RUNNERPOST::Runner::get_selected_algo_options ( void ) const
+{
+    std::vector<std::string> algosOptions;
+    
+    for (const auto& algo: _selected_algos)
+    {
+        algosOptions.push_back(algo->get_options());
+    }
+    return algosOptions;
+}
+
+
+/*-----------------------------------------------------------*/
+/*          read and add problems from selection file           */
+/*-----------------------------------------------------------*/
+bool RUNNERPOST::Runner::read_problem_selection_file ( const std::string  & pb_selection_file_name ,
+                                          std::string        & error_msg        )
+{
+
+    error_msg.clear();
+
+    std::ifstream fin ( pb_selection_file_name.c_str(), std::ios::in );
+    if ( fin.fail() )
+    {
+        fin.close();
+        error_msg = "Error(0). Cannot read file " + pb_selection_file_name;
+        return false;
+    }
+    
+    int n=0, m=1;
+
+    std::string s;
+    while(!fin.eof())  // std::getline(fin, s) && !s.empty())
+    {
+        getline (fin , s);
+        
+        if (s.empty())
+        {
+            continue;
+        }
+          
+        // Get pb id as the first word on the line
+        size_t i = s.find_first_not_of(" ");
+        if (i > 0)
+        {
+            s.erase(i) ;  // Remove initial white spaces
+        }
+        i = s.find(" ");
+        std::string id = s.substr(0,i);
+        
+        // pb name is provided between parenthesis
+        size_t i0 = s.find("(",0);
+        size_t i1 = s.find(")",i0+1);
+
+        if ( i0 == std::string::npos || i1 == std::string::npos )
+        {
+            error_msg = "Error(2) in file " + pb_selection_file_name + ". Line #" + std::to_string(_n_algo+1) + ". Pb name must be provided between parentheses after pb id.";
+            return false;
+        }
+        std::string name = s.substr(i0+1,i1-i0-1);
+        
+        // TODO parse bbot
+        s.erase(0,i1);
+        size_t pos = 0;
+        // Parse for n and m given as bracket values
+        while ((pos = s.find("[")) != std::string::npos)
+        {
+            
+            // Strip empty spaces before a [
+            pos = s.find_first_not_of("[");
+            if (pos == std::string::npos)
+            {
+                break;
+            }
+            s.erase(0, pos+1);
+            
+            n = extract_from_bracket("n",s);
+            
+            if ( n==M_INF_INT)
+            {
+                error_msg = "Error(4) in file " + pb_selection_file_name + ". Cannot read problem bracket value n." ;
+                return false;
+            }
+            
+            m = extract_from_bracket("m",s);
+            if ( m==M_INF_INT)
+            {
+                error_msg = "Error(4) in file " + pb_selection_file_name + ". Cannot read problem bracket value m." ;
+                return false;
+            }
+            
+        }
+        // std::string options = s.substr(i1+1);
+        
+        _selected_pbs.push_back ( new Problem ( id , name , n, m /* todo bbot */) );
+
+        _n_pb++ ;
+
+    }
+    fin.close();
+    
+    if (_selected_pbs.empty())
+    {
+        fin.close();
+        error_msg = "Error(1) in file " + pb_selection_file_name + ". Cannot read a single pb config. First line in file must contain an algo config." ;
+        return false;
+    }
+    
+
+    return true;
+}
 
 //bool Runner::addToCombinedPareto(const std::vector<NOMAD_BASE::Point> & paretoPoints, const size_t & pbIndex )
 //{
@@ -2172,21 +2436,251 @@ void Runner::set_result (const std::string        & test_id ,
 //
 //}
 
+bool RUNNERPOST::Runner::read_output_selection_file( const std::string  & output_selection_file_name ,
+                                        std::string        & error_msg )
+{
+    std::ifstream in(output_selection_file_name , std::ios::in);
+    if ( in.fail() )
+    {
+        in.close();
+        std::cerr << "\n Error reading output_selection file " << output_selection_file_name << std::endl;
+        return false;
+    }
+    
+    while(!in.eof())
+    {
+        std::string line;
+        getline (in , line);
+        
+        if (line.empty())
+        {
+            continue;
+        }
+        
+        _selected_outputs.push_back(new Output(line, error_msg));
+        if (!error_msg.empty())
+        {
+            in.close();
+            return false;
+        }
+            
+        
+        // TODO
+//        if ( "output_data_profile_plain" == select_command )
+//        {
+//            if ( args.size() != 2 )
+//            {
+//                std::cerr << "\n Error in output_selection: number of arguments in output_data_profile_plain should be 2 (tau,dp_file_name)" << std::endl;
+//                return false;
+//            }
+//            double tau = stod(args[0]);
+//            if ( tau < 0 )
+//            {
+//                std::cerr << "\n Error in output_selection: output_data_profile_plain first argument (tau value) should be a positive real" << std::endl;
+//                return false;
+//            }
+//            if ( tau == 0 && ! runner.get_use_h_for_profiles() )
+//            {
+//                std::cerr << "\n Error in output_selection: data profile for tau=0 will be executed only if set_use_h_for_profiles has been set in problem_selection file" << std::endl;
+//                return false;
+//            }
+//            if ( runner.get_use_h_for_profiles() && runner.get_use_hypervolume_for_profiles() )
+//            {
+//                std::cerr << "\n Error in output_selection: data profile for hypervolume is only for pareto points for the objectives for feasible points. Cannot be use in combination with use_h_for_profiles" << std::endl;
+//                return false;
+//            }
+//
+//            if ( ! get_dp_file_name(tau).empty() )
+//            {
+//                std::cerr << "\n Error in output_selection: data profile for tau=" << tau << " was already processed." << std::endl << std::endl;
+//                return false;
+//            }
+//
+//            bool success = runner.output_data_profile_plain( tau ,args[1] );
+//            if ( ! success )
+//                return false;
+//
+//            // Register the dp_file_name in the file for duplicate testing and other outputs (matlab, pgfplots)
+//            map_tau_to_dp_file_name[tau] = args[1];
+//
+//        }
+//        else if ( "output_time_profile_plain" == select_command )
+//        {
+//            if ( args.size() != 1 )
+//            {
+//                std::cerr << "\n Error in output_selection: number of arguments in output_time_profile_plain should be 1 (time_profile_file_name)" << std::endl;
+//                return false;
+//            }
+//            bool success = runner.output_time_profile_plain(args[0]);
+//            if ( ! success )
+//            {
+//                return false;
+//            }
+//        }
+//        else if ( "output_time_data_profile_plain" == select_command )
+//        {
+//            if ( args.size() != 2 )
+//            {
+//                std::cerr << "\n Error in output_selection: number of arguments in output_time_data_profile_plain should be 2 (tau,tdp_file_name)" << std::endl;
+//                return false;
+//            }
+//            double tau;
+//            if ( ! tau.atof(args[0]) || !tau.isDefined() || tau < 0 )
+//            {
+//                std::cerr << "\n Error in output_selection: output_time_data_profile_plain first argument (tau value) should be a positive real" << std::endl;
+//                return false;
+//            }
+//            if ( tau == 0 && ! runner.get_use_h_for_profiles() )
+//            {
+//                std::cerr << "\n Error in output_selection: data profile for tau=0 will be executed only if set_use_h_for_profiles has been set in problem_selection file" << std::endl;
+//                return false;
+//            }
+//            if ( runner.get_use_h_for_profiles() && runner.get_use_hypervolume_for_profiles() )
+//            {
+//                std::cerr << "\n Error in output_selection: data profile for hypervolume is only for pareto points for the objectives for feasible points. Cannot be use in combination with use_h_for_profiles" << std::endl;
+//                return false;
+//            }
+//
+//            if ( ! get_tdp_file_name(tau).empty() )
+//            {
+//                std::cerr << "\n Error in output_selection: data profile for tau=" << tau << " was already processed." << std::endl << std::endl;
+//                return false;
+//            }
+//
+//            bool success = runner.output_time_data_profile_plain( tau ,args[1] );
+//            if ( ! success )
+//                return false;
+//
+//            // Register the dp_file_name in the file for duplicate testing and other outputs (matlab, pgfplots)
+//            map_tau_to_tdp_file_name[tau] = args[1];
+//
+//        }
+//
+//        else if ("set_use_evals_for_dataprofiles" == select_command )
+//        {
+//            runner.set_use_evals_for_dataprofiles() ;
+//        }
+//
+//        else if ( "output_perf_prof_plain" == select_command )
+//        {
+//            std::cerr << "\n Error: output_perf_prof_plain not yet implemented" << std::endl;
+//            return false;
+//
+//// TODO
+////            std::map<double,string>::iterator it;
+////            it = map_tau_to_dp_file_name.find(tau);
+////            if (it != map_tau_to_dp_file_name.end())
+////            {
+////                std::cerr << "Error in output_selection: data profile for tau=" << tau << " was already processed." << std::endl;
+////                return false;
+////            }
+//
+//            // runner.output_perf_profile_plain( tau ,args[1] );
+//
+//            // Register the pp_file_name in the file for duplicate testing and other outputs (matlab, pgfplots)
+//            // map_tau_to_pp_file_name[tau] = args[1];
+//        }
+//
+//        if ("output_data_profile_pgfplots" == select_command)
+//        {
+//            if ( args.size() < 1 || args.size() > 6 )
+//            {
+//                std::cerr << "\n Error in output_selection: number of arguments in output_data_profile_pgfplots should be greater than 1." <<std::endl;
+//                std::cerr << " Usage: output_data_profile_pgfplots (tau, pdflatex_cmd, tex_file_name,dp_plain_file_name, tex_file_name, dp_pdf_file_name); All parameters except tau are optional." << std::endl;
+//                return false;
+//            }
+//            bool success = output_profile_pgfplots(runner, "dataProfile", args);
+//            if (!success)
+//            {
+//                return false;
+//            }
+//        }
+//
+//        else if ("output_time_profile_pgfplots" == select_command)
+//        {
+//            if ( args.size() < 1 || args.size() > 6 )
+//            {
+//                std::cerr << "\n Error in output_selection: number of arguments in output_time_profile_pgfplots should be greater than 1." <<std::endl;
+//                std::cerr << " Usage: output_time_profile_pgfplots(pdflatex_cmd, tex_file_name, time_profile_plain_file_name, tex_file_name, time_profile_pdf_file_name); All parameters are optional." << std::endl;
+//                return false;
+//            }
+//            bool success = output_profile_pgfplots(runner, "timeProfile", args);
+//            if (!success)
+//            {
+//                return false;
+//            }
+//        }
+//        if ("output_time_data_profile_pgfplots" == select_command)
+//        {
+//            if ( args.size() < 1 || args.size() > 6 )
+//            {
+//                std::cerr << "\n Error in output_selection: number of arguments in output_time_data_profile_pgfplots should be greater than 1." <<std::endl;
+//                std::cerr << " Usage: output_time_data_profile_pgfplots (tau, pdflatex_cmd, tex_file_name,tdp_plain_file_name, tex_file_name, tdp_pdf_file_name); All parameters except tau are optional." << std::endl;
+//                return false;
+//            }
+//            bool success = output_profile_pgfplots(runner, "timeDataProfile", args);
+//            if (!success)
+//            {
+//                return false;
+//            }
+//        }
+//
+//        else if ( "display_algo_diff" == select_command )
+//        {
+//            runner.display_algo_diff();
+//        }
+//        else if( "output_problems_unsolved" == select_command)
+//        {
+//            if ( args.size() != 2 )
+//            {
+//                std::cerr << "\n Error in output_problems_solved: number of arguments should be 2." <<std::endl;
+//                std::cerr << " Usage: output_problems_solved (tau, nbSimplexEval); All parameters are mandatory. If nbSimplexEval == -1, the last eval point is used." << std::endl;
+//                return false;
+//            }
+//            double tau;
+//            if ( ! tau.atof(args[0]) || !tau.isDefined() || tau < 0 )
+//            {
+//                std::cerr << "\n Error in output_selection: output_problems_unsolved first argument (tau value) should be a positive real" << std::endl;
+//                return false;
+//            }
+//            double nbSimplexEval;
+//            if ( ! nbSimplexEval.atof(args[1]) || !nbSimplexEval.isDefined() )
+//            {
+//                std::cerr << "\n Error in output_selection: output_problems_unsolved second argument (nbSimplex value) should be a real" << std::endl;
+//                return false;
+//            }
+//            runner.output_problems_unsolved(tau,nbSimplexEval);
+//
+//        }
+    }
+    
+    
+    
+    in.close();
+    return true;
+}
+
+void RUNNERPOST::Runner::display_selected_outputs   ( void ) const
+{
+    
+}
+
+
 
 /*-------------------------------------*/
 /*  get the results (static, private)  */
 /*    (read id file 3/4)               */
 /*-------------------------------------*/
-bool Runner::get_results(const std::string    & test_id ,
+bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/ ,
                          const Problem        & pb      ,
-                         const AlgoParameters & ap      ,
+                         const Algorithm      & ac      ,
                          Result                 result[])
 {
 
     // Get the results from stats file
     size_t i_seed = 0;
     
-    for ( auto seed : _algoRunSeeds )
+    for ( auto seed : ac.get_run_seeds() )
     {
         std::ifstream fin;
         
@@ -2250,7 +2744,7 @@ bool Runner::get_results(const std::string    & test_id ,
 //        }
 //
 //
-        std::string stats_file_name = Runner::get_stats_file_name(test_id, pb, seed, true /*flag_seed_sensitive*/, true /* use full path */);
+        std::string stats_file_name = Runner::get_stats_file_name(ac, pb, seed);
 
         // check the results (stats file):
         fin.open ( stats_file_name.c_str() );
@@ -2349,7 +2843,7 @@ bool Runner::get_results(const std::string    & test_id ,
 /*        access to the date (private)     */
 /*        (CPU name is also added)         */
 /*-----------------------------------------*/
-std::string Runner::get_date ( void ) const
+std::string RUNNERPOST::Runner::get_date ( void ) const
 {
 
     std::ostringstream tmp_file;
@@ -2382,7 +2876,7 @@ std::string Runner::get_date ( void ) const
 }
 
 
-void Runner::add_seed_to_file_name ( int                 seed,
+void RUNNERPOST::Runner::add_seed_to_file_name ( int                 seed,
                                     std::string       & file_name   )
 {
     int n_pn = static_cast<int>(file_name.size());
@@ -2408,3 +2902,5 @@ void Runner::add_seed_to_file_name ( int                 seed,
         fic.substr ( n_pn-n_seed , n_pn-1 ) != s_seed )
         file_name = fic + "." + s_seed + ext;
 }
+
+

@@ -12,7 +12,7 @@
 /*----------------------------------*/
 /*               reset              */
 /*----------------------------------*/
-void Result::reset ( bool use_hypervolume_for_obj, bool use_h_for_obj )
+void RUNNERPOST::Result::reset ( bool use_hypervolume_for_obj, bool use_h_for_obj )
 {
     _bbe.clear();
     _obj.clear();
@@ -21,7 +21,7 @@ void Result::reset ( bool use_hypervolume_for_obj, bool use_h_for_obj )
     
     if (_use_h_for_obj && _use_hypervolume_for_obj)
     {
-        std::cout << "Result::reset. Cannot use both h AND hypervolume for obj" <<std::endl;
+        std::cout << "RUNNERPOST::Result::reset. Cannot use both h AND hypervolume for obj" <<std::endl;
     }
     
     _use_h_for_obj = use_h_for_obj;
@@ -34,11 +34,11 @@ void Result::reset ( bool use_hypervolume_for_obj, bool use_h_for_obj )
 /*-----------------------------------*/
 /*      clear solution (private)     */
 /*-----------------------------------*/
-void Result::clear_solution ( void )
+void RUNNERPOST::Result::clear_solution ( void )
 {
     _sol_bbe    = INF_SIZE_T;
     _sol_fx     = INF;
-    _sol_xe.clear();
+    // _sol_xe.clear();
     _sol_fxe    = INF;
     _has_sol = false;
     _is_infeas = false;
@@ -47,7 +47,7 @@ void Result::clear_solution ( void )
 /*----------------------------------*/
 /*          read results            */
 /*----------------------------------*/
-bool Result::read ( std::ifstream & in , size_t max_bbe , int m , int n, const double & feasibilityThreshold )
+bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , int m , int n, const double & feasibilityThreshold )
 {
     if (_use_h_for_obj && _use_hypervolume_for_obj)
     {
@@ -58,17 +58,32 @@ bool Result::read ( std::ifstream & in , size_t max_bbe , int m , int n, const d
     
     std::string   s,s2, line;
     size_t        bbe =0, bbe_plus =0;
-    double time = INF , obj = INF, obj_prev = INF ;
+    double time = 0 , obj = INF, obj_prev = INF ;
     bool valid=true;
     
+    // TODO: manage bbo and output type.
+    // Complex to deduce all cases.
+    // Only one default output type: CNT OBJ (not for multi-obj). Each line is an improving feasible point. This gives the smallest stats files.
+    // TODO: User provides output type with algo and pass it to this read (some compliance tests with m can be done).
     ArrayOfDouble bbo(m);
+    if (m==1)
+    {
+        _outputType.push_back(OBJ);
+    }
+    else
+    {
+        std::cout << "TODO: manage output type" << std::endl;
+        return false;
+    }
     
     bool first_line = true;
     bool first_line_is_infeasible = false;
     
-    // Determine number of objectives
-    _nb_obj = 1; // NOMAD_BASE::getNbObj(bbot);
-//    // Bbot for MultiObjective EvalPoint (stored in _mobj)
+    // Number of objectives
+    _nb_obj = std::count(_outputType.begin(),_outputType.end(),OutputType::OBJ);
+    
+    // NOMAD_BASE::getNbObj(bbot);
+    //    // Bbot for MultiObjective EvalPoint (stored in _mobj)
 //    NOMAD_BASE::BBOutputTypeList bbotMO(_nb_obj, NOMAD_BASE::BBOutputType::OBJ);
 
     if (_use_hypervolume_for_obj && _nb_obj < 2)
@@ -131,12 +146,27 @@ bool Result::read ( std::ifstream & in , size_t max_bbe , int m , int n, const d
             {
                 // number of fields.
                 size_t pos = 0;
-                nb_fields = 1;
+                nb_fields = 0;
                 while ((pos = line.find(" ")) != std::string::npos)
                 {
+                    
+                    // Strip empty spaces before a field
+                    pos = line.find_first_not_of(" ");
+                    if (pos == std::string::npos)
+                    {
+                        break;
+                    }
+                    line.erase(0, pos);
+                     
+                    // We have a field
                     nb_fields ++;
-                    // s = line.substr(0, pos);
-                    line.erase(0, pos + 1);
+                    
+                    // Strip a single field value
+                    pos = line.find_first_of(" ");
+                    if (pos != std::string::npos)
+                    {
+                        line.erase(0, pos);
+                    }
                 }
                 // We have a history file: x1 x2 ... xn bbo1 bbo2 ... bbbom
                 if (nb_fields == n+m)
@@ -350,7 +380,7 @@ bool Result::read ( std::ifstream & in , size_t max_bbe , int m , int n, const d
 /*-----------------------------------*/
 /*       get the last bbe entry      */
 /*-----------------------------------*/
-size_t Result::get_last_bbe ( void ) const
+size_t RUNNERPOST::Result::get_last_bbe ( void ) const
 {
     if ( _bbe.empty() )
         return 0 ;
@@ -360,7 +390,7 @@ size_t Result::get_last_bbe ( void ) const
 
 
 
-//bool Result::update_pareto_single ( const NOMAD_BASE::EvalPoint & evalPoint ,
+//bool RUNNERPOST::Result::update_pareto_single ( const NOMAD_BASE::EvalPoint & evalPoint ,
 //                                   std::vector<NOMAD_BASE::Point> & combinedPareto) const
 //{
 //    bool updated_pareto = false;
@@ -395,7 +425,7 @@ size_t Result::get_last_bbe ( void ) const
 //}
 
 
-//bool Result::update_pareto ( const size_t bbe ,
+//bool RUNNERPOST::Result::update_pareto ( const size_t bbe ,
 //                            std::vector<NOMAD_BASE::Point> & pareto) const
 //{
 //    bool updated_pareto = false;
@@ -461,7 +491,7 @@ size_t Result::get_last_bbe ( void ) const
 //}
 
 //// Compute scaled hypervolume of pareto front with respect to ref ideal and nadir points. See LS paper.
-//NOMAD_BASE::Double Result::compute_hv (const std::vector<NOMAD_BASE::Point> & pareto,
+//NOMAD_BASE::Double RUNNERPOST::Result::compute_hv (const std::vector<NOMAD_BASE::Point> & pareto,
 //                                       const NOMAD_BASE::Point              & refParetoIdealPt,
 //                                       const NOMAD_BASE::Point              & refParetoNadirPt,
 //                                       size_t & nb_dominating_ref_obj)
@@ -556,7 +586,7 @@ size_t Result::get_last_bbe ( void ) const
 
 
 //// Replaces the objectives fs by single f values with monotonic decrease. The value is computed as the hypervolume between
-//bool Result::compute_hypervolume_for_obj ( const size_t bbeMax         ,
+//bool RUNNERPOST::Result::compute_hypervolume_for_obj ( const size_t bbeMax         ,
 //                     const std::vector<NOMAD_BASE::Point> & refCombinedPareto,
 //                     const NOMAD_BASE::Point              & refParetoIdealPt,
 //                     const NOMAD_BASE::Point              & refParetoNadirPt)
@@ -604,7 +634,7 @@ size_t Result::get_last_bbe ( void ) const
 ///*-----------------------------------*/
 ///*          compute solution         */
 ///*-----------------------------------*/
-//bool Result::compute_hypervolume_solution ( int n    ,
+//bool RUNNERPOST::Result::compute_hypervolume_solution ( int n    ,
 //                                        size_t  bbe,
 //                                        const std::vector<NOMAD_BASE::Point> & combinedPareto,
 //                                        const NOMAD_BASE::Point              & refParetoIdealPt,
@@ -683,7 +713,7 @@ size_t Result::get_last_bbe ( void ) const
 /*-----------------------------------*/
 /*          compute solution         */
 /*-----------------------------------*/
-bool Result::compute_solution ( int n    ,
+bool RUNNERPOST::Result::compute_solution ( int n    ,
                                size_t  bbe)
 {
     
@@ -785,7 +815,7 @@ bool Result::compute_solution ( int n    ,
 /*------------------------------------------------------*/
 /*  get the solution for a given number of evaluations  */
 /*------------------------------------------------------*/
-double Result::get_sol ( const size_t bbe) const
+double RUNNERPOST::Result::get_sol ( const size_t bbe) const
 {
     double cur = INF;
     int n = static_cast<int> ( _bbe.size() );
@@ -804,7 +834,7 @@ double Result::get_sol ( const size_t bbe) const
 /*  get the time for a given number of evaluations (bbe)  */
 /*  if bbe = INF, get the maximum (i.e., total) time.      */
 /*--------------------------------------------------------*/
-double Result::get_time(const size_t bbe) const
+double RUNNERPOST::Result::get_time(const size_t bbe) const
 {
     double cur = 0;
     int n = static_cast<int>(_bbe.size());
@@ -824,7 +854,7 @@ double Result::get_time(const size_t bbe) const
 /*-----------------------------------*/
 /* get the solution for a given time */
 /*-----------------------------------*/
-double Result::get_sol_by_time(const size_t time) const
+double RUNNERPOST::Result::get_sol_by_time(const size_t time) const
 {
     double cur = INF;
     int n = static_cast<int> ( _bbe.size() );
@@ -841,7 +871,7 @@ double Result::get_sol_by_time(const size_t time) const
 /*----------------------------------*/
 /*               display            */
 /*----------------------------------*/
-void Result::display ( ) const
+void RUNNERPOST::Result::display ( ) const
 {
     int n = static_cast<int> ( _bbe.size() );
     for ( int k = 0 ; k < n ; ++k )

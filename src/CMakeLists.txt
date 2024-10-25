@@ -5,18 +5,22 @@
 #
 set(HEADERS
 AlgoParameters.hpp
+Output.hpp
 Problem.hpp
 Result.hpp
 Runner.hpp
 runner_defines.hpp
+Utils.hpp
 )
 
 set(SOURCES
 AlgoParameters.cpp
+Output.cpp
 main.cpp
 Problem.cpp
 Result.cpp
 Runner.cpp
+Utils.cpp
 )
 
 

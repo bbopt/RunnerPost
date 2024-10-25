@@ -3,6 +3,8 @@
 
 #include "runner_defines.hpp"
 
+#include "runnerpost_nsbegin.hpp"
+
 class Result
 {
     
@@ -11,12 +13,13 @@ private:
     enum OutputType
     {
         CNT,        ///< Counter. Only one.
+        TIME,       ///< Elapsed time. Only one
         X,          ///< Variable values (size depends on n). Only one.
         OBJ,        ///< Objective value (can be more than one)
-        CST         ///< Contraint value (can be more than one)
+        CST         ///< Contraint values. Only one. Size is deduced.
     } ;
     
-    std::vector<OutputType>          _outputType;
+    std::vector<OutputType>         _outputType;
     
     std::vector<size_t>             _bbe;
     size_t                          _totalBbe;
@@ -43,7 +46,7 @@ private:
     double                     _sol_fx;
     double                     _sol_fxe;
 //    size_t                     _nb_pareto_points;
-    ArrayOfDouble              _sol_xe;
+//    ArrayOfDouble              _sol_xe;
     
     // clear solution:
     void clear_solution ( void );
@@ -118,7 +121,7 @@ public:
     const double & get_sol_fxe    ( void    ) const { return _sol_fxe;    }
 //    size_t                     get_nb_pareto_points   ( void    ) const { return _nb_pareto_points; }
 //    size_t                     get_nb_dominating_ref_obj   ( void    ) const { return _nb_dominating_ref_obj.back(); }
-    const ArrayOfDouble  & get_sol_xe     ( void    ) const { return _sol_xe;     }
+//    const ArrayOfDouble  & get_sol_xe     ( void    ) const { return _sol_xe;     }
     double         get_sol        ( size_t bbe ) const;
     double         get_time       (const size_t bbe = INF_SIZE_T) const;
     double         get_sol_by_time(size_t time) const;
@@ -133,5 +136,7 @@ public:
         return _bbe == r._bbe && _obj == r._obj;
     }
 };
+
+#include "runnerpost_nsend.hpp"
 
 #endif

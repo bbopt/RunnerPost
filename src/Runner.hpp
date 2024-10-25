@@ -1,11 +1,14 @@
 #ifndef __RUNNER__
 #define __RUNNER__
 
-#include "Result.hpp"
+#include "Algorithm.hpp"
+#include "Output.hpp"
 #include "Problem.hpp"
-#include "AlgoParameters.hpp"
+#include "Result.hpp"
 
 #include <list>
+
+#include "runnerpost_nsbegin.hpp"
 
 /*--------------------------------------*/
 /*           the Runner class           */
@@ -15,13 +18,13 @@ class Runner
     
 private:
 
-    std::vector<Problem *>         _selected_pbs;        // list of selected problems
-    std::vector<AlgoParameters *>  _selected_algos;       // list of algo from test configs
-    std::vector<std::string>       _selected_algo_legends; // list of legends for the selected
+    std::vector<Problem *>         _selected_pbs;        // The selected problems
+    std::vector<Algorithm *>       _selected_algos;       // The selected algos
+    std::vector<Output *>          _selected_outputs;        // The selected outputs
     
     size_t                         _n_pb;                // number of selected pbs
     size_t                         _n_algo;              // number of test configs
-    size_t                         _n_seed_run;
+//    size_t                         _n_seed_run;
     Result                     *** _results;      // results
     std::string                **  _test_id;      // the test names
     
@@ -47,7 +50,7 @@ private:
     void add_selected_problem ( Problem & pb );
 
     // add a test config to the list of test configs:
-    void add_to_selected_algos ( const AlgoParameters & ap );
+    void add_to_selected_algos ( const Algorithm & ap );
 
     // find a problem in the list of all problems:
     Problem * find_problem ( const std::string & problem_id ) const;
@@ -56,13 +59,13 @@ private:
     void display_pbs ( const std::vector<Problem *> & pbs ) const;
     
     // display instance name:
-    void display_instance_name (size_t i_pb, size_t i_algo, size_t seed = INF_SIZE_T) const;
+    void display_instance_name (const Problem & pb, const  Algorithm & ac, size_t seed = INF_SIZE_T) const;
     
     // set a result:
-    void set_result ( const std::string             & test_id ,
+    void set_result ( const std::string             & test_id  /*not used*/,
                      Result                           result[],
-                     Problem                        & pb      ,
-                     const AlgoParameters           & ap        ) ;
+                     const Problem                        & pb      ,
+                     const Algorithm               & ac        ) ;
     
 //    // set a result:
 //    void set_hypervolume_result ( ) ;
@@ -77,9 +80,9 @@ private:
                                         const double & fxe   );
     
     // get the results:
-    bool get_results ( const std::string      & test_id ,
+    bool get_results ( const std::string      & test_id  /*not used*/,
                       const Problem           & pb      ,
-                      const AlgoParameters    & ap      ,
+                      const Algorithm        & ac      ,
                       Result                    result[]);
 
 //    // Write partial pareto.
@@ -102,10 +105,44 @@ private:
 //                                           const std::string      & directory      );
     
     // functions to access directory and file names:
-    static std::string get_test_dir ( const std::string & test_id ,
-                                     const Problem     & pb      )
+    static std::string get_test_dir ( const Algorithm    & ac,
+                                      const Problem       & pb      )
     {
-        return pb.get_tests_dir() + test_id +  "/";
+        std::string s = STATS_FILE_RUN_DIR_BASE;
+        if (!s.empty())
+        {
+            s += DIR_SEP ;
+        }
+        if (DIR_ORDER_IS_ALGO_PB)
+        {
+            s += ac.get_id() + DIR_SEP + pb.get_id() + DIR_SEP ;
+        }
+        else
+        {
+            s += pb.get_id() + DIR_SEP + ac.get_id() + DIR_SEP;
+        }
+        return s ;
+    }
+    
+    static int extract_from_bracket(const std::string & varNameToExtract, std::string &s)
+    {
+        int var=M_INF_INT;
+        size_t pos;
+        if ( (pos= s.find(varNameToExtract)) != std::string::npos)
+        {
+            size_t pos1 = s.find("=",pos);
+            size_t pos2 = s.find("]",pos1);
+            if (pos2 == std::string::npos || pos1 == std::string::npos)
+            {
+                return var;
+            }
+            auto tmp = s.substr(pos1+1,pos2-pos1-1);
+            var = std::stoi(tmp);
+            
+            // Remove the bracket info from string
+            s.erase(pos-1,pos2);
+        }
+        return var;
     }
     
 //    // functions to access directory and file names:
@@ -124,18 +161,13 @@ private:
 //
 //    }
     
-    static std::string get_stats_file_name ( const std::string & test_id ,
+    static std::string get_stats_file_name (const Algorithm    & ac      ,
                                             const Problem      & pb      ,
-                                            int                  seed    ,
-                                            bool                 seed_sensitive,
-                                            bool                 full_path )
+                                            int                  seed    )
     {
-        std::ostringstream os;
-        os << ( (full_path) ?  Runner::get_test_dir ( test_id , pb ):"") << STATS_FILE ;
+        std::string statsFileName = get_test_dir(ac,pb) + STATS_FILE;
         
-        std::string statsFileName = os.str();
-        
-        if ( seed_sensitive )
+        if ( ADD_SEED_TO_STATS_FILE )
             add_seed_to_file_name ( seed , statsFileName );
         
         return statsFileName;
@@ -165,8 +197,11 @@ public:
     // destructor:
     virtual ~Runner ( void );
     
-    // run:
-    bool run ( std::string & error_msg );
+    // Post processing of optimization runs on pbs:
+    bool run_post_processing ( std::string & error_msg );
+    
+    // Generate outputs
+    bool generate_outputs( std::string & error_msg );
     
     // display all problems:
     void display_all_problems ( void ) const;
@@ -180,7 +215,7 @@ public:
     // Compute outputs for graphs 
     // tau >= 0
     bool output_perf_profile_plain(const double& tau, const std::string& pp_file_name) const;
-    bool output_data_profile_plain(const double& tau, const std::string& dp_file_name) const;
+    bool output_data_profile_plain(const double& tau, const std::string& dp_file_name, const Output::X_Select & xSel) const;
      // Time in function of bbe (for parallel testing)
     bool output_time_profile_plain(const std::string& time_profile_file_name) const;
     // Data profile in function of time
@@ -189,7 +224,7 @@ public:
     void output_problems_unsolved(const double& tau, const double& nbSimplexEval) const;
     
     // Access to selected algo legends (used for data/perf profiles plot legends)
-    const std::vector<std::string> & get_selected_algo_legends ( void ) const { return _selected_algo_legends ;}
+    std::vector<std::string> get_selected_algo_options ( void ) const;
     
     // Select the seeds for Nomad solvers
     // ----------------------------------
@@ -237,22 +272,25 @@ public:
 //    bool exclude_problems_with_infeasible_x0 ();
 //    bool exclude_problems_by_size    ( int n_min , int n_max );
 //
+    
+    bool read_problem_selection_file    ( const std::string & pb_selection_file_name ,
+                                         std::string       & error_msg          );
     void clear_selected_problems     ( void );
-    int  display_selected_problems   ( void ) const;
-//
-//    void clean_all_tests         ( void ) const;
-//
-//    void clean_selected_tests    ( void ) ;
-    
-    
-    // test param files :
-    // -----------------
-//    bool read_algo_params_file    ( const std::string & algo_param_file_name ,
-//                                   std::string       & error_msg          );
-//
+    void  display_selected_problems   ( void ) const;
+
+    bool read_algo_selection_file    ( const std::string & algo_selection_file_name ,
+                                   std::string       & error_msg          );
     void clear_selected_algos     ( void );
     void display_selected_algos   ( void ) const;
     
+    bool read_output_selection_file( const std::string  & output_selection_file_name ,
+                                    std::string        & error_msg );
+    
+    void display_selected_outputs ( void ) const;
+
+    
 };
+
+#include "runnerpost_nsend.hpp"
 
 #endif

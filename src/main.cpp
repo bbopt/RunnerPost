@@ -14,13 +14,6 @@ std::map<double,std::string> map_tau_to_tdp_file_name;
 // Maximum number of algorithms that can be plotted
 // const size_t maxAlgos = colors.size();
 
-/// \brief Toupper utility
-void toUpperCase(std::string& str)
-{
-    for_each(str.begin(), str.end(), [](char& in){ in = std::toupper(in); });
-}
-
-
 std::string get_dp_file_name( double tau )
 {
     std::map<double,std::string>::iterator it;
@@ -69,72 +62,72 @@ std::string get_pp_file_name( double tau )
 }
 
 
-void trim(std::string &word)
-{
-    // Remove starting and ending spaces
-    size_t word_size = word.size();
-    while (word_size > 0 && (' ' == word[0] || '\t' == word[0]))
-    {
-        word = word.substr(1, word_size-1);
-        word_size = word.size();
-    }
+//void trim(std::string &word)
+//{
+//    // Remove starting and ending spaces
+//    size_t word_size = word.size();
+//    while (word_size > 0 && (' ' == word[0] || '\t' == word[0]))
+//    {
+//        word = word.substr(1, word_size-1);
+//        word_size = word.size();
+//    }
+//
+//    while (word_size > 0 && (' ' == word[word_size-1] || '\t' == word[word_size-1]))
+//    {
+//        word = word.substr(0, word_size-1);
+//        word_size = word.size();
+//    }
+//
+//    // remove "runner." before the command
+//    if (word_size > 0 && 0 == word.find("runner."))
+//    {
+//        word = word.substr(7, word_size-7);
+//        word_size = word.size();
+//    }
+//
+//    // Remove starting and ending " (once)
+//    if (word_size >= 2 && '"' == word[0] && '"' == word[word_size-1])
+//    {
+//        word = word.substr(1,word_size-2);
+//        word_size = word.size();
+//    }
+//}
 
-    while (word_size > 0 && (' ' == word[word_size-1] || '\t' == word[word_size-1]))
-    {
-        word = word.substr(0, word_size-1);
-        word_size = word.size();
-    }
+//void remove_comments(std::string &line)
+//{
+//    // Ignore comments, starting with //
+//    size_t i = line.find("//");
+//    if (i != std::string::npos)
+//    {
+//        line = line.substr(0, i);
+//    }
+//}
 
-    // remove "runner." before the command
-    if (word_size > 0 && 0 == word.find("runner."))
-    {
-        word = word.substr(7, word_size-7);
-        word_size = word.size();
-    }
-
-    // Remove starting and ending " (once)
-    if (word_size >= 2 && '"' == word[0] && '"' == word[word_size-1])
-    {
-        word = word.substr(1,word_size-2);
-        word_size = word.size();
-    }
-}
-
-void remove_comments(std::string &line)
-{
-    // Ignore comments, starting with // 
-    size_t i = line.find("//");
-    if (i != std::string::npos)
-    {
-        line = line.substr(0, i);
-    }
-}
-
-void find_select_command(const std::string line, std::string &select_command, std::vector<std::string> &args)
-{
-    // First word is the select_command
-    size_t args_index = line.find("(");
-    select_command = line.substr(0, args_index);
-    trim(select_command);
-
-    size_t arg_start_index = args_index;
-    size_t arg_end_index = line.find(",", arg_start_index);
-    while (std::string::npos != arg_end_index)
-    {
-        std::string arg = line.substr(arg_start_index+1, arg_end_index-arg_start_index-1);
-        trim(arg);
-        args.push_back(arg);
-        arg_start_index = arg_end_index;
-        arg_end_index = line.find(",", arg_start_index+1);
-    }
-    // last arg
-    arg_end_index = line.find(")", arg_start_index);
-    std::string arg = line.substr(arg_start_index+1, arg_end_index-arg_start_index-1);
-    trim(arg);
-    if ( arg.length() >0 )
-        args.push_back(arg);
-
-}
+//void find_select_command(const std::string line, std::string &select_command, std::vector<std::string> &args)
+//{
+//    // First word is the select_command
+//    size_t args_index = line.find("(");
+//    select_command = line.substr(0, args_index);
+//    trim(select_command);
+//
+//    size_t arg_start_index = args_index;
+//    size_t arg_end_index = line.find(",", arg_start_index);
+//    while (std::string::npos != arg_end_index)
+//    {
+//        std::string arg = line.substr(arg_start_index+1, arg_end_index-arg_start_index-1);
+//        trim(arg);
+//        args.push_back(arg);
+//        arg_start_index = arg_end_index;
+//        arg_end_index = line.find(",", arg_start_index+1);
+//    }
+//    // last arg
+//    arg_end_index = line.find(")", arg_start_index);
+//    std::string arg = line.substr(arg_start_index+1, arg_end_index-arg_start_index-1);
+//    trim(arg);
+//    if ( arg.length() >0 )
+//        args.push_back(arg);
+//
+//}
 
 //bool read_maintenance_selection_file(Runner &runner)
 //{
@@ -532,224 +525,7 @@ void find_select_command(const std::string line, std::string &select_command, st
 //    return true;
 //}
 
-bool read_output_selection_file( Runner &runner )
-{
-    std::ifstream in("output_selection");
-    if ( in.fail() )
-    {
-        in.close();
-        std::cerr << "\n Error reading output_selection file" << std::endl;
-        return false;
-    }
-    
-    while(!in.eof())
-    {
-        std::string line;
-        getline (in , line);
-        
-        remove_comments(line);
-        if (line.empty())
-        {
-            continue;
-        }
-        
-        std::string select_command;
-        std::vector<std::string> args;
-        find_select_command(line, select_command, args);
-    
-        
-        // TODO
-//        if ( "output_data_profile_plain" == select_command )
-//        {
-//            if ( args.size() != 2 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_data_profile_plain should be 2 (tau,dp_file_name)" << std::endl;
-//                return false;
-//            }
-//            double tau = stod(args[0]);
-//            if ( tau < 0 )
-//            {
-//                std::cerr << "\n Error in output_selection: output_data_profile_plain first argument (tau value) should be a positive real" << std::endl;
-//                return false;
-//            }
-//            if ( tau == 0 && ! runner.get_use_h_for_profiles() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for tau=0 will be executed only if set_use_h_for_profiles has been set in problem_selection file" << std::endl;
-//                return false;
-//            }
-//            if ( runner.get_use_h_for_profiles() && runner.get_use_hypervolume_for_profiles() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for hypervolume is only for pareto points for the objectives for feasible points. Cannot be use in combination with use_h_for_profiles" << std::endl;
-//                return false;
-//            }
-//
-//            if ( ! get_dp_file_name(tau).empty() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for tau=" << tau << " was already processed." << std::endl << std::endl;
-//                return false;
-//            }
-//
-//            bool success = runner.output_data_profile_plain( tau ,args[1] );
-//            if ( ! success )
-//                return false;
-//
-//            // Register the dp_file_name in the file for duplicate testing and other outputs (matlab, pgfplots)
-//            map_tau_to_dp_file_name[tau] = args[1];
-//
-//        }
-//        else if ( "output_time_profile_plain" == select_command )
-//        {
-//            if ( args.size() != 1 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_time_profile_plain should be 1 (time_profile_file_name)" << std::endl;
-//                return false;
-//            }
-//            bool success = runner.output_time_profile_plain(args[0]);
-//            if ( ! success )
-//            {
-//                return false;
-//            }
-//        }
-//        else if ( "output_time_data_profile_plain" == select_command )
-//        {
-//            if ( args.size() != 2 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_time_data_profile_plain should be 2 (tau,tdp_file_name)" << std::endl;
-//                return false;
-//            }
-//            double tau;
-//            if ( ! tau.atof(args[0]) || !tau.isDefined() || tau < 0 )
-//            {
-//                std::cerr << "\n Error in output_selection: output_time_data_profile_plain first argument (tau value) should be a positive real" << std::endl;
-//                return false;
-//            }
-//            if ( tau == 0 && ! runner.get_use_h_for_profiles() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for tau=0 will be executed only if set_use_h_for_profiles has been set in problem_selection file" << std::endl;
-//                return false;
-//            }
-//            if ( runner.get_use_h_for_profiles() && runner.get_use_hypervolume_for_profiles() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for hypervolume is only for pareto points for the objectives for feasible points. Cannot be use in combination with use_h_for_profiles" << std::endl;
-//                return false;
-//            }
-//
-//            if ( ! get_tdp_file_name(tau).empty() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for tau=" << tau << " was already processed." << std::endl << std::endl;
-//                return false;
-//            }
-//
-//            bool success = runner.output_time_data_profile_plain( tau ,args[1] );
-//            if ( ! success )
-//                return false;
-//
-//            // Register the dp_file_name in the file for duplicate testing and other outputs (matlab, pgfplots)
-//            map_tau_to_tdp_file_name[tau] = args[1];
-//
-//        }
-//
-//        else if ("set_use_evals_for_dataprofiles" == select_command )
-//        {
-//            runner.set_use_evals_for_dataprofiles() ;
-//        }
-//
-//        else if ( "output_perf_prof_plain" == select_command )
-//        {
-//            std::cerr << "\n Error: output_perf_prof_plain not yet implemented" << std::endl;
-//            return false;
-//
-//// TODO
-////            std::map<double,string>::iterator it;
-////            it = map_tau_to_dp_file_name.find(tau);
-////            if (it != map_tau_to_dp_file_name.end())
-////            {
-////                std::cerr << "Error in output_selection: data profile for tau=" << tau << " was already processed." << std::endl;
-////                return false;
-////            }
-//
-//            // runner.output_perf_profile_plain( tau ,args[1] );
-//
-//            // Register the pp_file_name in the file for duplicate testing and other outputs (matlab, pgfplots)
-//            // map_tau_to_pp_file_name[tau] = args[1];
-//        }
-//
-//        if ("output_data_profile_pgfplots" == select_command)
-//        {
-//            if ( args.size() < 1 || args.size() > 6 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_data_profile_pgfplots should be greater than 1." <<std::endl;
-//                std::cerr << " Usage: output_data_profile_pgfplots (tau, pdflatex_cmd, tex_file_name,dp_plain_file_name, tex_file_name, dp_pdf_file_name); All parameters except tau are optional." << std::endl;
-//                return false;
-//            }
-//            bool success = output_profile_pgfplots(runner, "dataProfile", args);
-//            if (!success)
-//            {
-//                return false;
-//            }
-//        }
-//
-//        else if ("output_time_profile_pgfplots" == select_command)
-//        {
-//            if ( args.size() < 1 || args.size() > 6 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_time_profile_pgfplots should be greater than 1." <<std::endl;
-//                std::cerr << " Usage: output_time_profile_pgfplots(pdflatex_cmd, tex_file_name, time_profile_plain_file_name, tex_file_name, time_profile_pdf_file_name); All parameters are optional." << std::endl;
-//                return false;
-//            }
-//            bool success = output_profile_pgfplots(runner, "timeProfile", args);
-//            if (!success)
-//            {
-//                return false;
-//            }
-//        }
-//        if ("output_time_data_profile_pgfplots" == select_command)
-//        {
-//            if ( args.size() < 1 || args.size() > 6 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_time_data_profile_pgfplots should be greater than 1." <<std::endl;
-//                std::cerr << " Usage: output_time_data_profile_pgfplots (tau, pdflatex_cmd, tex_file_name,tdp_plain_file_name, tex_file_name, tdp_pdf_file_name); All parameters except tau are optional." << std::endl;
-//                return false;
-//            }
-//            bool success = output_profile_pgfplots(runner, "timeDataProfile", args);
-//            if (!success)
-//            {
-//                return false;
-//            }
-//        }
-//
-//        else if ( "display_algo_diff" == select_command )
-//        {
-//            runner.display_algo_diff();
-//        }
-//        else if( "output_problems_unsolved" == select_command)
-//        {
-//            if ( args.size() != 2 )
-//            {
-//                std::cerr << "\n Error in output_problems_solved: number of arguments should be 2." <<std::endl;
-//                std::cerr << " Usage: output_problems_solved (tau, nbSimplexEval); All parameters are mandatory. If nbSimplexEval == -1, the last eval point is used." << std::endl;
-//                return false;
-//            }
-//            double tau;
-//            if ( ! tau.atof(args[0]) || !tau.isDefined() || tau < 0 )
-//            {
-//                std::cerr << "\n Error in output_selection: output_problems_unsolved first argument (tau value) should be a positive real" << std::endl;
-//                return false;
-//            }
-//            double nbSimplexEval;
-//            if ( ! nbSimplexEval.atof(args[1]) || !nbSimplexEval.isDefined() )
-//            {
-//                std::cerr << "\n Error in output_selection: output_problems_unsolved second argument (nbSimplex value) should be a real" << std::endl;
-//                return false;
-//            }
-//            runner.output_problems_unsolved(tau,nbSimplexEval);
-//
-//        }
-    }
-    
-    in.close();
-    return true;
-}
+
 
 //bool read_problem_selection_file(Runner &runner)
 //{
@@ -936,50 +712,81 @@ int main ( int argc , char ** argv )
     // Runner object:
     try {
         
-        Runner runner;
+        RUNNERPOST::Runner runner;
         
+        
+        // TODO
+        // Select special options
         
         // Display special options ( Use h for data/perf profiles instead of f (default), use use the average fx value of all the first feasible points instead of the max (default) )
-        runner.display_special_options();
+        // runner.display_special_options();
         
         // runner.display_selected_problems();
         
-        // select algo params config file :
-        if ( argc == 1 )
-            std::cout << "Error: at least one algo parameters config file must be provided" << std::endl;
-//        else
-//        {
-//            for ( int i = 1 ; i < argc ; ++i )
-//            {
-//                std::string error_msg;
-//                if ( !runner.read_algo_params_file ( argv[i] , error_msg ) )
-//                {
-//                    return -1;
-//                }
-//            }
-//        }
+        // Algo config file :
+        if ( argc < 4 )
+        {
+            std::cout << "Error: at least one algo selection file, one problem selection file and one output selection file must be provided" << std::endl;
+            return 1;
+        }
+        
+        std::string error_msg;
+        if ( !runner.read_algo_selection_file ( argv[1] , error_msg ) )
+        {
+            std::cerr << "Cannot read algo config file \"" << argv[1] << "\"" << std::endl;
+            std::cerr << "Stop prematurely with error \"" << error_msg << "\"" << std::endl;
+            return 1;
+        }
         
         // display test configs:
-        // runner.display_selected_algos() ;
+        runner.display_selected_algos() ;
+        
+        if ( !runner.read_problem_selection_file ( argv[2] , error_msg ) )
+        {
+            std::cerr << "Cannot read pbs config file \"" << argv[2] << "\"" << std::endl;
+            std::cerr << "Stop prematurely with error \"" << error_msg << "\"" << std::endl;
+            return 1;
+        }
+        
+        // display test configs:
+        runner.display_selected_problems() ;
+        
         
         // run:
-        std::string error_msg;
-        if ( !runner.run ( error_msg ) )
+        if ( !runner.run_post_processing( error_msg ) )
         {
-            std::cout << "runner.run() returned the error \"" << error_msg << "\"" << std::endl;
+            std::cout << "runner.post_processing() returned the error \"" << error_msg << "\"" << std::endl;
             std::cout << "runner is stopped prematurely" << std::endl;
+            return 1;
         }
-        // display stats:
-        else
+        
+        
+        // Output
+        
+        // Read output_selection file
+        if ( !runner.read_output_selection_file ( argv[3] , error_msg ) )
         {
-            // Read and perform output tasks by functions from output_selection
-            read_output_selection_file( runner );
+            std::cerr << "Cannot read output config file \"" << argv[3] << "\"" << std::endl;
+            std::cerr << "Stop prematurely with error \"" << error_msg << "\"" << std::endl;
+            return 1;
         }
-    } catch ( std::exception & e )
+        
+        runner.display_selected_outputs();
+        
+        if ( !runner.generate_outputs( error_msg ) )
+        {
+            std::cout << "runner.post_processing() returned the error \"" << error_msg << "\"" << std::endl;
+            std::cout << "runner is stopped prematurely" << std::endl;
+            return 1;
+        }
+        
+        
+    }
+    catch ( std::exception & e )
     {
         std::string error = std::string ( "ERROR: " ) + e.what();
         std::cerr << std::endl << error << std::endl << std::endl;
-        return 0;
+        return 1;
     }
     
     return 0;
