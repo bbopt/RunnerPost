@@ -46,7 +46,8 @@ path_include = env_runnerpost_src
 path_library_runnerpost = os.path.join(env_runnerpost_build_dir, 'src')
 
 # Compiler and linker configuration
-if env_nomad_msvc_flag:
+setup_compile_args = []
+if env_runnerpost_msvc_flag:
     setup_compile_args.append('/std:c++14')
 else:
     setup_compile_args.append('-w')

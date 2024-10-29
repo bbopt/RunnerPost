@@ -15,6 +15,8 @@ public:
     {
         DATA_PROFILE,
         PERFORMANCE_PROFILE,
+        HISTORY,
+        ACCURACY_PROFILE,
         UNDEFINED
     };
     enum Y_Select
@@ -28,12 +30,14 @@ public:
         NP1EVAL,
         TIME
     };
+    
 
 private:
 
     Profile_Type                       _pType = Profile_Type::UNDEFINED;
     Y_Select                           _ySel = Y_Select::OBJ ;
     X_Select                           _xSel = X_Select::NP1EVAL;
+    int                                _xMax = P_INF_INT;
     double                             _tau =0.001;
     std::string                        _fileName ="";
     
@@ -41,11 +45,12 @@ private:
 public:
     
     // constructor #1
-    Output (const Profile_Type & ptype, const double tau = 0.001,   const std::string fileName = "", const Y_Select ySel = Y_Select::OBJ, const X_Select xSel = X_Select::NP1EVAL  )
+    Output (const Profile_Type & ptype, const double tau = 0.001,   const std::string fileName = "", const Y_Select ySel = Y_Select::OBJ, const X_Select xSel = X_Select::NP1EVAL, const int xMax = P_INF_INT )
     : _pType              ( ptype    ) ,
       _fileName           ( fileName ) ,
       _ySel               ( ySel ) ,
       _xSel               ( xSel ) ,
+      _xMax               ( xMax ),
       _tau                ( tau     )
     {};
     
@@ -92,6 +97,9 @@ public:
     void setYSelect(const Output::Y_Select & ys) { _ySel = ys;}
     bool setXSelect(const std::string & s);
     void setXSelect(const Output::X_Select & xs) { _xSel = xs;}
+    bool setXMax(const int & xMax) { if (xMax<=0) return false; _xMax = xMax ; return true; }
+    bool setXMax(const std::string & s) {return setXMax(std::stoi(s));}
+    
     bool setFileName(const std::string & s) { if (s.empty()) return false; _fileName = s; return true; }
     
     void display ( void ) const;
@@ -100,6 +108,7 @@ public:
     const Profile_Type &        get_profile_type( ) const { return _pType;}
     const Y_Select &            get_y_select( ) const { return _ySel;}
     const X_Select &            get_x_select( ) const { return _xSel;}
+    const int      &            get_x_max( ) const { return _xMax;}
     const double &              get_tau         ( void ) const { return _tau;}
     const std::string &         get_file_name() const { return _fileName;}
     

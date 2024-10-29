@@ -7,8 +7,8 @@
 void RUNNERPOST::Algorithm::resetInfo ( void )
 {
     _id = "";
-    _nameAndVersion = "";
-    _options = "";
+    _nameAndExtra = "";
+    _output_options = "";
     _index = -1;
     _run_seeds = {};
 

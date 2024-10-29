@@ -5,4 +5,4 @@
 
 /// Define version number
 #undef RUNNERPOST_VERSION_NUMBER
-#define RUNNER_POST_VERSION_NUMBER "1.0.beta1"
+#define RUNNERPOST_VERSION_NUMBER "1.0.beta1"

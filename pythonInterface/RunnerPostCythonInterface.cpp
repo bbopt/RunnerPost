@@ -1,8 +1,8 @@
 // October 2024
 // Version 1.0
 
-#include "src/Result.hpp"
-#include "src/Runner.hpp"
+
+#include "Runner.hpp"
 
 #include <Python.h>
 #include <signal.h>
@@ -14,7 +14,7 @@
 static void printRunnerPostVersion()
 {
     std::cout << "-----------------------------------------------------------"  << std::endl;
-    std::cout << " Python Interface to RunnerPost version " << RUNNERPOST_VERSION  << std::endl;
+    std::cout << " Python Interface to RunnerPost version " << RUNNERPOST_VERSION_NUMBER  << std::endl;
     std::cout << "-----------------------------------------------------------"  << std::endl;
 }
 
@@ -24,7 +24,7 @@ static void printRunnerPostUsage()
     std::cout << "--------------------------------------------------------------"       << std::endl;
     std::cout << " RunnerPost Python interface usage"                                             << std::endl;
     std::cout << "--------------------------------------------------------------"       << std::endl;
-    std::cout << "  RunnerPost : result = RunnerPost.read(param)"       << std::endl;
+    std::cout << "  RunnerPost : result = RunnerPost.readAndPostprocess(param)"       << std::endl;
     std::cout << "--------------------------------------------------------------"       << std::endl;
     
 }
@@ -43,7 +43,7 @@ static void printRunnerPostInfo()
     printRunnerPostUsage();
 }
 
-static int read( const std::vector<std::string> &params)
+static int readAndPostprocess( const std::string & algo_selection_file, const std::string & pb_selection_file, const std::string & output_selection_file)
 {
     
     int runFlag = 0 ;
@@ -53,9 +53,58 @@ static int read( const std::vector<std::string> &params)
     {
         Py_BEGIN_ALLOW_THREADS
 
-        RunnerPost::Runner runner;
+        RUNNERPOST::Runner runner;
         
-        RunnerPost::Result result = runner.read(params);
+        std::string error_msg;
+        if ( !runner.read_algo_selection_file ( algo_selection_file , error_msg ) )
+        {
+            std::cerr << "Cannot read algo config file \"" << algo_selection_file << "\"" << std::endl;
+            std::cerr << "Stop prematurely with error \"" << error_msg << "\"" << std::endl;
+            return 1;
+        }
+        
+        // display test configs:
+        runner.display_selected_algos() ;
+        
+        if ( !runner.read_problem_selection_file ( pb_selection_file , error_msg ) )
+        {
+            std::cerr << "Cannot read pbs config file \"" << pb_selection_file << "\"" << std::endl;
+            std::cerr << "Stop prematurely with error \"" << error_msg << "\"" << std::endl;
+            return 1;
+        }
+        
+        // display test configs:
+        runner.display_selected_problems() ;
+        
+        
+        // run:
+        if ( !runner.run_post_processing( error_msg ) )
+        {
+            std::cout << "runner.post_processing() returned the error \"" << error_msg << "\"" << std::endl;
+            std::cout << "runner is stopped prematurely" << std::endl;
+            return 1;
+        }
+        
+        
+        // Output
+        
+        // Read output_selection file
+        if ( !runner.read_output_selection_file ( output_selection_file , error_msg ) )
+        {
+            std::cerr << "Cannot read output config file \"" << output_selection_file << "\"" << std::endl;
+            std::cerr << "Stop prematurely with error \"" << error_msg << "\"" << std::endl;
+            return 1;
+        }
+        
+        runner.display_selected_outputs();
+        
+        if ( !runner.generate_outputs( error_msg ) )
+        {
+            std::cout << "runner.post_processing() returned the error \"" << error_msg << "\"" << std::endl;
+            std::cout << "runner is stopped prematurely" << std::endl;
+            return 1;
+        }
+
 
         Py_END_ALLOW_THREADS
         return runFlag;

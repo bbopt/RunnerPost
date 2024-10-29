@@ -1768,7 +1768,7 @@ void RUNNERPOST::Runner::display_selected_algos ( void ) const
         {
             std::cout << "\t " << _selected_algos[k]->get_id();
             std::cout << ": (" << _selected_algos[k]->get_name() << ") ";
-            std::cout << _selected_algos[k]->get_options() << std::endl;
+            std::cout << _selected_algos[k]->get_output_options() << std::endl;
             if (_selected_algos[k]->get_n_seeds() > 1)
             {
                 std::cout << " { ";
@@ -2237,18 +2237,18 @@ bool RUNNERPOST::Runner::read_algo_selection_file ( const std::string  & algo_se
             error_msg = "Error(2) in file " + algo_selection_file_name + ". Line #" + std::to_string(_n_algo+1) + ". Algo name and version must be provided between parentheses after algo ID.";
             return false;
         }
-        std::string nameAndVersion = s.substr(i0+1,i1-i0-1);
+        std::string nameAndExtra = s.substr(i0+1,i1-i0-1);
 
-        if (nameAndVersion.empty())
+        if (nameAndExtra.empty())
         {
             error_msg = "Error(3) in file " + algo_selection_file_name + ". Line #" + std::to_string(_n_algo+1) + ". Algo name is empty.";
             return false;
         }
         
         
-        std::string options = s.substr(i1+1);
+        std::string output_options = s.substr(i1+1); // Need to extract info from bracket
 
-        _selected_algos.push_back ( new Algorithm ( _n_algo, id, nameAndVersion , options ) );
+        _selected_algos.push_back ( new Algorithm ( _n_algo, id, nameAndExtra , output_options ) );
 
         _n_algo++ ;
         
@@ -2269,16 +2269,16 @@ bool RUNNERPOST::Runner::read_algo_selection_file ( const std::string  & algo_se
     return true;
 }
 
-std::vector<std::string> RUNNERPOST::Runner::get_selected_algo_options ( void ) const
-{
-    std::vector<std::string> algosOptions;
-    
-    for (const auto& algo: _selected_algos)
-    {
-        algosOptions.push_back(algo->get_options());
-    }
-    return algosOptions;
-}
+//std::vector<std::string> RUNNERPOST::Runner::get_selected_algo_options ( void ) const
+//{
+//    std::vector<std::string> algosOptions;
+//
+//    for (const auto& algo: _selected_algos)
+//    {
+//        algosOptions.push_back(algo->get_output_options());
+//    }
+//    return algosOptions;
+//}
 
 
 /*-----------------------------------------------------------*/

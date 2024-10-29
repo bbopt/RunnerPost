@@ -66,6 +66,14 @@ RUNNERPOST::Output::Profile_Type RUNNERPOST::Output::stringToProfileType(const s
     {
         pType = Profile_Type::PERFORMANCE_PROFILE;
     }
+    else if (s == "HISTORY")
+    {
+        pType = Profile_Type::HISTORY;
+    }
+    else if (s == "ACCURACY_PROFILE")
+    {
+        pType = Profile_Type::ACCURACY_PROFILE;
+    }
     
     return pType;
 }
@@ -84,6 +92,10 @@ bool RUNNERPOST::Output::setSingleAttribute(const std::pair<std::string,std::str
     {
         return setTau(att.second);
     }
+    else if (att.first.find("X_MAX") != std::string::npos )
+    {
+        return setXMax(att.second);
+    }
     else if (att.first.find("OUT") != std::string::npos)
     {
         return setFileName(att.second);
@@ -97,8 +109,24 @@ bool RUNNERPOST::Output::setSingleAttribute(const std::pair<std::string,std::str
 
 std::string RUNNERPOST::Output::profileTypeToString(const Output::Profile_Type & pType)
 {
-    std::string pTypeStr = "DATA_PROFILE";
-    
+    std::string pTypeStr;
+    switch (pType)
+    {
+        case Profile_Type::DATA_PROFILE:
+            pTypeStr = "DATA_PROFILE";
+            break;
+        case Profile_Type::PERFORMANCE_PROFILE:
+            pTypeStr = "PERFORMANCE_PROFILE";
+            break;
+        case Profile_Type::HISTORY:
+            pTypeStr = "HISTORY";
+            break;
+        case Profile_Type::ACCURACY_PROFILE:
+            pTypeStr = "ACCURACY_PROFILE";
+            break;
+        default:
+            break;
+    }
     return pTypeStr;
 }
 

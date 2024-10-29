@@ -4,7 +4,7 @@
 # Algos
 #
 set(HEADERS
-AlgoParameters.hpp
+Algorithm.hpp
 Output.hpp
 Problem.hpp
 Result.hpp
@@ -14,7 +14,7 @@ Utils.hpp
 )
 
 set(SOURCES
-AlgoParameters.cpp
+Algorithm.cpp
 Output.cpp
 main.cpp
 Problem.cpp
@@ -22,12 +22,6 @@ Result.cpp
 Runner.cpp
 Utils.cpp
 )
-
-
-
-#
-# Generate Attribute headers
-#
 
 
 #
@@ -50,6 +44,8 @@ include(./CMakeListsLibs.txt)
 if(BUILD_INTERFACE_PYTHON MATCHES ON)
    include(./CMakeListsLibsStatic.txt)
 endif()
+
+
 
 # Build dynamically linked executables (nomad)
 include(./CMakeListsExe.txt)

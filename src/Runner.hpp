@@ -224,7 +224,7 @@ public:
     void output_problems_unsolved(const double& tau, const double& nbSimplexEval) const;
     
     // Access to selected algo legends (used for data/perf profiles plot legends)
-    std::vector<std::string> get_selected_algo_options ( void ) const;
+    // std::vector<std::string> get_selected_algo_options ( void ) const;
     
     // Select the seeds for Nomad solvers
     // ----------------------------------
