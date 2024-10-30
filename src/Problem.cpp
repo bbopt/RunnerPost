@@ -1,4 +1,5 @@
 #include "Problem.hpp"
+#include "Utils.hpp"
 
 #include <cctype>
 
@@ -6,6 +7,7 @@
 // std::set<std::string> Problem::_all_keywords;
 
 // Default values. Can be set.
+// TODO: this is available from Algo
 int RUNNERPOST::Problem::_nbSimplexEvals = 100;
 int RUNNERPOST::Problem::_overallMaxBBEvals = 20000;
 
@@ -107,6 +109,98 @@ int RUNNERPOST::Problem::_overallMaxBBEvals = 20000;
 //    return ( it != _keywords.end() );
 //}
 
+RUNNERPOST::Problem::Problem(std::string & s, std::string & error_msg)
+{
+    std::string sO = s;
+    
+    // Remove trailing comments
+    size_t i = s.find("#");
+    if ( i != std::string::npos)
+    {
+        s.erase(i,s.length());
+    }
+    
+    // Get pb id as the first word on the line
+    i = s.find_first_not_of(" ");
+    if (i > 0)
+    {
+        s.erase(i) ;  // Remove initial white spaces
+    }
+    i = s.find(" ");
+    std::string pType_str = s.substr(0,i);
+    if ( !set_id(pType_str))
+    {
+        error_msg = "Error: Cannot read output profile type in \"" + sO + "\"" ;
+    }
+    
+    s.erase(0,i);
+    
+    // Output title provided between parenthesis
+    size_t i0 = s.find("(",0);
+    size_t i1 = s.find(")",i0+1);
+
+    if ( i0 == std::string::npos || i1 == std::string::npos )
+    {
+        error_msg = "Error(2) in output selection file. Output title must be provided between parenthesis in " + sO ;
+        return ;
+    }
+    set_name(s.substr(i0+1,i1-i0-1));
+    s.erase(0,i1+1);
+    
+        
+    size_t pos = 0;
+    // Parse for Key + Value(s) given between brackets [Key Val1]
+    while ((pos = s.find("[")) != std::string::npos)
+    {
+        
+        // Strip empty spaces before a [
+        pos = s.find_first_not_of("[");
+        if (pos == std::string::npos)
+        {
+            break;
+        }
+        s.erase(0, pos+1);
+        
+        auto p = RUNNERPOST::extract_from_bracket(s,"=" /*key/val separator is = */);
+        
+        if ( p.first.empty() || p.second.empty())
+        {
+            error_msg = "Error: Cannot read output bracket value in " + s;
+            break;
+        }
+        
+        if ( !setSingleAttribute(p) )
+        {
+            error_msg = "Error: Cannot read output bracket value in " + s;
+        }
+        
+    }
+    
+    // TODO: check inconsistencies. Example: tau provided but default output file name are used. At least give a warning
+    
+}
+
+bool RUNNERPOST::Problem::setSingleAttribute(const std::pair<std::string,std::vector<std::string>> & att)
+{
+    if (att.second.size() != 1)
+    {
+        return false;
+    }
+    
+    if (att.first.find("N") != std::string::npos)
+    {
+        return set_n(att.second[0]);
+    }
+    else if (att.first.find("M") != std::string::npos)
+    {
+        return set_m(att.second[0]);
+    }
+    else
+    {
+        return false;
+    }
+    
+}
 
 
 int RUNNERPOST::Problem::getMaxBBEvals() const

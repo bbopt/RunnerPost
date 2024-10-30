@@ -12,27 +12,9 @@ private:
 
     std::string                        _id;
     std::string                        _name;
-    // std::string                        _xe_file_name;
     int                                _n;
     int                                _m;
     
-
-//    std::string                        _bb_exe;
-//    bool                               _batch_eval;
-//    NOMAD_BASE::BBInputTypeList        _bbit;
-//    NOMAD_BASE::BBOutputTypeList       _bbot;
-//    std::string                        _bbotS;
-//    bool                               _has_constraints;
-//    bool                               _has_trend_matrix;
-//    bool                               _has_integers;
-//    bool                               _has_binaries;
-//    NOMAD_BASE::Point                  _lb;
-//    NOMAD_BASE::Point                  _ub;
-//    NOMAD_BASE::Point                  _x0;
-//    NOMAD_BASE::Point                  _xe;
-//    NOMAD_BASE::Double                 _fxe;  // best known solution
-//    bool                               _x0_feas_info;
-//    bool                               _x0_is_feas;
     
     // The max_bb_eval termination criterion is min( _overallMaxBBEvals, (n+1)*_nbSimplexEvals
     static int                         _nbSimplexEvals; // if <=0 ==> other termination criterions will be used
@@ -76,13 +58,20 @@ public:
       _m               ( m      )
     {};
     
+    // Constructor #4
+    Problem (std::string & single_pb_description, std::string & error_msg);
+
+    
     // destructor:
     virtual ~Problem ( void ) {}
 
     // SET methods:
     void set_name ( std::string name) { _name = name ;}
-    void set_n ( int n ) { _n = n; }
-    void set_m ( int m ) { _m = m; }
+    
+    bool set_n(const int & n) { if (n<=0) return false; _n = n ; return true; }
+    bool set_n(const std::string & s) {return set_n(std::stoi(s));}
+    bool set_m(const int & m) { if (m<=0) return false; _m = m ; return true; }
+    bool set_m(const std::string & s) {return set_m(std::stoi(s));}
     
     // void set_xe_file_name( std::string f){ _xe_file_name = f ;}
     
@@ -137,7 +126,11 @@ public:
     
     static int getNbSimplexEvals ( void ) { return _nbSimplexEvals; }
 
+private:
     
+    bool set_id(const std::string & id) { if (id.empty()) return false; _id = id; return true;}
+    
+    bool setSingleAttribute(const std::pair<std::string,std::vector<std::string>> & att);
     
 protected:
 //    // Set bb executable name (batch mode if _batch_eval)

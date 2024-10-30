@@ -1,1 +1,2 @@
-DATA_PROFILE [x_select=NP1Eval] [y_select=OBJ] [tau=0.1] [output=dp1.txt] [x_range=MAX]
+DATA_PROFILE (Data profile on 10 pbs with $\tau=10^{-1}$) [x_select NP1Eval] [ y_select  OBJ] [tau 0.1   ] [output_plain dp1.txt][output_latex dp1.tex] [x_max INF]
+DATA_PROFILE (Data profile on 10 pbs with $\tau=10^{-3}$) # default (tau=0.001, np1eval, obj, dp3.txt, INF, dp3.tex

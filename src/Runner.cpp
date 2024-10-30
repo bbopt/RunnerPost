@@ -537,11 +537,21 @@ bool RUNNERPOST::Runner::generate_outputs(std::string &error_msg)
             auto ySel = out->get_y_select();
             if (Output::X_Select::TIME == xSel)
             {
-                output_time_data_profile_plain(out->get_tau(), out->get_file_name());
+                output_time_data_profile_plain(*out);
+                if (out->get_latex_file_name().empty())
+                {
+                    error_msg = "Latex output not handled yet.";
+                    return false;
+                }
             }
             else
             {
-                output_data_profile_plain(out->get_tau(), out->get_file_name(), xSel);
+                output_data_profile_plain(*out);
+                if (out->get_latex_file_name().empty())
+                {
+                    error_msg = "Latex output not handled yet.";
+                    return false;
+                }
             }
         }
         else if (Output::Profile_Type::PERFORMANCE_PROFILE == pt)
@@ -628,7 +638,7 @@ void RUNNERPOST::Runner::display_algo_diff ( void ) const
                 std::cout << msg.str() ;
                 for ( k = 0 ; k < _n_pb ; ++k )
                     if ( _results[k][i] && _results[k][j] &&
-                        !(*_results[k][i] == *_results[k][j]) ) {
+                        !(*_results[k][i] == *_results[k][j]) /* TODO: implement comparison of result */ ) {
                         std::cout << "pb #";
                         // TODO std::cout.display_int_w ( k , _n_pb );
                         std::cout << " ["
@@ -645,24 +655,24 @@ void RUNNERPOST::Runner::display_algo_diff ( void ) const
 /*---------------------------------------*/
 /*       display performance profiles    */
 /*---------------------------------------*/
-bool RUNNERPOST::Runner::output_perf_profile_plain ( const double & tau , const std::string & pp_file_name ) const
+bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
 {
-
-    if ( tau < 0 || _n_pb == 0 || _n_algo == 0 )
+    
+    if ( out.get_tau() < 0 || _n_pb == 0 || _n_algo == 0 )
     {
         std::cerr << "Error: cannot compute performance profile for tau < 0 or n_pb ==0 or n_algo == 0" << std::endl;
         return false;
     }
 
-    std::ofstream fout ( pp_file_name );
+    std::ofstream fout ( out.get_plain_file_name() );
     if ( fout.fail() )
     {
         std::cerr << "Warning: cannot create performance profile (MW) output file "
-        << pp_file_name << std::endl;
+        << out.get_plain_file_name() << std::endl;
         return false;
     }
 
-    std::cout << "writing of " << pp_file_name << " ..." << std::flush;
+    std::cout << "\t writing of " << out.get_plain_file_name() << " ..." << std::flush;
 
     size_t i_pb, i_algo, i_seed;
 
@@ -687,8 +697,6 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const double & tau , const 
                         miss_list.push_back( 1 );
                     else
                         miss_list.push_back( 0 );
-
-
                 }
             }
         }
@@ -757,7 +765,7 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const double & tau , const 
                         size_t bbe = 1;
                         for ( bbe = 1 ; bbe <= bbe_max ; ++bbe )
                         {
-                            if (fx0s[i_pb]-_results[i_pb][i_algo][i_seed].get_sol(bbe) >= (1-tau)*(fx0s[i_pb]-fxe[i_pb]) )
+                            if (fx0s[i_pb]-_results[i_pb][i_algo][i_seed].get_sol(bbe) >= (1-out.get_tau())*(fx0s[i_pb]-fxe[i_pb]) )
                             {
                                 if (bbe<tpsMinTmp)
                                 {
@@ -798,7 +806,7 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const double & tau , const 
 
                         for ( size_t bbe = 1 ; bbe <= bbe_max ; ++bbe )
                         {
-                            if (fx0s[i_pb]-_results[i_pb][i_algo][i_seed].get_sol(bbe) >= (1-tau)*(fx0s[i_pb]-fxe[i_pb]) )
+                            if (fx0s[i_pb]-_results[i_pb][i_algo][i_seed].get_sol(bbe) >= (1-out.get_tau())*(fx0s[i_pb]-fxe[i_pb]) )
                             {
                                 if (bbe/tpsMin[i_pb]<=alpha)
                                     cnt++;
@@ -824,23 +832,23 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const double & tau , const 
 /*              data profiles .........            */
 /* Use Moré and Wild SIAM JOPT 2009 eq 2.9         */
 /*-------------------------------------------------*/
-bool RUNNERPOST::Runner::output_data_profile_plain ( const double & tau , const std::string & dp_file_name, const Output::X_Select & xSel ) const
+bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
 {
-    if ( tau < 0 || _n_pb == 0 || _n_algo == 0 )
+    if ( out.get_tau() < 0 || _n_pb == 0 || _n_algo == 0 )
     {
         std::cerr << "Error: cannot compute data profile for tau < 0 or n_pb ==0 or n_algo == 0" << std::endl;
         return false;
     }
 
 
-    std::ofstream fout ( dp_file_name.c_str() );
+    std::ofstream fout ( out.get_plain_file_name() );
     if ( fout.fail() ) {
         std::cerr << "Error: cannot create data profile output file "
-        << dp_file_name << std::endl;
+        << out.get_plain_file_name() << std::endl;
         return false;
     }
 
-    std::cout << "writing of " << dp_file_name << " ..." << std::flush;
+    std::cout << "\t writing of " << out.get_plain_file_name() << " ..." << std::flush;
 
     size_t i_pb, i_algo, i_seed;
 
@@ -996,7 +1004,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const double & tau , const 
                 {
                     for ( i_seed = 0 ; i_seed < n_seed ; ++i_seed )
                     {
-                        if ( fx0s[i_pb]-_results[i_pb][i_algo] [i_seed].get_sol(alpha*(dimPb+1)) >= (1-tau)*(fx0s[i_pb]-fxe[i_pb]) )
+                        if ( fx0s[i_pb]-_results[i_pb][i_algo] [i_seed].get_sol(alpha*(dimPb+1)) >= (1-out.get_tau())*(fx0s[i_pb]-fxe[i_pb]) )
                             ++cnt;
                     }
                 }
@@ -1013,7 +1021,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const double & tau , const 
     return true;
 }
 
-bool RUNNERPOST::Runner::output_time_profile_plain(const std::string& fileName) const
+bool RUNNERPOST::Runner::output_time_profile_plain(const Output& out) const
 {
     const std::string profileName = "time profile";
     if (_n_pb == 0 || _n_algo == 0)
@@ -1084,8 +1092,8 @@ bool RUNNERPOST::Runner::output_time_profile_plain(const std::string& fileName) 
     {
         auto n_seed = _selected_algos[i_algo]->get_n_seeds();
         
-        std::string algoFileName = fileName;
-        size_t lastPointIndex = fileName.rfind(".");
+        std::string algoFileName = out.get_plain_file_name();
+        size_t lastPointIndex = out.get_plain_file_name().rfind(".");
         algoFileName.insert(lastPointIndex, std::to_string(i_algo));
         std::ofstream fout(algoFileName.c_str());
         if (fout.fail())
@@ -1113,20 +1121,20 @@ bool RUNNERPOST::Runner::output_time_profile_plain(const std::string& fileName) 
     }
     return true;
 }
-bool RUNNERPOST::Runner::output_time_data_profile_plain ( const double & tau , const std::string & tdp_file_name ) const
+bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) const
 {
-    if ( tau < 0 || _n_pb == 0 || _n_algo == 0 )
+    if ( out.get_tau() < 0 || _n_pb == 0 || _n_algo == 0 )
     {
         std::cerr << "Error: cannot compute time data profile for tau < 0 or n_pb ==0 or n_algo == 0" << std::endl;
         return false;
     }
-    std::ofstream fout ( tdp_file_name.c_str() );
+    std::ofstream fout ( out.get_plain_file_name() );
     if ( fout.fail() ) {
         std::cerr << "Error: cannot create time data profile output file "
-        << tdp_file_name << std::endl;
+        << out.get_plain_file_name() << std::endl;
         return false;
     }
-    std::cout << "writing of " << tdp_file_name << " ..." << std::flush;
+    std::cout << "\t writing of " << out.get_plain_file_name() << " ..." << std::flush;
     size_t i_pb, i_algo, i_seed;
     // check that best solution and all results are available:
     std::list<size_t> miss_list;
@@ -1243,7 +1251,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const double & tau , c
                 {
                     for ( i_seed = 0 ; i_seed < n_seed ; ++i_seed )
                     {
-                        if (fx0s[i_pb] - _results[i_pb][i_algo][i_seed].get_sol_by_time(beta*(dimPb+1)) >= (1-tau) * (fx0s[i_pb]-fxe[i_pb]))
+                        if (fx0s[i_pb] - _results[i_pb][i_algo][i_seed].get_sol_by_time(beta*(dimPb+1)) >= (1-out.get_tau()) * (fx0s[i_pb]-fxe[i_pb]))
                         {
                             ++cnt;
                         }
@@ -1649,7 +1657,7 @@ void RUNNERPOST::Runner::display_selected_problems ( void ) const
 {
     std::cout << std::endl;
 
-    if ( _n_pb == 0 )
+    if ( _selected_pbs.size() == 0 )
         std::cout << "no problem has been selected" << std::endl;
     else
     {
@@ -2285,94 +2293,109 @@ bool RUNNERPOST::Runner::read_algo_selection_file ( const std::string  & algo_se
 /*          read and add problems from selection file           */
 /*-----------------------------------------------------------*/
 bool RUNNERPOST::Runner::read_problem_selection_file ( const std::string  & pb_selection_file_name ,
-                                          std::string        & error_msg        )
+                                                      std::string        & error_msg        )
 {
 
     error_msg.clear();
 
-    std::ifstream fin ( pb_selection_file_name.c_str(), std::ios::in );
-    if ( fin.fail() )
+    std::ifstream in ( pb_selection_file_name.c_str(), std::ios::in );
+    if ( in.fail() )
     {
-        fin.close();
+        in.close();
         error_msg = "Error(0). Cannot read file " + pb_selection_file_name;
         return false;
     }
-    
-    int n=0, m=1;
-
-    std::string s;
-    while(!fin.eof())  // std::getline(fin, s) && !s.empty())
+    while(!in.eof())
     {
-        getline (fin , s);
+        std::string line;
+        getline (in , line);
         
-        if (s.empty())
+        if (line.empty())
         {
             continue;
         }
-          
-        // Get pb id as the first word on the line
-        size_t i = s.find_first_not_of(" ");
-        if (i > 0)
-        {
-            s.erase(i) ;  // Remove initial white spaces
-        }
-        i = s.find(" ");
-        std::string id = s.substr(0,i);
         
-        // pb name is provided between parenthesis
-        size_t i0 = s.find("(",0);
-        size_t i1 = s.find(")",i0+1);
-
-        if ( i0 == std::string::npos || i1 == std::string::npos )
+        _selected_pbs.push_back(new Problem(line, error_msg));
+        if (!error_msg.empty())
         {
-            error_msg = "Error(2) in file " + pb_selection_file_name + ". Line #" + std::to_string(_n_algo+1) + ". Pb name must be provided between parentheses after pb id.";
+            in.close();
             return false;
         }
-        std::string name = s.substr(i0+1,i1-i0-1);
-        
-        // TODO parse bbot
-        s.erase(0,i1);
-        size_t pos = 0;
-        // Parse for n and m given as bracket values
-        while ((pos = s.find("[")) != std::string::npos)
-        {
-            
-            // Strip empty spaces before a [
-            pos = s.find_first_not_of("[");
-            if (pos == std::string::npos)
-            {
-                break;
-            }
-            s.erase(0, pos+1);
-            
-            n = extract_from_bracket("n",s);
-            
-            if ( n==M_INF_INT)
-            {
-                error_msg = "Error(4) in file " + pb_selection_file_name + ". Cannot read problem bracket value n." ;
-                return false;
-            }
-            
-            m = extract_from_bracket("m",s);
-            if ( m==M_INF_INT)
-            {
-                error_msg = "Error(4) in file " + pb_selection_file_name + ". Cannot read problem bracket value m." ;
-                return false;
-            }
-            
-        }
-        // std::string options = s.substr(i1+1);
-        
-        _selected_pbs.push_back ( new Problem ( id , name , n, m /* todo bbot */) );
-
-        _n_pb++ ;
-
     }
-    fin.close();
+
+//    std::string s;
+//    while(!fin.eof())  // std::getline(fin, s) && !s.empty())
+//    {
+//        getline (fin , s);
+//
+//        if (s.empty())
+//        {
+//            continue;
+//        }
+//
+//        // Get pb id as the first word on the line
+//        size_t i = s.find_first_not_of(" ");
+//        if (i > 0)
+//        {
+//            s.erase(i) ;  // Remove initial white spaces
+//        }
+//        i = s.find(" ");
+//        std::string id = s.substr(0,i);
+//
+//        // pb name is provided between parenthesis
+//        size_t i0 = s.find("(",0);
+//        size_t i1 = s.find(")",i0+1);
+//
+//        if ( i0 == std::string::npos || i1 == std::string::npos )
+//        {
+//            error_msg = "Error(2) in file " + pb_selection_file_name + ". Line #" + std::to_string(_n_algo+1) + ". Pb name must be provided between parentheses after pb id.";
+//            return false;
+//        }
+//        std::string name = s.substr(i0+1,i1-i0-1);
+//
+//        // TODO parse bbot
+//        s.erase(0,i1);
+//        size_t pos = 0;
+//        // Parse for n and m given as bracket values
+//        while ((pos = s.find("[")) != std::string::npos)
+//        {
+//
+//            // Strip empty spaces before a [
+//            pos = s.find_first_not_of("[");
+//            if (pos == std::string::npos)
+//            {
+//                break;
+//            }
+//            s.erase(0, pos+1);
+//
+//            n = extract_from_bracket("n",s);
+//
+//            if ( n==M_INF_INT)
+//            {
+//                error_msg = "Error(4) in file " + pb_selection_file_name + ". Cannot read problem bracket value n." ;
+//                return false;
+//            }
+//
+//            m = extract_from_bracket("m",s);
+//            if ( m==M_INF_INT)
+//            {
+//                error_msg = "Error(4) in file " + pb_selection_file_name + ". Cannot read problem bracket value m." ;
+//                return false;
+//            }
+//
+//        }
+//
+//
+//        _selected_pbs.push_back ( new Problem ( id , name , n, m /* todo bbot */) );
+//
+//        _n_pb++ ;
+//
+//    }
+//    fin.close();
     
     if (_selected_pbs.empty())
     {
-        fin.close();
+        in.close();
         error_msg = "Error(1) in file " + pb_selection_file_name + ". Cannot read a single pb config. First line in file must contain an algo config." ;
         return false;
     }
@@ -2662,7 +2685,7 @@ bool RUNNERPOST::Runner::read_output_selection_file( const std::string  & output
 
 void RUNNERPOST::Runner::display_selected_outputs   ( void ) const
 {
-    
+    // TODO: similar to algo and pbs.
 }
 
 

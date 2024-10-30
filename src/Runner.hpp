@@ -212,14 +212,13 @@ public:
     // display results:
     void display_algo_diff     ( void ) const;
 
-    // Compute outputs for graphs 
-    // tau >= 0
-    bool output_perf_profile_plain(const double& tau, const std::string& pp_file_name) const;
-    bool output_data_profile_plain(const double& tau, const std::string& dp_file_name, const Output::X_Select & xSel) const;
+    // Compute outputs for graphs
+    bool output_perf_profile_plain(const Output & out) const;
+    bool output_data_profile_plain(const Output & out) const;
      // Time in function of bbe (for parallel testing)
-    bool output_time_profile_plain(const std::string& time_profile_file_name) const;
+    bool output_time_profile_plain(const Output & out) const;
     // Data profile in function of time
-    bool output_time_data_profile_plain(const double& tau, const std::string& tdp_file_name) const;
+    bool output_time_data_profile_plain(const Output & out) const;
     
     void output_problems_unsolved(const double& tau, const double& nbSimplexEval) const;
     

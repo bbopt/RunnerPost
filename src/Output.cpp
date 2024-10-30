@@ -6,9 +6,17 @@
 
 RUNNERPOST::Output::Output (std::string & s, std::string & error_msg)
 {
+    std::string sO = s;
+    
+    // Remove trailing comments
+    size_t i = s.find("#");
+    if ( i != std::string::npos)
+    {
+        s.erase(i,s.length());
+    }
     
     // Get pb id as the first word on the line
-    size_t i = s.find_first_not_of(" ");
+    i = s.find_first_not_of(" ");
     if (i > 0)
     {
         s.erase(i) ;  // Remove initial white spaces
@@ -17,12 +25,26 @@ RUNNERPOST::Output::Output (std::string & s, std::string & error_msg)
     std::string pType_str = s.substr(0,i);
     if ( !setProfileType(pType_str))
     {
-        error_msg = "Error: Cannot read output profile type in \"" + s + "\"" ;
+        error_msg = "Error: Cannot read output profile type in \"" + sO + "\"" ;
     }
-
+    
     s.erase(0,i);
+    
+    // Output title provided between parenthesis
+    size_t i0 = s.find("(",0);
+    size_t i1 = s.find(")",i0+1);
+
+    if ( i0 == std::string::npos || i1 == std::string::npos )
+    {
+        error_msg = "Error(2) in output selection file. Output title must be provided between parenthesis in " + sO ;
+        return ;
+    }
+    setTitle(s.substr(i0+1,i1-i0-1));
+    s.erase(0,i1+1);
+    
+        
     size_t pos = 0;
-    // Parse for n and m given as bracket values
+    // Parse for Key + Value(s) given between brackets [Key Val1]
     while ((pos = s.find("[")) != std::string::npos)
     {
         
@@ -38,15 +60,19 @@ RUNNERPOST::Output::Output (std::string & s, std::string & error_msg)
         
         if ( p.first.empty() || p.second.empty())
         {
-            error_msg = "Error: Cannot read output bracket value (1)" ;
+            error_msg = "Error: Cannot read output bracket value in " + s;
+            break;
         }
         
         if ( !setSingleAttribute(p) )
         {
-            error_msg = "Error: Cannot read output bracket value (2)" ;
+            error_msg = "Error: Cannot read output bracket value in " + s;
+            break;
         }
         
     }
+    
+    // TODO: check inconsistencies. Example: tau provided but default output file name are used. At least give a warning
     
 }
 
@@ -78,27 +104,43 @@ RUNNERPOST::Output::Profile_Type RUNNERPOST::Output::stringToProfileType(const s
     return pType;
 }
 
-bool RUNNERPOST::Output::setSingleAttribute(const std::pair<std::string,std::string> & att)
+bool RUNNERPOST::Output::setSingleAttribute(const std::pair<std::string,std::vector<std::string>> & att)
 {
+    if (att.second.size() != 1)
+    {
+        return false;
+    }
+    
     if (att.first.find("X_SEL") != std::string::npos)
     {
-        return setXSelect(att.second);
+        return setXSelect(att.second[0]);
     }
     else if (att.first.find("Y_SEL") != std::string::npos)
     {
-        return setYSelect(att.second);
+        return setYSelect(att.second[0]);
     }
     else if (att.first.find("TAU") != std::string::npos )
     {
-        return setTau(att.second);
+        return setTau(att.second[0]);
     }
     else if (att.first.find("X_MAX") != std::string::npos )
     {
-        return setXMax(att.second);
+        if (att.second[0] =="MAX" || att.second[0] == "INF")
+        {
+            return setXMax(RUNNERPOST::P_INF_INT);
+        }
+        else
+        {
+            return setXMax(att.second[0]);
+        }
     }
-    else if (att.first.find("OUT") != std::string::npos)
+    else if (att.first.find("OUTPUT_PLAIN") != std::string::npos)
     {
-        return setFileName(att.second);
+        return setPlainFileName(att.second[0]);
+    }
+    else if (att.first.find("OUTPUT_LATEX") != std::string::npos)
+    {
+        return setLatexFileName(att.second[0]);
     }
     else
     {
@@ -132,15 +174,17 @@ std::string RUNNERPOST::Output::profileTypeToString(const Output::Profile_Type &
 
 bool RUNNERPOST::Output::setXSelect(const std::string &s)
 {
-    if (s == "EVAL")
+    std::string sUpper = s;
+    RUNNERPOST::toUpperCase(sUpper);
+    if (sUpper == "EVAL")
     {
         _xSel = RUNNERPOST::Output::X_Select::EVAL;
     }
-    else if (s == "NP1EVAL")
+    else if (sUpper == "NP1EVAL")
     {
         _xSel = RUNNERPOST::Output::X_Select::NP1EVAL;
     }
-    else if (s == "TIME")
+    else if (sUpper == "TIME")
     {
         _xSel = RUNNERPOST::Output::X_Select::TIME;
     }
