@@ -1012,7 +1012,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     }
     fout.close();
 
-    std::cout << "... done" << std::endl << std::endl;
+    std::cout << "... done" << std::endl;
 
     return true;
 }
@@ -1767,7 +1767,7 @@ void RUNNERPOST::Runner::display_special_options ( void ) const
 /*------------------------------------------------*/
 void RUNNERPOST::Runner::display_instance_name (const Problem & pb, const  Algorithm & ac, size_t i_seed) const
 {
-    std::cout << "\t " << pb.get_id() << ", " << ac.get_id();
+    std::cout << "\t (" << pb.get_id() << ", " << ac.get_id() << ")";
     if (i_seed < INF_SIZE_T && ac.get_nb_seeds()> 1)
     {
         std::cout << ", seed run #" << i_seed + 1;
