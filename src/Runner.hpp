@@ -22,8 +22,6 @@ private:
     std::vector<Algorithm *>       _selected_algos;       // The selected algos
     std::vector<Output *>          _selected_outputs;        // The selected outputs
     
-    size_t                         _n_pb;                // number of selected pbs
-    size_t                         _n_algo;              // number of test configs
 //    size_t                         _n_seed_run;
     Result                     *** _results;      // results
     std::string                **  _test_id;      // the test names
@@ -124,26 +122,26 @@ private:
         return s ;
     }
     
-    static int extract_from_bracket(const std::string & varNameToExtract, std::string &s)
-    {
-        int var=M_INF_INT;
-        size_t pos;
-        if ( (pos= s.find(varNameToExtract)) != std::string::npos)
-        {
-            size_t pos1 = s.find("=",pos);
-            size_t pos2 = s.find("]",pos1);
-            if (pos2 == std::string::npos || pos1 == std::string::npos)
-            {
-                return var;
-            }
-            auto tmp = s.substr(pos1+1,pos2-pos1-1);
-            var = std::stoi(tmp);
-            
-            // Remove the bracket info from string
-            s.erase(pos-1,pos2);
-        }
-        return var;
-    }
+//    static int extract_from_bracket(const std::string & varNameToExtract, std::string &s)
+//    {
+//        int var=M_INF_INT;
+//        size_t pos;
+//        if ( (pos= s.find(varNameToExtract)) != std::string::npos)
+//        {
+//            size_t pos1 = s.find("=",pos);
+//            size_t pos2 = s.find("]",pos1);
+//            if (pos2 == std::string::npos || pos1 == std::string::npos)
+//            {
+//                return var;
+//            }
+//            auto tmp = s.substr(pos1+1,pos2-pos1-1);
+//            var = std::stoi(tmp);
+//            
+//            // Remove the bracket info from string
+//            s.erase(pos-1,pos2);
+//        }
+//        return var;
+//    }
     
 //    // functions to access directory and file names:
 //    static std::string get_param_file_name ( const std::string & test_id ,
@@ -189,6 +187,20 @@ private:
     int get_dimPbMin() const;
     
     
+
+    // Compute outputs for graphs
+    bool output_perf_profile_plain(const Output & out) const;
+    bool output_data_profile_plain(const Output & out) const;
+     // Time in function of bbe (for parallel testing)
+    bool output_time_profile_plain(const Output & out) const;
+    // Data profile in function of time
+    bool output_time_data_profile_plain(const Output & out) const;
+    
+    bool output_profile_pgfplots (const Output & out) const;
+    
+    void output_problems_unsolved(const double& tau, const double& nbSimplexEval) const;
+    
+    
 public:
     
     // constructor:
@@ -212,15 +224,6 @@ public:
     // display results:
     void display_algo_diff     ( void ) const;
 
-    // Compute outputs for graphs
-    bool output_perf_profile_plain(const Output & out) const;
-    bool output_data_profile_plain(const Output & out) const;
-     // Time in function of bbe (for parallel testing)
-    bool output_time_profile_plain(const Output & out) const;
-    // Data profile in function of time
-    bool output_time_data_profile_plain(const Output & out) const;
-    
-    void output_problems_unsolved(const double& tau, const double& nbSimplexEval) const;
     
     // Access to selected algo legends (used for data/perf profiles plot legends)
     // std::vector<std::string> get_selected_algo_options ( void ) const;
@@ -272,6 +275,9 @@ public:
 //    bool exclude_problems_by_size    ( int n_min , int n_max );
 //
     
+    
+    // TODO: templatize read selection file to avoid duplicated code.
+    // Maybe we need to make Output, Problem and Algo derive from Selection class.
     bool read_problem_selection_file    ( const std::string & pb_selection_file_name ,
                                          std::string       & error_msg          );
     void clear_selected_problems     ( void );

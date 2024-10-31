@@ -66,7 +66,7 @@ public:
     virtual ~Problem ( void ) {}
 
     // SET methods:
-    void set_name ( std::string name) { _name = name ;}
+    void set_name ( const std::string & name) { _name = name ;}
     
     bool set_n(const int & n) { if (n<=0) return false; _n = n ; return true; }
     bool set_n(const std::string & s) {return set_n(std::stoi(s));}

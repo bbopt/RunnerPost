@@ -47,6 +47,14 @@ const std::string STATS_FILE_RUN_DIR_BASE = "Run";
 // If false we have PbId/AlgoId
 const bool DIR_ORDER_IS_ALGO_PB = true;
 
+
+// Some constants for the latex plots
+// For latex we use one symbol and one color per algo.
+// We must have the same number of symbols and colors.
+ const std::vector<std::string> SYMBOLS = {"diamond","square","o","^","v","+"};
+ const std::vector<std::string> COLORS = {"red","green","blue","cyan","magenta","black"};
+ 
+
 #include "runnerpost_nsend.hpp"
 
 #endif

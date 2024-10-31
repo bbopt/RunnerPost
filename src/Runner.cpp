@@ -6,9 +6,7 @@
 /*----------------------------------*/
 /*            constructor           */
 /*----------------------------------*/
-RUNNERPOST::Runner::Runner ( ) : _n_pb       ( 0    ) ,
-_n_algo     ( 0    ) ,
-// _n_seed_run ( 0    ) ,
+RUNNERPOST::Runner::Runner ( ) :
 _results    ( NULL ) ,
 _test_id    ( NULL ) ,
 _use_avg_fx_first_feas( false ) ,
@@ -55,11 +53,11 @@ void RUNNERPOST::Runner::clear_memory ( )
 
     size_t i_pb, i_algo;
 
-    for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+    for ( i_pb = 0 ; i_pb < _selected_pbs.size() ; ++i_pb )
     {
         if ( _results && _results[i_pb] )
         {
-            for ( i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
+            for ( i_algo = 0 ; i_algo < _selected_algos.size() ; ++i_algo )
                 if ( _results[i_pb][i_algo] )
                     delete [] _results[i_pb][i_algo];
             delete [] _results [i_pb];
@@ -374,13 +372,12 @@ void RUNNERPOST::Runner::clear_memory ( )
 /*------------------------------------------*/
 void RUNNERPOST::Runner::clear_selected_algos ( void )
 {
-    size_t n = _selected_algos.size();
+    const size_t n = _selected_algos.size();
     for ( size_t k = 0 ; k < n ; ++k )
         delete _selected_algos[k];
 
     _selected_algos.clear();
 
-    _n_algo = 0;
 }
 
 /*---------------------------------------------------*/
@@ -394,20 +391,20 @@ bool RUNNERPOST::Runner::run_post_processing ( std::string & error_msg )
     size_t       i_pb;
     size_t       i_algo;
     
-    _n_algo = static_cast<int>(_selected_algos.size());
-    if ( _n_algo == 0 )
+    const size_t n_algo = static_cast<int>(_selected_algos.size());
+    if ( n_algo == 0 )
     {
         error_msg = "no test configurations";
         return false;
     }
     
-    _n_pb = static_cast<int>(_selected_pbs.size());
-    if ( _n_pb == 0 ) {
+    const size_t n_pb = static_cast<int>(_selected_pbs.size());
+    if ( n_pb == 0 ) {
         error_msg = "no selected problem";
         return false;
     }
     
-    size_t nn = _n_pb * _n_algo;
+    size_t nn = n_pb * n_algo;
     
     
     std::ostringstream msg;
@@ -432,25 +429,25 @@ bool RUNNERPOST::Runner::run_post_processing ( std::string & error_msg )
     
     std::list<size_t> run_list;
     
-    _results = new Result     ** [_n_pb];
-    _test_id = new std::string * [_n_pb];
-    for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+    _results = new Result     ** [n_pb];
+    _test_id = new std::string * [n_pb];
+    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
         _results [i_pb] = nullptr;
         _test_id [i_pb] = nullptr;
     }
     
     // loop on the problems:
-    for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
         
-        _results [i_pb] = new Result    * [_n_algo];
-        _test_id [i_pb] = new std::string [_n_algo];
+        _results [i_pb] = new Result    * [n_algo];
+        _test_id [i_pb] = new std::string [n_algo];
         
         // loop on the algorithm parameters:
-        for ( i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
+        for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
         {
-            auto n_seed = _selected_algos[i_algo]->get_n_seeds();
+            auto n_seed = _selected_algos[i_algo]->get_nb_seeds();
             
             // result:
             _results [i_pb][i_algo] = new Result [ n_seed ];
@@ -538,25 +535,17 @@ bool RUNNERPOST::Runner::generate_outputs(std::string &error_msg)
             if (Output::X_Select::TIME == xSel)
             {
                 output_time_data_profile_plain(*out);
-                if (out->get_latex_file_name().empty())
-                {
-                    error_msg = "Latex output not handled yet.";
-                    return false;
-                }
             }
             else
             {
                 output_data_profile_plain(*out);
-                if (out->get_latex_file_name().empty())
-                {
-                    error_msg = "Latex output not handled yet.";
-                    return false;
-                }
             }
+            output_profile_pgfplots(*out);
         }
         else if (Output::Profile_Type::PERFORMANCE_PROFILE == pt)
         {
-            
+            error_msg = "Performance profile. TODO.";
+            return false;
         }
         else
         {
@@ -603,7 +592,9 @@ double RUNNERPOST::Runner::compute_alpha ( const double & fx  ,
 void RUNNERPOST::Runner::display_algo_diff ( void ) const
 {
 
-    if ( _n_algo == 1 )
+    const size_t n_algo = _selected_algos.size();
+    const size_t n_pb = _selected_pbs.size();
+    if ( n_algo == 1 )
     {
         std::cout << "algorithm differences: not displayed for one algorithm"
         << std::endl << std::endl;
@@ -614,29 +605,29 @@ void RUNNERPOST::Runner::display_algo_diff ( void ) const
 
     size_t i, j, k, cnt;
 
-    for ( i = 0 ; i < _n_algo-1 ; ++i )
-        for ( j = i+1 ; j < _n_algo ; ++j )
+    for ( i = 0 ; i < n_algo-1 ; ++i )
+        for ( j = i+1 ; j < n_algo ; ++j )
         {
             std::cout << "\t [algo #";
             std::cout << ", algo #";
             std::cout << "] ";
             cnt = 0;
-            for ( k = 0 ; k < _n_pb ; ++k )
+            for ( k = 0 ; k < n_pb ; ++k )
                 if ( _results[k][i] && _results[k][j] &&
                     *_results[k][i] == *_results[k][j] )
                     ++cnt;
-            if ( cnt == _n_pb )
+            if ( cnt == n_pb )
                 std::cout << "identical results";
             else if ( cnt == 0 )
                 std::cout << "differences for all problems";
             else {
                 std::ostringstream msg;
-                msg << "differences on " << _n_pb - cnt << " problem";
-                if ( _n_pb - cnt > 1 )
+                msg << "differences on " << n_pb - cnt << " problem";
+                if ( n_pb - cnt > 1 )
                     msg << "s";
-                msg << " out of " << _n_pb;
+                msg << " out of " << n_pb;
                 std::cout << msg.str() ;
-                for ( k = 0 ; k < _n_pb ; ++k )
+                for ( k = 0 ; k < n_pb ; ++k )
                     if ( _results[k][i] && _results[k][j] &&
                         !(*_results[k][i] == *_results[k][j]) /* TODO: implement comparison of result */ ) {
                         std::cout << "pb #";
@@ -658,7 +649,10 @@ void RUNNERPOST::Runner::display_algo_diff ( void ) const
 bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
 {
     
-    if ( out.get_tau() < 0 || _n_pb == 0 || _n_algo == 0 )
+    const size_t n_pb = _selected_pbs.size();
+    const size_t n_algo = _selected_algos.size();
+    
+    if ( out.get_tau() < 0 || n_pb == 0 || n_algo == 0 )
     {
         std::cerr << "Error: cannot compute performance profile for tau < 0 or n_pb ==0 or n_algo == 0" << std::endl;
         return false;
@@ -679,11 +673,11 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     // check that best solution and all results are available:
     std::list<size_t> miss_list;
     std::list<size_t> infeas_list;
-    for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
-        for ( i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
+        for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
         {
-            for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed )
+            for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_nb_seeds() ; ++i_seed )
             {
 
                 if ( !_results[i_pb][i_algo][i_seed].has_solution()  )
@@ -751,14 +745,14 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     size_t tpsMinTmp;
     double alpha_max = INF;
     size_t bbe_max=get_bbe_max();
-    for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
         tpsMinTmp=bbe_max+1;
         if ( fx0s[i_pb] < INF )
         {
-            for ( i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
+            for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
             {
-                for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed )
+                for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_nb_seeds() ; ++i_seed )
                 {
                     if ( _results[i_pb][i_algo][i_seed].has_solution() )
                     {
@@ -796,14 +790,13 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
 
     for (size_t i = 0 ; i < PP_NB_LINES ; ++i)
     {
-        for (i_algo = 0 ; i_algo < _n_algo ; ++i_algo)
+        for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
         {
             cnt = 0;
-            for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
-                for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds(); ++i_seed )
+            for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+                for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_nb_seeds(); ++i_seed )
                     if ( _results[i_pb][i_algo][i_seed].has_solution() )
                     {
-
                         for ( size_t bbe = 1 ; bbe <= bbe_max ; ++bbe )
                         {
                             if (fx0s[i_pb]-_results[i_pb][i_algo][i_seed].get_sol(bbe) >= (1-out.get_tau())*(fx0s[i_pb]-fxe[i_pb]) )
@@ -834,7 +827,10 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
 /*-------------------------------------------------*/
 bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
 {
-    if ( out.get_tau() < 0 || _n_pb == 0 || _n_algo == 0 )
+    const size_t n_algo = _selected_algos.size();
+    const size_t n_pb = _selected_pbs.size();
+    
+    if ( out.get_tau() < 0 || n_pb == 0 || n_algo == 0 )
     {
         std::cerr << "Error: cannot compute data profile for tau < 0 or n_pb ==0 or n_algo == 0" << std::endl;
         return false;
@@ -854,11 +850,11 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
 
     // check that best solution and all results are available:
     std::list<size_t> miss_list;
-    for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
-        for ( i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
+        for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
         {
-            for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed )
+            for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_nb_seeds() ; ++i_seed )
             {
                 if ( !_results[i_pb][i_algo][i_seed].has_solution()  )
                 {
@@ -922,7 +918,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
 //        fout.close();
 //        return false;
 //    }
-    for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
         if ( fx0s[i_pb]==INF )
         {
@@ -936,7 +932,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     if ( _use_h_for_profiles )
     {
         bool flag_ok = false;
-        for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
         {
             if ( !flag_ok && fxe[i_pb] == 0 )
                 flag_ok = true;
@@ -959,7 +955,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     if ( _use_evals_for_dataprofiles )
     {
         max_alpha = 0;
-        for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
         {
             max_alpha = std::max (max_alpha , _selected_pbs[i_pb]->getMaxBBEvals() );
         }
@@ -992,11 +988,11 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
 
             fout << alpha << " ";
 
-        for (i_algo = 0 ; i_algo < _n_algo ; ++i_algo)
+        for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
         {
-            auto n_seed = _selected_algos[i_algo]->get_n_seeds();
+            auto n_seed = _selected_algos[i_algo]->get_nb_seeds();
             cnt = 0;
-            for (i_pb = 0 ; i_pb < _n_pb ; ++i_pb)
+            for (i_pb = 0 ; i_pb < n_pb ; ++i_pb)
             {
                 // Use evals instead of (n+1)*evals
                 size_t dimPb= ( _use_evals_for_dataprofiles ) ? 0 : _selected_pbs[i_pb]->get_n();
@@ -1009,7 +1005,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
                     }
                 }
             }
-            fout << (100.0 * cnt ) / (_n_pb*n_seed) << " " ;
+            fout << (100.0 * cnt ) / (n_pb*n_seed) << " " ;
         }
         fout << std::endl;
 
@@ -1024,18 +1020,22 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
 bool RUNNERPOST::Runner::output_time_profile_plain(const Output& out) const
 {
     const std::string profileName = "time profile";
-    if (_n_pb == 0 || _n_algo == 0)
+    
+    const size_t n_algo = _selected_algos.size();
+    const size_t n_pb = _selected_pbs.size();
+    
+    if (n_pb == 0 || n_algo == 0)
     {
         std::cerr << "Error: cannot compute " << profileName << " for n_pb == 0 or n_algo == 0" << std::endl;
         return false;
     }
     // check that best solution and all results are available:
     std::list<int> miss_list;
-    for (size_t i_pb = 0; i_pb < _n_pb; ++i_pb)
+    for (size_t i_pb = 0; i_pb < n_pb; ++i_pb)
     {
-        for (size_t i_algo = 0; i_algo < _n_algo; ++i_algo)
+        for (size_t i_algo = 0; i_algo < n_algo; ++i_algo)
         {
-            for (size_t i_seed = 0; i_seed < _selected_algos[i_algo]->get_n_seeds(); ++i_seed)
+            for (size_t i_seed = 0; i_seed < _selected_algos[i_algo]->get_nb_seeds(); ++i_seed)
             {
                 if (!_results[i_pb][i_algo][i_seed].has_solution())
                 {
@@ -1088,9 +1088,9 @@ bool RUNNERPOST::Runner::output_time_profile_plain(const Output& out) const
         }
     }
     // Write one file for each algo. It makes it easier to plot.
-    for (size_t i_algo = 0; i_algo < _n_algo; ++i_algo)
+    for (size_t i_algo = 0; i_algo < n_algo; ++i_algo)
     {
-        auto n_seed = _selected_algos[i_algo]->get_n_seeds();
+        auto n_seed = _selected_algos[i_algo]->get_nb_seeds();
         
         std::string algoFileName = out.get_plain_file_name();
         size_t lastPointIndex = out.get_plain_file_name().rfind(".");
@@ -1104,7 +1104,7 @@ bool RUNNERPOST::Runner::output_time_profile_plain(const Output& out) const
         std::cout << "writing of " << algoFileName << " ..." << std::flush;
         // compute the time profile
         // ------------------------
-        for (size_t i_pb = 0; i_pb < _n_pb; ++i_pb)
+        for (size_t i_pb = 0; i_pb < n_pb; ++i_pb)
         {
             for (size_t i_seed = 0 ; i_seed < n_seed ; ++i_seed)
             {
@@ -1123,7 +1123,10 @@ bool RUNNERPOST::Runner::output_time_profile_plain(const Output& out) const
 }
 bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) const
 {
-    if ( out.get_tau() < 0 || _n_pb == 0 || _n_algo == 0 )
+    const size_t n_algo = _selected_algos.size();
+    const size_t n_pb = _selected_pbs.size();
+    
+    if ( out.get_tau() < 0 || n_pb == 0 || n_algo == 0 )
     {
         std::cerr << "Error: cannot compute time data profile for tau < 0 or n_pb ==0 or n_algo == 0" << std::endl;
         return false;
@@ -1138,11 +1141,11 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     size_t i_pb, i_algo, i_seed;
     // check that best solution and all results are available:
     std::list<size_t> miss_list;
-    for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
-        for ( i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
+        for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
         {
-            for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds(); ++i_seed )
+            for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_nb_seeds(); ++i_seed )
             {
                 if ( !_results[i_pb][i_algo][i_seed].has_solution()  )
                 {
@@ -1191,7 +1194,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     }
     // Get fx0s for all problems
     ArrayOfDouble fx0s = get_fx0s();
-    for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
         if ( fx0s[i_pb] == INF )
         {
@@ -1203,7 +1206,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     if ( _use_h_for_profiles )
     {
         bool flag_ok = false;
-        for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
         {
             if ( !flag_ok && fxe[i_pb] == 0 )
                 flag_ok = true;
@@ -1220,12 +1223,12 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     // -------------------------
     // Compute max time taken by all problems
     int max_beta = 0;
-    for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
         size_t dimPb = (_use_evals_for_dataprofiles) ? 0 : _selected_pbs[i_pb]->get_n();
-        for (i_algo = 0 ; i_algo < _n_algo ; ++i_algo)
+        for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
         {
-            for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds(); ++i_seed )
+            for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_nb_seeds(); ++i_seed )
             {
                 int beta = std::round(_results[i_pb][i_algo][i_seed].get_time()) / dimPb;
                 if (beta > max_beta)
@@ -1239,11 +1242,11 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     for (int beta = 0 ; beta <= max_beta ; ++beta )
     {
         fout << beta << " ";
-        for (i_algo = 0 ; i_algo < _n_algo ; ++i_algo)
+        for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
         {
-            auto n_seed = _selected_algos[i_algo]->get_n_seeds();
+            auto n_seed = _selected_algos[i_algo]->get_nb_seeds();
             cnt = 0;
-            for (i_pb = 0 ; i_pb < _n_pb ; ++i_pb)
+            for (i_pb = 0 ; i_pb < n_pb ; ++i_pb)
             {
                 // Use evals instead of (n+1)*evals
                 size_t dimPb= ( _use_evals_for_dataprofiles ) ? 0 : _selected_pbs[i_pb]->get_n();
@@ -1258,7 +1261,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
                     }
                 }
             }
-            fout << (100.0 * cnt ) / (_n_pb*n_seed) << " " ;
+            fout << (100.0 * cnt ) / (n_pb*n_seed) << " " ;
         }
         fout << std::endl;
     }
@@ -1269,7 +1272,10 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
 
 void RUNNERPOST::Runner::output_problems_unsolved ( const double & tau , const double & nbSimplexEval ) const
 {
-    if ( tau < 0 || _n_pb == 0 || _n_algo == 0 )
+    const size_t n_algo = _selected_algos.size();
+    const size_t n_pb = _selected_pbs.size();
+    
+    if ( tau < 0 || n_pb == 0 || n_algo == 0 )
     {
         std::cerr << "Error: cannot compute data profile for tau < 0 or n_pb ==0 or n_algo == 0" << std::endl;
         return ;
@@ -1281,11 +1287,11 @@ void RUNNERPOST::Runner::output_problems_unsolved ( const double & tau , const d
     
     // check that best solution and all results are available:
     std::list<size_t> miss_list;
-    for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
-        for ( i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
+        for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
         {
-            for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds(); ++i_seed )
+            for ( i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_nb_seeds(); ++i_seed )
             {
                 if ( !_results[i_pb][i_algo][i_seed].has_solution()  )
                 {
@@ -1305,7 +1311,7 @@ void RUNNERPOST::Runner::output_problems_unsolved ( const double & tau , const d
     
     // Get fx0s for all problems
     ArrayOfDouble fx0s = get_fx0s();
-    for ( i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
         if ( fx0s[i_pb]==INF )
         {
@@ -1319,17 +1325,17 @@ void RUNNERPOST::Runner::output_problems_unsolved ( const double & tau , const d
     // Search for unsolved problems:
     // -------------------------
     int alpha = (nbSimplexEval < 0 ) ?  Problem::getNbSimplexEvals(): std::round(nbSimplexEval) ;
-    std::vector<size_t> nbUnsolved(_n_algo,0);
-    for (i_pb = 0 ; i_pb < _n_pb ; ++i_pb)
+    std::vector<size_t> nbUnsolved(n_algo,0);
+    for (i_pb = 0 ; i_pb < n_pb ; ++i_pb)
     {
-        std::vector<size_t> nbUnsolvedByPb(_n_algo,0);
+        std::vector<size_t> nbUnsolvedByPb(n_algo,0);
         if ( fx0s[i_pb] < INF && fxe[i_pb] < INF )
         {
             size_t dimPb= _selected_pbs[i_pb]->get_n();
             
-            for (i_algo = 0 ; i_algo < _n_algo ; ++i_algo)
+            for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
             {
-                size_t n_seed = _selected_algos[i_algo]->get_n_seeds();
+                size_t n_seed = _selected_algos[i_algo]->get_nb_seeds();
                 for ( i_seed = 0 ; i_seed < n_seed ; ++i_seed )
                 {
                     if ( fx0s[i_pb]-_results[i_pb][i_algo] [i_seed].get_sol(alpha*(dimPb+1)) < (1-tau)*(fx0s[i_pb]-fxe[i_pb]) )
@@ -1344,7 +1350,7 @@ void RUNNERPOST::Runner::output_problems_unsolved ( const double & tau , const d
                     }
                 }
             }
-            for (size_t i_algo=0; i_algo < _n_algo ; i_algo++  )
+            for (size_t i_algo=0; i_algo < n_algo ; i_algo++  )
             {
                 if (nbUnsolvedByPb[i_algo] > 0)
                 {
@@ -1353,7 +1359,7 @@ void RUNNERPOST::Runner::output_problems_unsolved ( const double & tau , const d
             }
         }
     }
-    for (size_t i_algo=0; i_algo < _n_algo ; i_algo++  )
+    for (size_t i_algo=0; i_algo < n_algo ; i_algo++  )
     {
         std::cout << "  Algo #" << i_algo+1 << " -> " << nbUnsolved[i_algo] << " overall unsolved instances" << std::endl;
     }
@@ -1366,10 +1372,13 @@ void RUNNERPOST::Runner::output_problems_unsolved ( const double & tau , const d
 /*-------------------------------------------------------*/
 RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
 {
-    ArrayOfDouble fx0s(_n_pb, INF);
+    const size_t n_pb = _selected_pbs.size();
+    const size_t n_algo = _selected_algos.size();
+    
+    ArrayOfDouble fx0s(n_pb, INF);
     double fx0;
 
-    for (size_t i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+    for (size_t i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
         fx0 = _results[i_pb][0][0].get_sol(1);
         if ( fx0 == INF)
@@ -1378,9 +1387,9 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
             return fx0s;
         }
         fx0s[i_pb] = fx0;
-        for (size_t i_algo = 1 ; i_algo < _n_algo ; ++i_algo )
+        for (size_t i_algo = 1 ; i_algo < n_algo ; ++i_algo )
         {
-            for (size_t i_seed=1 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed)
+            for (size_t i_seed=1 ; i_seed < _selected_algos[i_algo]->get_nb_seeds() ; ++i_seed)
             {
                 fx0 = _results[i_pb][i_algo][i_seed].get_sol(1);
 
@@ -1401,9 +1410,9 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
             double first_fx;
             size_t nb_first_fx = 0;
             fx0s[i_pb]=0.0;
-            for (size_t  i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
+            for (size_t  i_algo = 0 ; i_algo < n_algo ; ++i_algo )
             {
-                for (size_t i_seed=0 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed)
+                for (size_t i_seed=0 ; i_seed < _selected_algos[i_algo]->get_nb_seeds() ; ++i_seed)
                 {
                     first_fx = _results[i_pb][i_algo][i_seed].get_first_fx();
                     if ( first_fx != INF )
@@ -1445,10 +1454,13 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
 /*-------------------------------------------------------*/
 RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx() const
 {
-    ArrayOfDouble fxe(_n_pb, INF);
+    const size_t n_pb = _selected_pbs.size();
+    const size_t n_algo = _selected_algos.size();
+    
+    ArrayOfDouble fxe(n_pb, INF);
     double fxe_tmp, fxe_bb;
     size_t nbDomRefObj; // not used here
-    for (size_t i_pb = 0; i_pb < _n_pb ; ++i_pb)
+    for (size_t i_pb = 0; i_pb < n_pb ; ++i_pb)
     {
         if ( _use_hypervolume_for_profiles )
         {
@@ -1461,9 +1473,9 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx() const
         }
         else
         {
-            for (size_t i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
+            for (size_t i_algo = 0 ; i_algo < n_algo ; ++i_algo )
             {
-                for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed )
+                for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_nb_seeds() ; ++i_seed )
                 {
                     size_t max_bb_evals=_selected_pbs[i_pb]->getMaxBBEvals();
                     fxe_tmp = _results[i_pb][i_algo][i_seed].get_sol ( max_bb_evals );
@@ -1484,20 +1496,23 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx() const
 /*------------------------------------------------------*/
 RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_mean_algo_times(size_t bbe) const
 {
-    ArrayOfDouble times(_n_algo, INF);
-    for (size_t i_algo = 0 ; i_algo < _n_algo; ++i_algo)
+    const size_t n_pb = _selected_pbs.size();
+    const size_t n_algo = _selected_algos.size();
+    
+    ArrayOfDouble times(n_algo, INF);
+    for (size_t i_algo = 0 ; i_algo < n_algo; ++i_algo)
     {
         // total time for all problems, on all seeds, for this algo.
         double totalAlgoTime = 0;
         size_t totalNbPbAndSeeds = 0;
-        for (size_t i_pb = 0; i_pb < _n_pb; ++i_pb)
+        for (size_t i_pb = 0; i_pb < n_pb; ++i_pb)
         {
             if (get_bbe_max(i_pb, i_algo) < bbe)
             {
                 // time for this problem and algo should not be counted for this bbe.
                 continue;
             }
-            for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds(); ++i_seed)
+            for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_nb_seeds(); ++i_seed)
             {
                 totalAlgoTime += _results[i_pb][i_algo][i_seed].get_time(bbe);
                 totalNbPbAndSeeds++;
@@ -1522,27 +1537,31 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_mean_algo_times(size_t bbe) co
 /*---------------------------------------------------------------------------*/
 RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_relative_algo_times(size_t bbe) const
 {
-    ArrayOfDouble relTimes(_n_algo, 0);
+    
+    const size_t n_pb = _selected_pbs.size();
+    const size_t n_algo = _selected_algos.size();
+    
+    ArrayOfDouble relTimes(n_algo, 0);
     relTimes[0] = 100;
     if (get_bbe_max(0) < bbe)
     {
         std::cerr << "Warning: Algo #0 has less than " << bbe << " evaluations" << std::endl;
         return relTimes;
     }
-    for (size_t i_algo = 1 ; i_algo < _n_algo; ++i_algo)
+    for (size_t i_algo = 1 ; i_algo < n_algo; ++i_algo)
     {
         // total time for all problems, on all seeds, for this algo.
         double totalAlgoTime = 0;
         size_t totalNbPbAndSeeds = 0;
         double meanTime0 = 0;
-        for (size_t i_pb = 0; i_pb < _n_pb; ++i_pb)
+        for (size_t i_pb = 0; i_pb < n_pb; ++i_pb)
         {
             if (get_bbe_max(i_pb, i_algo) < bbe)
             {
                 // time for this problem and algo should not be counted for this bbe.
                 continue;
             }
-            for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds(); ++i_seed)
+            for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_nb_seeds(); ++i_seed)
             {
                 totalAlgoTime += _results[i_pb][i_algo][i_seed].get_time(bbe);
                 meanTime0     += _results[i_pb][0][i_seed].get_time(bbe);
@@ -1568,14 +1587,16 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_relative_algo_times(size_t bbe
 /*----------------------------------------------------------------------*/
 size_t RUNNERPOST::Runner::get_bbe_max() const
 {
-
+    const size_t n_pb = _selected_pbs.size();
+    const size_t n_algo = _selected_algos.size();
+    
     size_t tmp = 0;
     size_t bbe_max = 0;
-    for (size_t i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+    for (size_t i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
-        for (size_t i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
+        for (size_t i_algo = 0 ; i_algo < n_algo ; ++i_algo )
         {
-            for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed )
+            for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_nb_seeds() ; ++i_seed )
             {
                 tmp = _results[i_pb][i_algo][i_seed].get_sol_bbe();
                 if ( tmp > bbe_max )
@@ -1594,11 +1615,15 @@ size_t RUNNERPOST::Runner::get_bbe_max() const
 /*-----------------------------------------------------*/
 size_t RUNNERPOST::Runner::get_bbe_max(size_t i_algo) const
 {
+    
+    const size_t n_pb = _selected_pbs.size();
+    const size_t n_algo = _selected_algos.size();
+    
     size_t tmp = 0;
     size_t bbe_max = 0;
-    for (size_t i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
+    for (size_t i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
-        for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed)
+        for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_nb_seeds() ; ++i_seed)
         {
             tmp = _results[i_pb][i_algo][i_seed].get_sol_bbe();
             if (tmp > bbe_max)
@@ -1620,7 +1645,7 @@ size_t RUNNERPOST::Runner::get_bbe_max(size_t i_pb, size_t i_algo) const
 
     size_t tmp = 0;
     size_t bbe_max = 0;
-    for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_n_seeds() ; ++i_seed)
+    for (size_t i_seed = 0 ; i_seed < _selected_algos[i_algo]->get_nb_seeds() ; ++i_seed)
     {
         tmp = _results[i_pb][i_algo][i_seed].get_sol_bbe();
         if (tmp > bbe_max)
@@ -1640,7 +1665,7 @@ int RUNNERPOST::Runner::get_dimPbMin() const
 {
 
     int tmp , dimMin = _selected_pbs[0]->get_n() ;;
-    for (size_t i_pb = 1 ; i_pb < _n_pb ; ++i_pb )
+    for (size_t i_pb = 1 ; i_pb < _selected_pbs.size() ; ++i_pb )
     {
         tmp = _selected_pbs[i_pb]->get_n() ;
         if ( tmp < dimMin )
@@ -1662,9 +1687,10 @@ void RUNNERPOST::Runner::display_selected_problems ( void ) const
     else
     {
         std::ostringstream msg;
+        const size_t n_pb = _selected_pbs.size();
         msg << "selected problem";
-        if ( _n_pb > 1 )
-            msg << "s (" << _n_pb << ")";
+        if ( n_pb > 1 )
+            msg << "s (" << n_pb << ")";
         std::cout << msg.str() << std::endl ;
         display_pbs ( _selected_pbs );
     }
@@ -1742,7 +1768,7 @@ void RUNNERPOST::Runner::display_special_options ( void ) const
 void RUNNERPOST::Runner::display_instance_name (const Problem & pb, const  Algorithm & ac, size_t i_seed) const
 {
     std::cout << "\t " << pb.get_id() << ", " << ac.get_id();
-    if (i_seed < INF_SIZE_T && ac.get_n_seeds()> 1)
+    if (i_seed < INF_SIZE_T && ac.get_nb_seeds()> 1)
     {
         std::cout << ", seed run #" << i_seed + 1;
     }
@@ -1776,8 +1802,24 @@ void RUNNERPOST::Runner::display_selected_algos ( void ) const
         {
             std::cout << "\t " << _selected_algos[k]->get_id();
             std::cout << ": (" << _selected_algos[k]->get_name() << ") ";
-            std::cout << _selected_algos[k]->get_output_options() << std::endl;
-            if (_selected_algos[k]->get_n_seeds() > 1)
+            const auto & options = _selected_algos[k]->get_output_options();
+            if (options.size() > 0)
+            {
+                std::cout << " [ ";
+                size_t count = 1;
+                
+                for (const auto & o: options )
+                {
+                    std::cout << o << "]";
+                    if (count < options.size())
+                    {
+                        std::cout << " [ ";
+                    }
+                    count++;
+                }
+            }
+            std::cout << std::endl;
+            if (_selected_algos[k]->get_nb_seeds() > 1)
             {
                 std::cout << " { ";
                 for ( const auto & s: _selected_algos[k]->get_run_seeds())
@@ -1859,7 +1901,7 @@ void RUNNERPOST::Runner::set_result (const std::string        & test_id /*not us
     //  xe and fxe  correspond to the best solution (last entry in the
     //  stats file).
     
-    for (size_t i_seed=0 ; i_seed < ac.get_n_seeds() ; ++i_seed )
+    for (size_t i_seed=0 ; i_seed < ac.get_nb_seeds() ; ++i_seed )
     {
         display_instance_name ( pb , ac , i_seed );
         std::cout << ": found in " << Runner::get_test_dir ( ac , pb ) << ": ";
@@ -2216,63 +2258,77 @@ bool RUNNERPOST::Runner::read_algo_selection_file ( const std::string  & algo_se
 
     error_msg.clear();
 
-    std::ifstream fin ( algo_selection_file_name.c_str(), std::ios::in );
-    if ( fin.fail() )
+    std::ifstream in ( algo_selection_file_name.c_str(), std::ios::in );
+    if ( in.fail() )
     {
-        fin.close();
+        in.close();
         error_msg = "Error(0). Cannot read file " + algo_selection_file_name;
         return false;
     }
-
-    std::string s;
-    while(std::getline(fin, s) && !s.empty())
+    
+    while(!in.eof())
     {
-        // Get algo id as the first word on the line
-        size_t i = s.find_first_not_of(" ");
-        if (i > 0)
-        {
-            s.erase(i) ;  // Remove initial white spaces
-        }
-        i = s.find(" ");
-        std::string id = s.substr(0,i);
+        std::string line;
+        getline (in , line);
         
-        // Algo name and version are provided between parenthesis
-        size_t i0 = s.find("(",0);
-        size_t i1 = s.find(")",i0+1);
-
-        if ( i0 == std::string::npos || i1 == std::string::npos )
+        if (line.empty())
         {
-            error_msg = "Error(2) in file " + algo_selection_file_name + ". Line #" + std::to_string(_n_algo+1) + ". Algo name and version must be provided between parentheses after algo ID.";
+            continue;
+        }
+        
+        _selected_algos.push_back(new Algorithm(line, error_msg));
+        if (!error_msg.empty())
+        {
+            in.close();
             return false;
         }
-        std::string nameAndExtra = s.substr(i0+1,i1-i0-1);
-
-        if (nameAndExtra.empty())
-        {
-            error_msg = "Error(3) in file " + algo_selection_file_name + ". Line #" + std::to_string(_n_algo+1) + ". Algo name is empty.";
-            return false;
-        }
-        
-        
-        std::string output_options = s.substr(i1+1); // Need to extract info from bracket
-
-        _selected_algos.push_back ( new Algorithm ( _n_algo, id, nameAndExtra , output_options ) );
-
-        _n_algo++ ;
-        
-
     }
-    fin.close();
+
+//    std::string s;
+//    while(std::getline(fin, s) && !s.empty())
+//    {
+//        // Get algo id as the first word on the line
+//        size_t i = s.find_first_not_of(" ");
+//        if (i > 0)
+//        {
+//            s.erase(i) ;  // Remove initial white spaces
+//        }
+//        i = s.find(" ");
+//        std::string id = s.substr(0,i);
+//
+//        // Algo name and version are provided between parenthesis
+//        size_t i0 = s.find("(",0);
+//        size_t i1 = s.find(")",i0+1);
+//
+//        if ( i0 == std::string::npos || i1 == std::string::npos )
+//        {
+//            error_msg = "Error(2) in file " + algo_selection_file_name + ". Line #" + std::to_string(_n_algo+1) + ". Algo name and version must be provided between parentheses after algo ID.";
+//            return false;
+//        }
+//        std::string nameAndExtra = s.substr(i0+1,i1-i0-1);
+//
+//        if (nameAndExtra.empty())
+//        {
+//            error_msg = "Error(3) in file " + algo_selection_file_name + ". Line #" + std::to_string(_n_algo+1) + ". Algo name is empty.";
+//            return false;
+//        }
+//
+//
+//        std::string output_options = s.substr(i1+1); // Need to extract info from bracket
+//
+//        _selected_algos.push_back ( new Algorithm ( id, nameAndExtra , output_options ) );
+//
+//        _n_algo++ ;
+//
+//
+//    }
+    in.close();
     
     if (_selected_algos.empty())
     {
-        fin.close();
         error_msg = "Error(1) in file " + algo_selection_file_name + ". Cannot read a single algo config. First line in file must contain an algo config." ;
         return false;
     }
-    
-    // TODO each algo can have different seed runs 
-    _algoRunSeeds.push_back(1); // TMP 1 set of algos -> 1 seed
 
     return true;
 }
@@ -2322,6 +2378,7 @@ bool RUNNERPOST::Runner::read_problem_selection_file ( const std::string  & pb_s
             return false;
         }
     }
+    in.close();
 
 //    std::string s;
 //    while(!fin.eof())  // std::getline(fin, s) && !s.empty())
@@ -2695,9 +2752,9 @@ void RUNNERPOST::Runner::display_selected_outputs   ( void ) const
 /*    (read id file 3/4)               */
 /*-------------------------------------*/
 bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/ ,
-                         const Problem        & pb      ,
-                         const Algorithm      & ac      ,
-                         Result                 result[])
+                                     const Problem        & pb      ,
+                                     const Algorithm      & ac      ,
+                                     Result                 result[])
 {
 
     // Get the results from stats file
@@ -2927,3 +2984,180 @@ void RUNNERPOST::Runner::add_seed_to_file_name ( int                 seed,
 }
 
 
+
+bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
+{
+    if (out.get_latex_file_name().empty())
+    {
+        return true;
+    }
+    
+    std::string plain_file_name = out.get_plain_file_name();
+    std::string latex_file_name = out.get_latex_file_name();
+    
+    std::cout<< "\t Writing of " << latex_file_name << " ......";
+    
+    if (out.get_plain_file_name().empty())
+    {
+        std::cerr << "\n Error in output_selection: To output in latex the output_plain is mandatory. " << std::endl;
+        return false;
+    }
+
+    std::ifstream infile(plain_file_name);
+    if (! infile.good() )
+    {
+        std::cerr << "\n Error in output_selection: file " << plain_file_name << " does not exist for latex profile " << std::endl;
+        infile.close();
+        return false;
+    }
+    infile.close();
+
+    // To be generalized.
+    // Multiple inputs.
+    // Single output.
+
+    // Graph title
+    std::string profileTitle = out.get_title();
+    
+    
+    RUNNERPOST::Output::Profile_Type profile_type = out.get_profile_type();
+
+
+    // Output tex file from previous strings
+    std::ofstream out_tex ( latex_file_name , std::ofstream::out | std::ofstream::trunc );
+    out_tex << "\\documentclass{standalone}" <<std::endl;
+    out_tex << "\\usepackage{pgfplots} " <<std::endl;
+    out_tex << "\\pgfplotsset{width=10cm,compat=1.16} " <<std::endl;
+    out_tex << "\\begin{document}" <<std::endl;
+    out_tex << "\\begin{tikzpicture} "<<std::endl;
+    out_tex << "\\begin{axis}[ " << std::endl;
+
+    out_tex << "       title = " << profileTitle << "," << std::endl;
+    out_tex << "       xmin=-10, ymin = -5, ymax= 105," << std::endl;
+
+    if (RUNNERPOST::Output::Profile_Type::DATA_PROFILE == profile_type)
+    {
+        if (RUNNERPOST::Output::X_Select::EVAL == out.get_x_select())
+        {
+            out_tex << "       xlabel = Number of evaluations, " <<std::endl;
+        }
+        else if (RUNNERPOST::Output::X_Select::NP1EVAL == out.get_x_select())
+        {
+            out_tex << "       xlabel = Number of ($n+1$) evaluations," <<std::endl;
+        }
+        else if (RUNNERPOST::Output::X_Select::TIME == out.get_x_select())
+        {
+            out_tex << "       xlabel = Time," <<std::endl;
+        }
+        else
+        {
+            std::cerr << "\n Error:  x_select type is not available for latex profile " << std::endl;
+            out_tex.close();
+            return false;
+        }
+        
+        if (RUNNERPOST::Output::Y_Select::OBJ == out.get_y_select())
+        {
+            out_tex << "       ylabel = Percentage of problems solved," <<std::endl;
+        }
+        else if (RUNNERPOST::Output::Y_Select::INFEAS == out.get_y_select())
+        {
+            out_tex << "       ylabel = Percentage of problems solved," <<std::endl;
+        }
+        else
+        {
+            std::cerr << "\n Error:  y_select type is not available for latex profile " << std::endl;
+            out_tex.close();
+            return false;
+        }
+        
+        
+        
+    }
+    else
+    {
+        std::cerr << "\n Error:  profile type " << RUNNERPOST::Output::profileTypeToString(out.get_profile_type()) << " is not yet available for latex profile " << std::endl;
+        out_tex.close();
+        return false;
+    }
+
+
+    out_tex << " legend style={ " << std::endl;
+    out_tex << "    font=\\tiny, " <<std::endl;
+    out_tex << "    cells={anchor=southeast}, " << std::endl;
+    out_tex << "    at={(1,-0.2)}, " <<std::endl;
+    out_tex << "   legend cell align=left, } ]" <<std::endl;
+    
+    //Concatenate algo info to create legends:
+    std::vector<std::string> legends;
+    
+    if (_selected_algos.empty())
+    {
+        std::cerr << "\n Error:  no algos selected." << std::endl;
+        out_tex.close();
+        return false;
+    }
+    
+    for (const auto & algo: _selected_algos)
+    {
+        legends.push_back(algo->get_name());
+    }
+
+    int y_index = 1;
+    int color_index = 0;
+    int symbol_index = 0;
+    
+    // Maximum number of algorithms that can be plotted
+    const size_t maxAlgos = std::min(SYMBOLS.size(),COLORS.size());
+    if ( _selected_algos.size() > maxAlgos )
+    {
+        if (SYMBOLS.size() != COLORS.size())
+        {
+            std::cerr << "\n Warning:  number of colors and symbols do not match." << std::endl;
+        }
+        std::cerr << "\n Warning:  not enough symbols/colors for the number of algo. Let's plot only the first " << std::to_string(maxAlgos) << " algos." << std::endl;
+    }
+    
+    // int repeat_mark = 10;
+    size_t nbPlottedAlgos = 0;
+    std::string lineStyle = "solid";
+    
+    // For some profile we may need to plot with only marks
+    // lineStyle = "only marks";
+
+    if (RUNNERPOST::Output::Profile_Type::DATA_PROFILE == profile_type)
+    {
+        for (const auto & leg : legends )
+        {
+            out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 10, color=" << COLORS[color_index++] << "] table [x index = 0, y index = " << y_index++ << " , header = false ] {" << plain_file_name << "}; " << std::endl ;
+            out_tex << "\\addlegendentry{" << leg << "};" <<std::endl;
+            nbPlottedAlgos++;
+            if (nbPlottedAlgos >= maxAlgos)
+            {
+                break;
+            }
+        }
+    }
+
+//    else if ("timeProfile" == profileName)
+//    {
+//        for (size_t i_algo = 0; i_algo < legends.size(); i_algo++)
+//        {
+//            std::string algoFileName = NOMAD_BASE::dirname(args[0]);
+//            algoFileName += profile_plain_noExt_noPath;
+//            algoFileName += NOMAD_BASE::itos(i_algo) + NOMAD_BASE::extension(args[0]);
+//            // VRM TODO
+//            out << "  \\addplot [" << lineStyle << ", mark="<< symbols[symbol_index++] << ", color=" << colors[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << algoFileName << "}; " << std::endl ;
+//            out << "\\addlegendentry{" << legends[i_algo] << "};" <<std::endl;
+//        }
+//    }
+    out_tex << " \\end{axis} " << std::endl;
+    out_tex << " \\end{tikzpicture}" << std::endl;
+    out_tex << " \\end{document}" <<std::endl;
+
+    out_tex.close();
+
+    std::cout << " done " << std::endl;
+
+    return true;
+}

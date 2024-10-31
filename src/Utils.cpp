@@ -17,16 +17,29 @@ std::pair<std::string,std::vector<std::string>> RUNNERPOST::extract_from_bracket
 
     size_t pos0 = s.find("[",0);
     
+    // Values must be between []
+    if (s.find("]") < pos0)
+    {
+        return out;
+    }
+    
     // Remove space before key
     if (s.compare(pos0+1,1," ") == 0)
     {
         size_t pos = s.find_first_not_of(" ",pos0);
         s.erase(pos0+1,pos-pos0+1);
+        pos0 = s.find("[",0); // Should be 0!
+    }
+    
+    if (pos0 != 0)
+    {
+        std::cerr << "Error in extract from bracket" << std::endl;
+        return out;
     }
 
     size_t pos1 = s.find(keyValSep,pos0);
     size_t pos2 = s.find("]",pos1);
-    if (pos0 == std::string::npos || pos2 == std::string::npos || pos1 == std::string::npos)
+    if (pos2 == std::string::npos || pos1 == std::string::npos)
     {
         return out;
     }
@@ -37,7 +50,7 @@ std::pair<std::string,std::vector<std::string>> RUNNERPOST::extract_from_bracket
     out.second = sWords;
     
     // Extract (remove) the bracket content from string
-    s.erase(pos0,pos2-pos0+1);
+    s.erase(0,pos2+1);
     return out;
 }
 

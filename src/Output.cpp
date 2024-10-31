@@ -48,13 +48,9 @@ RUNNERPOST::Output::Output (std::string & s, std::string & error_msg)
     while ((pos = s.find("[")) != std::string::npos)
     {
         
-        // Strip empty spaces before a [
-        pos = s.find_first_not_of("[");
-        if (pos == std::string::npos)
-        {
-            break;
-        }
-        s.erase(0, pos+1);
+        // Strip any character (should only be empty spaces) before a [
+        pos = s.find_first_not_of(" ");
+        s.erase(0, pos);
         
         auto p = RUNNERPOST::extract_from_bracket(s);
         
