@@ -5,6 +5,7 @@
 #include "Output.hpp"
 #include "Problem.hpp"
 #include "Result.hpp"
+#include "Utils.hpp"
 
 #include <list>
 
@@ -98,10 +99,6 @@ private:
 //    bool addToCombinedPareto(const std::vector<NOMAD_BASE::Point> & paretoPts,
 //                             const size_t & pbIndex );
     
-//    // construct a list of sub-directories:
-//    static bool construct_list_of_subdirs ( std::list<std::string> & list_of_dirs ,
-//                                           const std::string      & directory      );
-    
     // functions to access directory and file names:
     static std::string get_test_dir ( const Algorithm    & ac,
                                       const Problem       & pb      )
@@ -122,56 +119,13 @@ private:
         return s ;
     }
     
-//    static int extract_from_bracket(const std::string & varNameToExtract, std::string &s)
-//    {
-//        int var=M_INF_INT;
-//        size_t pos;
-//        if ( (pos= s.find(varNameToExtract)) != std::string::npos)
-//        {
-//            size_t pos1 = s.find("=",pos);
-//            size_t pos2 = s.find("]",pos1);
-//            if (pos2 == std::string::npos || pos1 == std::string::npos)
-//            {
-//                return var;
-//            }
-//            auto tmp = s.substr(pos1+1,pos2-pos1-1);
-//            var = std::stoi(tmp);
-//            
-//            // Remove the bracket info from string
-//            s.erase(pos-1,pos2);
-//        }
-//        return var;
-//    }
-    
-//    // functions to access directory and file names:
-//    static std::string get_param_file_name ( const std::string & test_id ,
-//                                            const Problem     & pb      ,
-//                                            int                 seed    )
-//    {
-//        std::ostringstream os;
-//        os << Runner::get_test_dir ( test_id , pb ) << PARAM_FILE ;
-//
-//        std::string paramFileName = os.str();
-//
-//        add_seed_to_file_name ( seed , paramFileName );
-//
-//        return paramFileName;
-//
-//    }
     
     static std::string get_stats_file_name (const Algorithm    & ac      ,
-                                            const Problem      & pb      ,
-                                            int                  seed    )
-    {
-        std::string statsFileName = get_test_dir(ac,pb) + STATS_FILE;
-        
-        if ( ADD_SEED_TO_STATS_FILE )
-            add_seed_to_file_name ( seed , statsFileName );
-        
-        return statsFileName;
-    }
+                                     const Problem      & pb      ,
+                                     const std::string  & pb_inst    )  ;
     
-    static void add_seed_to_file_name ( int seed, std::string & file_name ) ;
+    
+    static void add_pbinstance_to_file_name ( const std::string & pbInst, std::string & file_name ) ;
     
     // access to the date:
     std::string get_date ( void ) const;

@@ -25,7 +25,7 @@ def __doc__():
 # Define the interface function to perform optimization
 # For now, we only show one best solution.
 def run(algo_selection_file, pb_selection_file, output_selection_file):
-    readAndPostprocess(algo_selection_file, pb_selection_file, output_selection_file)
+    readAndPostprocess(eASF, pASF, oASF)
 
 
 cdef extern from "RunnerPostCythonInterface.cpp":

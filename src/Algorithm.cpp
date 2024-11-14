@@ -10,7 +10,6 @@ void RUNNERPOST::Algorithm::resetInfo ( void )
     _id = "";
     _nameAndExtra = "";
     _output_options.clear();
-    _run_seeds.clear();
 
 }
 
@@ -77,10 +76,7 @@ RUNNERPOST::Algorithm::Algorithm(std::string & s, std::string & error_msg)
         }
         
     }
-    
-    // TODO: manage seeds or instance ids
-    // We have at least one instance. Default is 0
-    _run_seeds.push_back(0);
+
     
     // TODO: check inconsistencies. Example: tau provided but default output file name are used. At least give a warning
     

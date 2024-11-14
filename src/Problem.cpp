@@ -3,111 +3,13 @@
 
 #include <cctype>
 
-// static members initialization:
-// std::set<std::string> Problem::_all_keywords;
 
 // Default values. Can be set.
 // TODO: this is available from Algo
 int RUNNERPOST::Problem::_nbSimplexEvals = 100;
 int RUNNERPOST::Problem::_overallMaxBBEvals = 20000;
 
-
-
-/*----------------------------------------------*/
-/*                   constructor #1             */
-/*----------------------------------------------*/
-//Problem::Problem ( const std::string & pb_dir       )
-//: _index           ( -1                          ) ,
-//  _id              ( ""                          ) ,
-//  _pb_dir          ( pb_dir ) ,
-//   _xe_file_name    ( ""                          ) ,
-//  _n               ( -1                          ) ,
-//  _m               ( -1                          )
-//  _bb_exe          (""                           ) ,
-//  _batch_eval      ( false                       ) ,
-//  _has_constraints ( false                       ) ,
-//  _has_integers    ( false                       ) ,
-//  _has_binaries    ( false                       ) ,
-//  _x0_feas_info    ( false                       ) ,
-//  _x0_is_feas      ( false                       )
-//{};
-
-
-/*----------------------------------------------*/
-/*                   constructor #2             */
-/*----------------------------------------------*/
-//Problem::Problem ( const std::string & id           ,
-//                  const std::string & pb_dir       ,
-//                  const std::string & xe_file_name ,
-//                  int                 n            ,
-//                  int                 m              )
-//: _index           ( -1                          ) ,
-//_id              ( id                            ) ,
-//_pb_dir          ( PROBLEMS_DIR + pb_dir + "/" ) ,
-//_xe_file_name    ( xe_file_name                ) ,
-//_n               ( n                           ) ,
-//_m               ( m                           )
-//_bb_exe          (""                           ) ,
-//_batch_eval      ( false                       ) ,
-//_bbit            ( n                           ) ,
-//_bbot            ( m                           ) ,
-//_has_constraints ( false                       ) ,
-//_has_trend_matrix( false                       ) ,
-//_has_integers    ( false                       ) ,
-//_has_binaries    ( false                       ) ,
-//_lb              ( n                           ) ,
-//_ub              ( n                           ) ,
-//_x0              ( n                           ) ,
-//_xe              ( n                           ) ,
-//_fxe             (                             ) ,
-//_keywords        (                             ) ,
-//_trend_matrix    ( m                           ) ,
-//_x0_feas_info    ( false                       ) ,
-//_x0_is_feas      ( false                       )
-//{
-    
-//    std::ifstream in ( (_pb_dir + xe_file_name).c_str() );
-//
-//    if ( !in.fail() )
-//    {
-//        try
-//        {
-//            in >> _xe >> _fxe;
-//        }
-//        catch ( ... ) { }
-//
-//        if ( !_xe.isComplete() )
-//            _xe.reset();
-//
-//        if ( !_fxe.isDefined() )
-//        {
-//            _xe.reset();
-//            _fxe.clear();
-//        }
-//    }
-//    in.close();
-    
-//}
-
-///*----------------------------------------------*/
-///*     add a keyword describing the problem     */
-///*----------------------------------------------*/
-//void Problem::add_keyword ( std::string s )
-//{
-//    std::toupper                  ( s );
-//    _keywords.insert              ( s );
-//    Problem::_all_keywords.insert ( s );
-//}
-
-///*----------------------------------------------*/
-///*        search for a particular keyword       */
-///*----------------------------------------------*/
-//bool Problem::has_keyword ( const std::string & kw )
-//{
-//    std::set<std::string>::const_iterator
-//    it = _keywords.find ( kw );
-//    return ( it != _keywords.end() );
-//}
+// TODO: accept the syntax * () to use all directory names as pb ids. This should work only when output has no constraint, a single objective. Can be default format: SOL OBJ for all evals or EVAL SOL OBJ. We need SOL to determine the dimenstion from the outputs.
 
 RUNNERPOST::Problem::Problem(std::string & s, std::string & error_msg)
 {
@@ -157,7 +59,7 @@ RUNNERPOST::Problem::Problem(std::string & s, std::string & error_msg)
         pos = s.find_first_not_of(" ");
         s.erase(0, pos);
         
-        auto p = RUNNERPOST::extract_from_bracket(s,"=" /*key/val separator is = */);
+        auto p = RUNNERPOST::extract_from_bracket(s);
         
         if ( p.first.empty() || p.second.empty())
         {
@@ -167,7 +69,7 @@ RUNNERPOST::Problem::Problem(std::string & s, std::string & error_msg)
         
         if ( !setSingleAttribute(p) )
         {
-            error_msg = "Error: Cannot read output bracket value in " + s;
+            error_msg = "Error: Cannot read output bracket value for " + p.first;
         }
         
     }
@@ -178,18 +80,30 @@ RUNNERPOST::Problem::Problem(std::string & s, std::string & error_msg)
 
 bool RUNNERPOST::Problem::setSingleAttribute(const std::pair<std::string,std::vector<std::string>> & att)
 {
-    if (att.second.size() != 1)
+    if (att.second.empty())
     {
         return false;
     }
     
-    if (att.first.find("N") != std::string::npos)
+    if (att.first == "N")
     {
+        if (att.second.size() != 1)
+        {
+            return false;
+        }
         return set_n(att.second[0]);
     }
-    else if (att.first.find("M") != std::string::npos)
+    else if (att.first =="M")
     {
+        if (att.second.size() != 1)
+        {
+            return false;
+        }
         return set_m(att.second[0]);
+    }
+    else if (att.first == "PB_INSTANCE")
+    {
+        return set_pbInstance(att.second);
     }
     else
     {
@@ -198,7 +112,39 @@ bool RUNNERPOST::Problem::setSingleAttribute(const std::pair<std::string,std::ve
     
 }
 
+bool RUNNERPOST::Problem::set_pbInstance(const std::vector<std::string> &vs)
+{
+    _pbInstance.clear();
+    
+    // Remove white spaces
+    std::vector<std::string> tmpVS=vs;
+    
+    for (auto &s: tmpVS)
+    {
+        auto tmpS = RUNNERPOST::extract_words(s);
+        _pbInstance.insert(_pbInstance.end(),tmpS.begin(), tmpS.end());
+    }
+    return true;
+}
 
+bool RUNNERPOST::Problem::set_pbInstance(const std::string &s)
+{
+    _pbInstance.clear();
+    
+    // Remove white spaces
+    std::string tmpS=s;
+    
+    auto tmp2S = RUNNERPOST::extract_words(tmpS);
+    
+    if (tmp2S.size() > 0)
+    {
+        _pbInstance.insert(_pbInstance.end(),tmp2S.begin(), tmp2S.end());
+        return true;
+    }
+    return false;
+}
+
+    
 int RUNNERPOST::Problem::getMaxBBEvals() const
 {
     int maxBBEvals = -1;
@@ -350,8 +296,19 @@ std::string RUNNERPOST::Problem::get_id ( ) const
 void RUNNERPOST::Problem::display ( void ) const
 {
     std::cout << _id << ": "
-    << "(" << _name << ") [n=" << _n
-    << "] [m=" << _m << "]";;
+    << "(" << _name << ") [N " << _n
+    << "] [ M " << _m << "]";
+    
+    if (_pbInstance.size() > 0)
+    {
+        std::cout << " [ PB_INSTANCE ";
+        for (const auto &s: _pbInstance)
+        {
+            std::cout << s << " " ;
+        }
+        std::cout << " ]";
+    }
+    
 //    << "] [bnds=" << has_bounds()
 //    << "] [cstr=" << _has_constraints
 //    << "] [trend=" << _has_trend_matrix

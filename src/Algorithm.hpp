@@ -18,7 +18,6 @@ private:
     std::string                _id;
     std::string                _nameAndExtra;
     std::vector<std::string>   _output_options;
-    std::vector<int>           _run_seeds; // TODO: maybe _run_instances
     
     // reset info
     void resetInfo ( void );
@@ -36,7 +35,7 @@ private:
 public:
     
     // Constructor #1
-    Algorithm( const std::string & id, const std::string & nameAndExtra, const std::vector<std::string> & output_options) : _id(id), _nameAndExtra(nameAndExtra), _output_options(output_options), _run_seeds({0} /* TODO */ )
+    Algorithm( const std::string & id, const std::string & nameAndExtra, const std::vector<std::string> & output_options) : _id(id), _nameAndExtra(nameAndExtra), _output_options(output_options)
     { }
     
     // Constructor #2
@@ -49,17 +48,13 @@ public:
     
     // SET methods:
     void set_name ( const std::string & name) { _nameAndExtra = name ;}
-    
     bool set_output_options(const std::vector<std::string> & s) { _output_options = s; return true;} // TODO: break into specific output options
 
         
     // GET methods:
-    // size_t                           get_index          ( void ) const { return _index;       }
     const std::string &              get_id            ( void ) const { return _id;       }
     const std::string &              get_name    ( void ) const { return _nameAndExtra;}
     const std::vector<std::string>&  get_output_options() const { return _output_options; }
-    const std::vector<int> &         get_run_seeds( void ) const { return _run_seeds; }
-    size_t                           get_nb_seeds( void ) const { return _run_seeds.size() ; }
     
     
 };

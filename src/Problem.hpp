@@ -15,6 +15,8 @@ private:
     int                                _n;
     int                                _m;
     
+    std::vector<std::string>           _pbInstance; // Can be undefined (single instance, no id -> not used in history name)
+    
     
     // The max_bb_eval termination criterion is min( _overallMaxBBEvals, (n+1)*_nbSimplexEvals
     static int                         _nbSimplexEvals; // if <=0 ==> other termination criterions will be used
@@ -72,6 +74,9 @@ public:
     bool set_n(const std::string & s) {return set_n(std::stoi(s));}
     bool set_m(const int & m) { if (m<=0) return false; _m = m ; return true; }
     bool set_m(const std::string & s) {return set_m(std::stoi(s));}
+    bool set_pbInstance (const std::vector<std::string> & vs);
+    bool set_pbInstance (const std::string & s);
+    
     
     // void set_xe_file_name( std::string f){ _xe_file_name = f ;}
     
@@ -94,6 +99,7 @@ public:
     // std::string         get_tests_dir ( void ) const { return _pb_dir+TESTS_DIR; }
     int                 get_n         ( void ) const { return _n;                }
     int                 get_m         ( void ) const { return _m;                }
+    const std::vector<std::string> & get_pbInstance( void) const { return _pbInstance; }
     
 //    const NOMAD_BASE::Point  & get_x0          ( void ) const { return _x0;               }
 //    bool hasX0FeasInfo( void ) const { return _x0_feas_info ; }
