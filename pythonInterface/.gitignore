@@ -2,3 +2,4 @@ dist
 Env
 RunnerPost.cpp
 build
+RunnerPost.egg-info
