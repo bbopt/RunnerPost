@@ -9,6 +9,8 @@
 //#include "hv.h"
 //#endif
 
+
+
 /*----------------------------------*/
 /*               reset              */
 /*----------------------------------*/
@@ -47,7 +49,7 @@ void RUNNERPOST::Result::clear_solution ( void )
 /*----------------------------------*/
 /*          read results            */
 /*----------------------------------*/
-bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , int m , int n, const double & feasibilityThreshold )
+bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNNERPOST::StatOutputTypeList & sotList , const double & feasibilityThreshold )
 {
     if (_use_h_for_obj && _use_hypervolume_for_obj)
     {
@@ -56,51 +58,72 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , int m , in
     }
     
     
-    std::string   s,s2, line;
-    size_t        bbe =0, bbe_plus =0;
+    std::string   s, line;
+    size_t        bbe =0;
     double time = 0 , obj = INF, obj_prev = INF ;
     bool valid=true;
     
-    // TODO: manage bbo and output type.
-    // Complex to deduce all cases.
-    // Only one default output type: CNT OBJ (not for multi-obj). Each line is an improving feasible point. This gives the smallest stats files.
-    // TODO: User provides output type with algo and pass it to this read (some compliance tests with m can be done).
-    ArrayOfDouble bbo(m);
-    if (m==1)
-    {
-        _outputType.push_back(OBJ);
-    }
-    else
-    {
-        std::cout << "TODO: manage output type" << std::endl;
-        return false;
-    }
     
     bool first_line = true;
     bool first_line_is_infeasible = false;
     
     // Number of objectives
-    _nb_obj = std::count(_outputType.begin(),_outputType.end(),OutputType::OBJ);
-    
-    // NOMAD_BASE::getNbObj(bbot);
-    //    // Bbot for MultiObjective EvalPoint (stored in _mobj)
-//    NOMAD_BASE::BBOutputTypeList bbotMO(_nb_obj, NOMAD_BASE::BBOutputType::OBJ);
+    _nb_obj = std::count(sotList.begin(),sotList.end(),StatOutputType::OBJ);
 
+    // Number of variable to be read in the stats file (can be null!)
+    const size_t n = std::count(sotList.begin(),sotList.end(),StatOutputType::SOL);
+    
+    const size_t m = _nb_obj + std::count(sotList.begin(),sotList.end(),StatOutputType::CST);
+    if (m == 0)
+    {
+        std::cerr << "Result::read. Output format has no objective and no constraint." << std::endl;
+        return false;
+    }
+    
+    const bool hasCntEval = (std::count(sotList.begin(),sotList.end(),StatOutputType::CNT_EVAL) > 0);
+    
+    // TODO
+    if (std::count(sotList.begin(),sotList.end(),StatOutputType::INFEAS) > 0)
+    {
+        std::cout << "Result::read INFEAS tag is not yet managed." <<std::endl;
+        return false;
+    }
+    if (_use_hypervolume_for_obj)
+    {
+        std::cerr << "Result::read for hypervolumem not yet implemented." << std::endl;
+        return false;
+    }
+    
     if (_use_hypervolume_for_obj && _nb_obj < 2)
     {
-        std::cout << "Cannot compute hypervolume when nb objective is not greater than 1" <<std::endl;
+        std::cout << "Result::read Cannot compute hypervolume when nb objective is not greater than 1" <<std::endl;
         return false;
     }
     
     // For multi objective, for now, we can only compute profiles with hypervolume
     if (!_use_hypervolume_for_obj && _nb_obj > 1)
     {
-        std::cout << "Nb objective is greater than 1. Need to enable option to compute hypervolume of pareto fronts" <<std::endl;
+        std::cout << "Nb objectives is greater than 1. Need to enable option to compute hypervolume of pareto fronts" <<std::endl;
         return false;
     }
     
+    if ( _use_h_for_obj )
+    {
+        if ( !_use_std_h )
+        {
+            std::cout << "Other than standard h calculation not implemented" <<std::endl;
+            return false;
+        }
+        if (m-_nb_obj <= 0)
+        {
+            std::cout << "Option use h for objective is enabled but no constraint is available in output format." << sotList <<std::endl;
+            return false;
+        }
+    }
+    
     int nb_fields=0; // Number of fields in the file. For history file we have nb_fields = n + m. For stats files nb_fields will be larger. This is determined from the first line.
-    bool flag_history_file = false;
+    
+    double *bbo = new double[m];
     
     while ( !in.eof() )
     {
@@ -109,251 +132,150 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , int m , in
             if (first_line)
             {
                 std::cout << "Result file is empty" <<std::endl;
+                delete [] bbo;
                 return false;
             }
+        }
+        
+        // No more lines to read.
+        if (line.empty())
+        {
+            break;
         }
 
         // Put the line in a string stream for reading values.
         std::istringstream iss(line);
-        
-        valid=true;
+
+        // This is mostly for managing the case of a number of fields not compatible with format
         if ( first_line )
         {
-            iss >> s;
+            const std::string lineTmp=line;
             
-            // no feasible solution has been found in X evaluations:
-            if ( s == "no" )
+            // number of fields.
+            size_t pos = 0;
+            nb_fields = 0;
+            
+            // At least we have single field
+            if (line.find(" ") == std::string::npos && !line.empty())
             {
-                iss >> s >> s >> s >> s >> s >> s >> _sol_bbe;
-                if ( in.fail() )
-                {
-                    _sol_bbe = INF_SIZE_T;
-                }
-                else
-                {
-                    if ( max_bbe < INF_SIZE_T && max_bbe < _sol_bbe )
-                    {
-                        _sol_bbe = max_bbe;
-                    }
-                }
-                _bbe.push_back (_sol_bbe);
-                _obj.push_back (INF);
-                _time.push_back(time);
-                
-                return true;
+                nb_fields = 1;
             }
-            else
+            
+            while ((pos = line.find(" ")) != std::string::npos)
             {
-                // number of fields.
-                size_t pos = 0;
-                nb_fields = 0;
-                while ((pos = line.find(" ")) != std::string::npos)
+                
+                // Strip empty spaces before a field
+                pos = line.find_first_not_of(" ");
+                if (pos == std::string::npos)
                 {
-                    
-                    // Strip empty spaces before a field
-                    pos = line.find_first_not_of(" ");
-                    if (pos == std::string::npos)
-                    {
-                        break;
-                    }
+                    break;
+                }
+                line.erase(0, pos);
+                
+                // We have a field
+                nb_fields ++;
+                
+                // Strip a single field value
+                pos = line.find_first_of(" ");
+                if (pos != std::string::npos)
+                {
                     line.erase(0, pos);
-                     
-                    // We have a field
-                    nb_fields ++;
-                    
-                    // Strip a single field value
-                    pos = line.find_first_of(" ");
-                    if (pos != std::string::npos)
-                    {
-                        line.erase(0, pos);
-                    }
-                }
-                // We have a history file: x1 x2 ... xn bbo1 bbo2 ... bbbom
-                if (nb_fields == n+m)
-                {
-                    flag_history_file = true;
-                    
-                    // Take the xi (not used). x0 was already taken.
-                    for (size_t i =0 ; i < n-1 ; i++)
-                    {
-                        iss >> s;
-                    }
-                    bbe= 1;
-                    
-                }
-                else
-                {
-                    time = std::stod(s);
-                    iss >> bbe >> obj;  // This is obj from getF but if merit function is a F+penalty, this is not correct. We get the output for OBJ later.
                 }
             }
-            
-        }
-        else
-        {
-            // No more lines to read.
-            if (line.empty())
+            if (nb_fields != sotList.size())
             {
-                break;
-            }
-            
-            if (flag_history_file)
-            {
-                bbe++;
-                // Take the xi (not used). Unlike for the first line, x0 was NOT taken.
-                s2="";
-                for (size_t i =0 ; i < n ; i++)
-                {
-                    iss >> s;
-                    s2+=s+" ";
-                }
-            }
-            else
-            {
-                iss >> s;
-                
-                // no feasible solution has been found in X evaluations (case optimization for h and suboptimizations (VNS,...):
-                if ( s == "no" )
-                {
-                    // skip the line
-                    std::getline ( in , line );
-                    std::getline ( in , line );
-                    in >> std::ws;
-                    continue;
-                }
-                else
-                {
-                    time = std::stod(s);
-                }
-                
-                
-                iss >> bbe >> s2;
-                if ( s2.compare("+")==0 )
-                {
-                    iss >> bbe_plus >> obj ;
-                    
-                    // update the bb counter
-                    bbe += bbe_plus;
-                }
-                else
-                {
-                    obj = std::stod(s2);
-                }
-            }
-        }
-        
-//        if ( in.fail() || !valid )
-//        {
-//            return false;
-//        }
-        
-        
-        // NOTE: for multi obj, we have a single f value displayed BUT the bb outputs contain all objectives
-        // Get bb_outputs (f again and constraints)
-        for (int i = 0; i < m ; i++)
-        {
-            iss >> bbo[i];
-            if (iss.fail())
-            {
-                bbo[i] = INF;
-            }
-            // Do not use the F from the stats file. For penalized objective this may not be equal to the output OBJ.
-            if ( _nb_obj == 1 && _outputType[i] == OutputType::OBJ )
-            {
-                obj = bbo[i];
-            }
-        }
-        
-        if (!flag_history_file)
-        {
-            // In stats file, the xi are at the endl of the line.
-            s2="";
-            for (size_t i =0 ; i < n ; i++)
-            {
-                iss >> s;
-                s2+=s+ " ";
-            }
-        }
-        
-        if ( _use_h_for_obj )
-        {
-            if ( !_use_std_h )
-            {
-                std::cout << "Other than standard h calculation not implemented" <<std::endl;
+                std::cout << "(1) Result file does not comply with stats_file_output type: " << std::endl;
+                std::cout << "     + Line read is \"" << lineTmp << "\"" << std::endl;
+                std::cout << "     + Expected stats output is \"" << sotList << "\"" <<std::endl;
+                delete [] bbo;
                 return false;
             }
-            // Convert bbo (except f) into obj
-            obj = 0;
-            for ( int i=1; i < m ; i++ )
+        }
+        
+        // Case without eval count. One line=one eval
+        if (!hasCntEval) // That is no CNT_EVAL output type
+        {
+            bbe++;
+        }
+        
+        size_t i= 0;
+        obj = 0;
+        time = 0.0;
+        bool isFeas = true;
+        // Read according to the format
+        for (const auto & sot: sotList)
+        {
+            if (StatOutputType::Type::CNT_EVAL == sot)
             {
-                if ( _outputType[i] != OutputType::OBJ )
+                iss >> bbe;
+            }
+            else if(StatOutputType::Type::SOL == sot)
+            {
+                iss >> s;
+                _last_x.append(s+" ");
+            }
+            else if(StatOutputType::Type::TIME == sot)
+            {
+                iss >> time;
+            }
+            else if(StatOutputType::Type::OBJ == sot || StatOutputType::Type::CST == sot)
+            {
+                iss >> bbo[i];
+                if (iss.fail())
                 {
-                    obj += pow( std::max( bbo[i], feasibilityThreshold ),2);
+                    bbo[i] = INF;
+                    obj = INF;
                 }
+                if (StatOutputType::Type::CST == sot)
+                {
+                    if ( _use_h_for_obj )
+                    {
+                        obj += pow( std::max( bbo[i], feasibilityThreshold ),2);
+                    }
+                    else if (bbo[i] > feasibilityThreshold)
+                    {
+                        isFeas = false;
+                        if (first_line)
+                        {
+                            first_line_is_infeasible = true;
+                        }
+                        break;
+                    }
+                }
+                else
+                {
+                    obj = bbo[i];
+                }
+                i++;
+            }
+            else
+            {
+                std::cout << "(2) Result file does not comply with stats_file_output type: " << std::endl;
+                std::cout << "      + Line read is \"" << line << "\"" << std::endl;
+                std::cout << "      + Expected stats output is \"" << sotList << "\"" <<std::endl;
+                delete [] bbo;
+                return false;
             }
         }
 
-        
-        // Keep only feasible points. Use flag isFeas.
-        bool isFeas = true;
-        if ( m > _nb_obj)
+        // Keep only improving feasible values
+        if ( isFeas && ( first_line || obj < obj_prev ) && bbe <= max_bbe )
         {
-            for ( int i=0; i < m ; i++ )
-            {
-                if ( _outputType[i] != OutputType::OBJ && bbo[i] > feasibilityThreshold )
-                {
-                    isFeas = false;
-                    if ( first_line )
-                        first_line_is_infeasible = true;
-                    break;
-                }
-            }
+            _bbe.push_back( bbe );
+            _obj.push_back( obj );
+            _time.push_back(time);
+            obj_prev = obj;
         }
         
-        if (_use_hypervolume_for_obj)
+        // No need to parse for more eval than required
+        if (bbe > max_bbe)
         {
-            std::cerr << "Result::read for hypervolumem not yet implemented" << std::endl;
-            return false;
-            // Keep all feasible points
-//            if (isFeas)
-//            {
-//                std::string objs;
-//                for ( int i=0; i < m ; i++ )
-//                {
-//                    if ( _outputType[i] == OutputType::OBJ )
-//                    {
-//                        objs += std::to_string(bbo[i]) + " ";
-//                    }
-//                }
-//                NOMAD_BASE::EvalPoint ev; // An eval point with nothing
-//                ev.setBBO(objs, bbotMO, NOMAD_BASE::EvalType::BB);
-//                if ( ev.getEvalStatus(NOMAD_BASE::EvalType::BB) != NOMAD_BASE::EvalStatusType::EVAL_OK )
-//                {
-//                    std::cout << "Evaluation point is not eval ok. " << std::endl;
-//                    return false;
-//                }
-//
-//                _bbe.push_back( bbe );
-//                // _mobj.push_back( ev );
-//                _time.push_back(time);
-//            }
+            break;
         }
-        else
-        {
-            // Keep only improving feasible values
-            if ( isFeas && ( first_line || obj < obj_prev ) )
-            {
-                _bbe.push_back( bbe );
-                _obj.push_back( obj );
-                _time.push_back(time);
-                obj_prev = obj;
-            }
-        }
-            
 
          // Total time and total bbe - for time stats.
         _totalBbe = bbe;
-        _totalTime = time; // When using history file, time is not available (use 0)
+        _totalTime = time; // When using history file, time stays 0
 
         if ( first_line )
         {
@@ -361,18 +283,18 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , int m , in
         }
         
     }
-    
-    _last_x = s2;
+
     
     // The first line displays an infeasible initial point and no feasible point was found.
     if ( _bbe.empty() && first_line_is_infeasible )
     {
         _bbe.push_back (INF_SIZE_T);
         _obj.push_back (INF);
-        // _mobj.push_back (NOMAD_BASE::EvalPoint()); // ChT TEMP maybe we need a fake EvalPoint with obj=INF
         _time.push_back(time);
         _last_x.clear();
     }
+    
+    delete [] bbo;
     
     return true;
 }
@@ -727,33 +649,32 @@ bool RUNNERPOST::Result::compute_solution ( int n    ,
     
     clear_solution();
     
-    _sol_bbe = bbe;
+
     // _nb_pareto_points = 0;
     
     size_t p = _bbe.size();
     
-    // Test if no feasible point has been obtained
-    if ( _last_x.empty() && ! _bbe.empty() && ! _obj.empty() && p==_obj.size() )
-    {
-        // Cases where the last line of stats file contains "no feasible ...." or if the only line in the file is the initial point and is not feasible
-        // P
-        if ( _use_h_for_obj ) // Case where f= h and h != Inf
-        {
-            _is_infeas = true;
-        }
-        else if ( _obj.back()==INF ) // Case f !=h and h > 0 and f = Inf
-        {
-            _is_infeas = true;
-        }
-        else
-        {
-            _is_infeas  = true ;  // Case where run failed
-        }
-        return false;
-    }
+//    // Test if no feasible point has been obtained
+//    if ( ! _bbe.empty() && ! _obj.empty() && p==_obj.size() )
+//    {
+//        // Cases where the last line of stats file contains "no feasible ...." or if the only line in the file is the initial point and is not feasible
+//        // P
+//        if ( _use_h_for_obj ) // Case where f= h and h != Inf
+//        {
+//            _is_infeas = true;
+//        }
+//        else if ( _obj.back()==INF ) // Case f !=h and h > 0 and f = Inf
+//        {
+//            _is_infeas = true;
+//        }
+//        else
+//        {
+//            _is_infeas  = true ;  // Case where run failed
+//        }
+//        return false;
+//    }
     
-    if ( _last_x.empty()                       ||
-        _bbe.empty()                           ||
+    if ( _bbe.empty()                           ||
         _obj.empty()                           ||
         p != _obj.size()                       ||
         ( _sol_bbe < INF_SIZE_T && _bbe[0] > _sol_bbe )    )
@@ -768,6 +689,7 @@ bool RUNNERPOST::Result::compute_solution ( int n    ,
         _sol_bbe = _bbe[p-1];
     }
 
+    _sol_bbe = _bbe.back();
     
     // TODO
 //    if ( n != (int)_last_x.size() )
@@ -787,23 +709,23 @@ bool RUNNERPOST::Result::compute_solution ( int n    ,
     
     
     _has_sol = true;
-    _sol_fxe = _obj[p-1];
+    _sol_fx = _obj.back();
     
-    // get fx
-    _sol_fx   = _obj[0];
+//    // get fx
+//    _sol_fx   = _obj[0];
     
-    if ( p == 1 )
-        return true;
+//    if ( p == 1 )
+//        return true;
     
-    for ( size_t k = 1 ; k < p ; ++k )
-    {
-        if ( _bbe[k] > _sol_bbe )
-            return true;
-        _sol_fx = _obj[k];
-    }
+//    for ( size_t k = 1 ; k < p ; ++k )
+//    {
+//        if ( _bbe[k] > _sol_bbe )
+//            return true;
+//        _sol_fx = _obj[k];
+//    }
+//
     
-    _sol_bbe = _bbe[p-1];
-    _sol_fx  = _sol_fxe;
+//    _sol_fx  = _sol_fxe;
     
     return true;
 }

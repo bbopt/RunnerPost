@@ -1,6 +1,8 @@
 #include "Algorithm.hpp"
 #include "Utils.hpp"
 
+#include "ArrayOfString.hpp"
+
 
 /*----------------------------------------------*/
 /*                 reset (private)              */
@@ -76,6 +78,8 @@ RUNNERPOST::Algorithm::Algorithm(std::string & s, std::string & error_msg)
         }
         
     }
+    
+    set_stats_output_type_list();
 
     
     // TODO: check inconsistencies. Example: tau provided but default output file name are used. At least give a warning
@@ -104,6 +108,90 @@ bool RUNNERPOST::Algorithm::setSingleAttribute(const std::pair<std::string,std::
     return true;
     
 }
+
+
+std::vector<std::string> RUNNERPOST::Algorithm::get_output_option(const std::string & label) const
+{
+    std::vector<std::string> sWords;
+    
+    // We must duplicate output_option to extract words for it
+    auto output_options= _output_options;
+    
+    for (auto & o: output_options)
+    {
+        if ( o.find(label) !=std::string::npos)
+        {
+            sWords = RUNNERPOST::extract_words(o);
+            for (auto & word: sWords)
+            {
+                RUNNERPOST::toUpperCase(word);
+            }
+            break;
+        }
+    }
+    return sWords;
+}
+
+void RUNNERPOST::Algorithm::set_stats_output_type_list()
+{
+    for (const auto & o: _output_options)
+    {
+        if ( o.find("STATS_FILE_OUTPUT") !=std::string::npos)
+        {
+            _sotList = RUNNERPOST::stringToStatOutputTypeList(o);
+            break;
+        }
+    }
+    
+    // Default stats file output depends if all evals are given
+    if (_sotList.empty())
+    {
+        bool display_all_eval = false;
+        for (const auto & o: _output_options)
+        {
+            if ( o.find("DISPLAY_ALL_EVAL") !=std::string::npos)
+            {
+                RUNNERPOST::ArrayOfString aos(o," ");
+                std::string response = aos[1];
+                RUNNERPOST::toUpperCase(response);
+                if ( response == "YES" || response == "TRUE" || response =="1" )
+                {
+                    _sotList = RUNNERPOST::stringToStatOutputTypeList("OBJ");
+                    display_all_eval = true;
+                }
+                break;
+            }
+        }
+        if (!display_all_eval)
+        {
+            _sotList = RUNNERPOST::stringToStatOutputTypeList("CNT_EVAL OBJ");
+        }
+    }
+    
+    // Some checks
+    if (RUNNERPOST::getNbConstraints(_sotList) > 1)
+    {
+        std::cerr << "Invalid STATS_FILE_OUTPUT for " << get_name() << ". The definition contains more than one entry for CST." << std::endl;
+        _sotList.clear();
+    }
+    if (RUNNERPOST::getNbOfType(_sotList, StatOutputType::SOL) > 1)
+    {
+        std::cerr << "Invalid STATS_FILE_OUTPUT for " << get_name() << ". The definition contains more than one entry for SOL." << std::endl;
+        _sotList.clear();
+    }
+    if (RUNNERPOST::getNbOfType(_sotList, StatOutputType::TIME) > 1)
+    {
+        std::cerr << "Invalid STATS_FILE_OUTPUT for " << get_name() << ". The definition contains more than one entry for TIME." << std::endl;
+        _sotList.clear();
+    }
+    if (RUNNERPOST::getNbOfType(_sotList, StatOutputType::INFEAS) > 1)
+    {
+        std::cerr << "Invalid STATS_FILE_OUTPUT for " << get_name() << ". The definition contains more than one entry for INFEAS." << std::endl;
+        _sotList.clear();
+    }
+    
+}
+
 
 //void Algorithm::separateAttributesNameAndValue( void )
 //{

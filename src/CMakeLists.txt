@@ -5,6 +5,7 @@
 #
 set(HEADERS
 Algorithm.hpp
+ArrayOfString.hpp
 Output.hpp
 Problem.hpp
 Result.hpp
@@ -15,6 +16,7 @@ Utils.hpp
 
 set(SOURCES
 Algorithm.cpp
+ArrayOfString.cpp
 Output.cpp
 main.cpp
 Problem.cpp

@@ -472,14 +472,11 @@ int main ( int argc , char ** argv )
         
         RUNNERPOST::Runner runner;
         
-        
         // TODO
         // Select special options
         
         // Display special options ( Use h for data/perf profiles instead of f (default), use use the average fx value of all the first feasible points instead of the max (default) )
         // runner.display_special_options();
-        
-        // runner.display_selected_problems();
         
         // Algo config file :
         if ( argc < 4 )
@@ -508,6 +505,13 @@ int main ( int argc , char ** argv )
         
         // display test configs:
         runner.display_selected_problems() ;
+        
+        if (!runner.algo_pb_check_consistency(error_msg))
+        {
+            std::cout << "runner check failed: \n" << error_msg << std::endl;
+            std::cout << "runner is stopped prematurely" << std::endl;
+            return 1;
+        }
         
         
         // run:
