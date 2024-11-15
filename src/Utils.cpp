@@ -1,4 +1,5 @@
 #include "Utils.hpp"
+#include "ArrayOfString.hpp"
 
 #include <cctype>
 
@@ -94,4 +95,174 @@ std::vector<std::string> RUNNERPOST::extract_words(std::string &s)
         words.push_back(w);
     }
     return words;
+}
+
+
+
+// Convert a string (ex "OBJ", "CST"...)
+// to a StatOutputType.
+RUNNERPOST::StatOutputType::StatOutputType(const std::string &sConst)
+{
+    _type = RUNNERPOST::StatOutputType::Type::UNDEFINED;
+    std::string s = sConst;
+    RUNNERPOST::toUpperCase(s);
+    
+    if (s == "OBJ")
+    {
+        _type = RUNNERPOST::StatOutputType::Type::OBJ;
+    }
+    else if (s == "CST")
+    {
+        _type = RUNNERPOST::StatOutputType::Type::CST;
+    }
+    else if (s == "INFEAS")
+    {
+        _type = RUNNERPOST::StatOutputType::Type::INFEAS;
+    }
+    else if (s == "TIME" )
+    {
+        _type = RUNNERPOST::StatOutputType::Type::TIME;
+    }
+    else if (s == "CNT_EVAL")
+    {
+        _type = RUNNERPOST::StatOutputType::Type::CNT_EVAL;
+    }
+    else if (s == "SOL")
+    {
+        _type = RUNNERPOST::StatOutputType::Type::SOL;
+    }
+    else if (s == "UNDEFINED")
+    {
+        _type = RUNNERPOST::StatOutputType::Type::UNDEFINED;
+    }
+    else
+    {
+        std::cerr << "Unrecognized string for RUNNERPOST::StatOutputType: "  << s << std::endl;
+        // TODO throw RUNNERPOST::Exception(__FILE__, __LINE__, "Unrecognized string for RUNNERPOST::StatOutputType: " + s);
+    }
+
+}
+
+// Convert a string containing multiple StatOutputTypes (ex "OBJ CST")
+// to a RUNNERPOST::StatOutputTypeList.
+RUNNERPOST::StatOutputTypeList RUNNERPOST::stringToStatOutputTypeList(const std::string &s)
+{
+    RUNNERPOST::StatOutputTypeList list;
+    RUNNERPOST::ArrayOfString aos(s," ");
+    if (aos[0] == "STATS_FILE_OUTPUT")
+    {
+        aos.erase(0);
+    }
+    for (size_t i = 0; i < aos.size(); i++)
+    {
+        list.push_back(RUNNERPOST::StatOutputType(aos[i]));
+    }
+    return list;
+}
+
+
+// Convert a RUNNERPOST::StatOutputTypeList into a string.
+std::string RUNNERPOST::StatOutputTypeListToString( const StatOutputTypeList & sotList )
+{
+    std::ostringstream oss;
+    for ( auto sot : sotList )
+    {
+        oss << sot;
+        oss << " ";
+    }
+    return oss.str();
+}
+
+
+// Count the number of constraints
+size_t RUNNERPOST::getNbConstraints(const StatOutputTypeList& sotList)
+{
+    size_t nbConstraints = 0;
+    for (size_t i = 0; i < sotList.size(); i++)
+    {
+        if (sotList[i].isConstraint())
+        {
+            nbConstraints++;
+        }
+    }
+
+    return nbConstraints;
+}
+
+
+
+
+// Count the number of objectives
+size_t RUNNERPOST::getNbObj(const StatOutputTypeList& sotList)
+{
+    size_t nbObj = 0;
+    for (size_t i = 0; i < sotList.size(); i++)
+    {
+        if (sotList[i].RUNNERPOST::StatOutputType::isObjective())
+        {
+            nbObj++;
+        }
+    }
+
+    return nbObj;
+}
+
+// Count the number of objectives
+size_t RUNNERPOST::getNbOfType(const StatOutputTypeList& sotList, const StatOutputType & type)
+{
+    size_t nbOfType = 0;
+    for (size_t i = 0; i < sotList.size(); i++)
+    {
+        if (sotList[i].RUNNERPOST::StatOutputType::isOfType(type))
+        {
+            nbOfType++;
+        }
+    }
+
+    return nbOfType;
+}
+
+
+std::istream& RUNNERPOST::operator>>(std::istream& is, RUNNERPOST::StatOutputTypeList &sotList)
+{
+    std::string s;
+
+    while (is >> s)
+    {
+        sotList.push_back(RUNNERPOST::StatOutputType(s));
+    }
+
+    return is;
+}
+
+
+std::string RUNNERPOST::StatOutputType::display() const
+{
+    std::string s = "UNDEFINED";
+    switch (_type)
+    {
+        case StatOutputType::Type::OBJ:
+            s = "OBJ";
+            break;
+        case StatOutputType::Type::CST:
+            s = "CST";
+            break;
+        case StatOutputType::Type::TIME:
+            s = "TIME";
+            break;
+        case StatOutputType::Type::CNT_EVAL:
+            s = "CNT_EVAL";
+            break;
+        case StatOutputType::Type::INFEAS:
+            s = "INFEAS";
+            break;
+        case StatOutputType::Type::SOL:
+            s = "SOL";
+            break;
+        case StatOutputType::Type::UNDEFINED:
+        default:
+            break;
+    }
+    
+    return s;
 }

@@ -154,6 +154,8 @@ private:
     
     void output_problems_unsolved(const double& tau, const double& nbSimplexEval) const;
     
+    StatOutputTypeList composeStatsFileFormat(const StatOutputTypeList & acSotList , const size_t & n, const size_t & m) const;
+
     
 public:
     
@@ -246,6 +248,8 @@ public:
                                     std::string        & error_msg );
     
     void display_selected_outputs ( void ) const;
+    
+    bool algo_pb_check_consistency(std::string       & error_msg) const;
 
     
 };

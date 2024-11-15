@@ -1778,7 +1778,7 @@ void RUNNERPOST::Runner::display_instance_name (const Problem & pb, const  Algor
     std::cout << "\t (" << pb.get_id() << ", " << ac.get_id() << ")";
     if (i_pb_instance < INF_SIZE_T && pb.get_pbInstance().size()> 1)
     {
-        std::cout << ", pb run instance #" << pb.get_pbInstance()[i_pb_instance];
+        std::cout << ", pb run instance " << pb.get_pbInstance()[i_pb_instance];
     }
 }
 
@@ -1837,6 +1837,7 @@ void RUNNERPOST::Runner::display_selected_algos ( void ) const
                     count++;
                 }
             }
+            std::cout << std::endl;
         }
     }
     std::cout << std::endl;
@@ -2732,7 +2733,7 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
     if (pbIs.size() == 0)
     {
         // Default pb instance is 0.
-        // If flag add seed to stats file name is set to yes, this id is automatically added to filename.
+        // If flag add pb instance to stats file name is set to yes, this id is automatically added to filename.
         pbIs.push_back("0");
     }
     
@@ -2753,9 +2754,12 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
             result[i_pb_instance].reset(_use_hypervolume_for_profiles, _use_h_for_profiles);
             return false;
         }
-
+        
+        // Prepare the stats file complete format from the pb info and the algo stat output type
+        StatOutputTypeList statsFileFormat = composeStatsFileFormat(ac.get_stats_output_type_list(), pb.get_n(), pb.get_m());
+        
         // Read the stats file into results
-        else if ( !result[i_pb_instance].read ( fin , pb.getMaxBBEvals ( ) , pb.get_m() /*, pb.get_bbot() */ , pb.get_n(), _feasibilityThreshold )  )
+        if ( !result[i_pb_instance].read ( fin , pb.getMaxBBEvals ( ) , statsFileFormat, _feasibilityThreshold )  )
         {
             fin.close();
             result[i_pb_instance].reset( _use_hypervolume_for_profiles, _use_h_for_profiles);
@@ -3087,13 +3091,12 @@ std::string RUNNERPOST::Runner::get_stats_file_name (const Algorithm    & ac    
     std::string statsFileName = DEFAULT_STATS_FILE;
     bool flag_add_pbinstance_to_stats_file = DEFAULT_ADD_PBINSTANCE_TO_STATS_FILE;
 
-    
-    std::vector<std::string> output_options = ac.get_output_options();
-    for (auto & o: output_options)
+    for (const auto & o: ac.get_output_options())
     {
         if ( o.find("STATS_FILE_NAME") !=std::string::npos)
         {
-            std::vector<std::string> sWords = RUNNERPOST::extract_words(o);
+            std::string oTmp = o;
+            std::vector<std::string> sWords = RUNNERPOST::extract_words(oTmp);
             if (sWords.size() != 2)
             {
                 std::cerr << "Cannot properly extract STATS_FILE_NAME from algorithm output options" << std::endl;
@@ -3104,7 +3107,8 @@ std::string RUNNERPOST::Runner::get_stats_file_name (const Algorithm    & ac    
         }
         if ( o.find("ADD_PBINSTANCE_TO_STATS_FILE") !=std::string::npos)
         {
-            std::vector<std::string> sWords = RUNNERPOST::extract_words(o);
+            std::string oTmp = o;
+            std::vector<std::string> sWords = RUNNERPOST::extract_words(oTmp);
             if (sWords.size() != 2)
             {
                 std::cerr << "Cannot properly extract ADD_PBINSTANCE_TO_STATS_FILE from algorithm output options" << std::endl;
@@ -3121,4 +3125,79 @@ std::string RUNNERPOST::Runner::get_stats_file_name (const Algorithm    & ac    
     }
     
     return statsFileName;
+}
+
+
+bool RUNNERPOST::Runner::algo_pb_check_consistency(std::string       & error_msg) const
+{
+    // The check is only for pb_instance. If more than one instance on one problem
+    // we must have the option ADD_PBINSTANCE_TO_STATS_FILE true or
+    // the DEFAULT_ADD_PBINSTANCE....
+    const std::string base_error_msg = "Pb(s) with more than one pb instance are selected. We need to have the option ADD_PBINSTANCE_TO_STATS_FILE enabled for ";
+    error_msg = "";
+    
+    bool has_pb_instance = false;
+    for (const auto & pb: _selected_pbs)
+    {
+        if (pb->get_pbInstance().size() > 0 )
+        {
+            has_pb_instance = true;
+            break;
+        }
+    }
+    
+    if (!has_pb_instance)
+    {
+        return true;
+    }
+    
+    for (const auto & algo: _selected_algos)
+    {
+        error_msg = base_error_msg + algo->get_id() + " (" + algo->get_name() + ")\n";
+        
+        std::vector<std::string> sWords = algo->get_output_option("ADD_PBINSTANCE_TO_STATS_FILE");
+        if (sWords.empty() && !RUNNERPOST::DEFAULT_ADD_PBINSTANCE_TO_STATS_FILE)
+        {
+            return false;
+        }
+        bool flag_add_pbinstance_to_stats_file = (sWords[1]=="YES" || sWords[1]=="TRUE" || sWords[1] =="1");
+        if (!flag_add_pbinstance_to_stats_file)
+        {
+            return false;
+        }
+    }
+    error_msg = "";
+    return true;
+}
+
+
+
+RUNNERPOST::StatOutputTypeList RUNNERPOST::Runner::composeStatsFileFormat(const RUNNERPOST::StatOutputTypeList & acSotList , const size_t & n, const size_t & m) const
+{
+    RUNNERPOST::StatOutputTypeList completeSotList;
+    for (const auto & acSot: acSotList)
+    {
+        if (acSot.isOfType(StatOutputType::SOL))
+        {
+            RUNNERPOST::StatOutputTypeList tmp(n, StatOutputType::SOL);
+            completeSotList.insert(completeSotList.end(), tmp.begin(), tmp.end());
+        }
+        else if (acSot.isOfType(StatOutputType::CST))
+        {
+            const size_t numberOfConstraints = m - RUNNERPOST::getNbObj(acSotList);
+            if (numberOfConstraints < 0)
+            {
+                completeSotList.clear();
+                return completeSotList;
+            }
+            RUNNERPOST::StatOutputTypeList tmp(numberOfConstraints, StatOutputType::CST);
+            completeSotList.insert(completeSotList.end(), tmp.begin(), tmp.end());
+        }
+        else
+        {
+            completeSotList.push_back(acSot);
+        }
+    }
+    return completeSotList;
+    
 }

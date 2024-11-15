@@ -3,24 +3,18 @@
 
 #include "runner_defines.hpp"
 
+#include "Utils.hpp"
+
 #include "runnerpost_nsbegin.hpp"
 
+
+// Class to store the results from a stats file in a compact form.
+// Keep only improving solution for f or h (only if interested in the infeasibility).
 class Result
 {
     
 private:
-    
-    enum OutputType
-    {
-        CNT,        ///< Counter. Only one.
-        TIME,       ///< Elapsed time. Only one
-        X,          ///< Variable values (size depends on n). Only one.
-        OBJ,        ///< Objective value (can be more than one)
-        CST         ///< Contraint values. Only one. Size is deduced.
-    } ;
-    
-    std::vector<OutputType>         _outputType;
-    
+        
     std::vector<size_t>             _bbe;
     size_t                          _totalBbe;
     std::vector<double>             _time;
@@ -107,7 +101,7 @@ public:
 //                         std::vector<NOMAD_BASE::Point> & pareto ) const;
     
     // read results:
-    bool read ( std::ifstream & in , size_t max_bbe , int m , int n, const double & feasibilityThreshold );
+    bool read ( std::ifstream & in , size_t max_bbe , const StatOutputTypeList & sotList, const double & feasibilityThreshold );
     
     // GET methods:
     size_t                     get_last_bbe   ( void    ) const;
