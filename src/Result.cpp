@@ -741,7 +741,10 @@ double RUNNERPOST::Result::get_sol ( const size_t bbe) const
 {
     double cur = INF;
     int n = static_cast<int> ( _bbe.size() );
-    
+    if (n > 0 && _bbe[n-1] <= bbe)
+    {
+        return _obj[n-1];
+    }
     for ( int k = 0 ; k < n ; ++k )
     {
         if ( _bbe[k] > bbe )

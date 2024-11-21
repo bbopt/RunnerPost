@@ -1013,7 +1013,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
                     }
                 }
             }
-            fout << (100.0 * cnt ) / (n_pb*cnt_pb_instance) << " " ;
+            fout << (100.0 * cnt ) / (cnt_pb_instance) << " " ;
         }
         fout << std::endl;
 
@@ -1403,7 +1403,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
 
                 if ( fx0 == INF || std::fabs(fx0 - fx0s[i_pb]) > 1e-10 )
                 {
-                    std::cout << "... inconsistent starting points between seed runs for problem #" << i_pb+1 << " and algo#" << i_algo+1 << " fx0=" << fx0 << " fx0s[ipb]=" << fx0s[i_pb] << std::endl;
+                    std::cout << "... inconsistent starting points between instance runs for problem " << _selected_pbs[i_pb]->get_id() << " and algo " << _selected_algos[i_algo]->get_id() << " fx0=" << fx0 << " fx0s[ipb]=" << fx0s[i_pb] << std::endl;
                     fx0s.clear();
                     return fx0s;
                 }
