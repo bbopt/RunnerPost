@@ -52,8 +52,13 @@ pip install RunnerPost
 ```python
 import RunnerPost
 
-# Example usage
+# Example to get usage
 RunnerPost.info()
+
+# Produce data profile from provided example
+# And selection file (in the example dir)
+RunnerPost.run("algo_selection", "problem_selection", "output_selection")
+
 ```
 
 TODO: give an example with selection parameters and run.
@@ -69,6 +74,10 @@ cd example/
 ### Syntax of selection files
 TODO
 
+To obtained pdf files from tex file:
+```bash
+pdflatex dp1.tex
+```
 
 ## Tests
 TODO
@@ -76,6 +85,7 @@ TODO
 ## Contributing
 
 We welcome contributions! Please read our [contributing guidelines](CONTRIBUTING.md) for more information.
+
 
 ## License
 
