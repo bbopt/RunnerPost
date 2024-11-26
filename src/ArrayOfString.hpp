@@ -18,6 +18,7 @@
 #include "runnerpost_nsbegin.hpp"
 
 /// Class for the representation of an array of n strings.
+/// Adapted from NOMAD 4 ArrayOfString
 class ArrayOfString {
 protected:
     /*---------*/

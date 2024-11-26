@@ -1386,6 +1386,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
     ArrayOfDouble fx0s(n_pb, INF);
     double fx0;
 
+    // Get fx0 for all problems
     for (size_t i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
         fx0 = _results[i_pb][0][0].get_sol(1);
@@ -2913,8 +2914,6 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
     std::string plain_file_name = out.get_plain_file_name();
     std::string latex_file_name = out.get_latex_file_name();
     
-    std::cout<< "\t Writing of " << latex_file_name << " ......";
-    
     if (out.get_plain_file_name().empty())
     {
         std::cerr << "\n Error in output_selection: To output in latex the output_plain is mandatory. " << std::endl;
@@ -2928,6 +2927,52 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
         infile.close();
         return false;
     }
+    
+    // Modify plain file name to include the key "step"
+    std::string plain_file_name_step = plain_file_name + ".step";
+    
+    std::cout<< "\t Writing of " << latex_file_name << " and " << plain_file_name_step << " ......";
+    
+    // Create data for plotting data profile with step
+    std::ofstream outfile_step(plain_file_name_step);
+    
+    // The loop for reading plain_file_name and writing to plain_file_name_step
+    std::string line, prevLine, prevLineToken, lineFirstToken;
+    while (std::getline(infile, line))
+    {
+        if (line.empty())
+        {
+            std::cerr << "Cannot read line from " << plain_file_name << ". Empty lines are present." << std::endl;
+            return false;
+        }
+        if (!prevLine.empty())
+        {
+            // Read the first token of the line
+            std::istringstream iss(line);
+
+            iss >> lineFirstToken;
+        
+            // Write the first token of the previous line to the new line
+            outfile_step << lineFirstToken << " ";
+            
+            // Write all tokens of prevLine, except the first one
+            std::istringstream issPrev(prevLine);
+            issPrev >> prevLineToken;
+            while (std::getline(issPrev, prevLineToken, ' '))
+            {
+                if (prevLineToken.empty())
+                {
+                    continue;
+                }
+                outfile_step << prevLineToken << " ";
+            }
+            outfile_step << std::endl;
+        }
+        prevLine = line;
+        outfile_step << line << std::endl;
+
+    }
+    outfile_step.close();
     infile.close();
 
     // To be generalized.
@@ -3047,7 +3092,7 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
     {
         for (const auto & leg : legends )
         {
-            out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 10, color=" << COLORS[color_index++] << "] table [x index = 0, y index = " << y_index++ << " , header = false ] {" << plain_file_name << "}; " << std::endl ;
+            out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 20, color=" << COLORS[color_index++] << "] table [x index = 0, y index = " << y_index++ << " , header = false ] {" << plain_file_name_step << "}; " << std::endl ;
             out_tex << "\\addlegendentry{" << leg << "};" <<std::endl;
             nbPlottedAlgos++;
             if (nbPlottedAlgos >= maxAlgos)
