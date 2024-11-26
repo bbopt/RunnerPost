@@ -5,10 +5,10 @@ RunnerPost is a C++ and Python interface for post-processing and profiling optim
 
 - [Installation](#installation)
 - [Usage](#usage)
-- [Development](#development)
 - [Tests](#tests)
 - [Contributing](#contributing)
 - [License](#license)
+- [Contact](#contact)
 
 
 ## Installation
@@ -66,7 +66,11 @@ cd example/
 ../build/release/bin/runnerPost algo_selection problem_selection output_selection
 ```
 
-## Syntax of selection files
+### Syntax of selection files
+TODO
+
+
+## Tests
 TODO
 
 ## Contributing
@@ -79,4 +83,4 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Contact
 
-For any questions or feedback, please contact us at support@runnerpost.com.
+For any questions or feedback, please contact us at nomad@gerad.ca.
