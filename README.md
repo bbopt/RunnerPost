@@ -21,6 +21,7 @@ To install the Python package from PyPI, ensure you have Python 3.8 or higher:
 
 ```sh
 pip install RunnerPost
+```
 
 ### From Source
 
@@ -40,7 +41,9 @@ pip install RunnerPost
     ```
 
 4. Install locally the Python package (optional)
+    ```bash
     pip install --user --force-reinstall dist/*whl
+    ```
 
 ## Usage
 
@@ -53,13 +56,18 @@ import RunnerPost
 RunnerPost.info()
 ```
 
+TODO: give an example with selection parameters and run.
+
 ### Command line
 
-
-To start using RunnerPost, run the following command:
+To start using RunnerPost on the given example, run the following commands:
 ```bash
-npm start
+cd example/
+../build/release/bin/runnerPost algo_selection problem_selection output_selection
 ```
+
+## Syntax of selection files
+TODO
 
 ## Contributing
 
