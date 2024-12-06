@@ -4,8 +4,14 @@
 #include <cctype>
 
 
-RUNNERPOST::Output::Output (std::string & s, std::string & error_msg)
+RUNNERPOST::Output::Output (std::string s, std::string & error_msg)
 {
+    if (s.empty())
+    {
+        error_msg = "Error: Empty output description";
+        return;
+    }
+
     std::string sO = s;
     
     // Remove trailing comments

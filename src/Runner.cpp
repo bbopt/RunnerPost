@@ -467,6 +467,8 @@ bool RUNNERPOST::Runner::run_post_processing ( std::string & error_msg )
                                                    _results               [i_pb][i_algo]   ) )
             {
                 display_instance_name ( *_selected_pbs[i_pb] , *_selected_algos[i_algo] );
+                
+                // TODO find a way to display which instance is missing
                 std::cout << ": cannot get result" << std::endl << std::endl;
                 error_msg = "cannot get result";
                 return false;
@@ -484,7 +486,7 @@ bool RUNNERPOST::Runner::run_post_processing ( std::string & error_msg )
     // 4- Set the combined pareto results
     if ( _use_hypervolume_for_profiles )
     {
-        std::cerr << "Hyper volume results are not yet available" << std::endl;
+        std::cerr << "Hyper volume results are not yet available" << std::endl;
         // set_hypervolume_result();
     }
     
@@ -848,6 +850,13 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
         << out.get_plain_file_name() << std::endl;
         return false;
     }
+    
+    if (out.get_x_select() == Output::X_Select::TIME)
+    {
+        std::cerr << "Error: Option TIME not available for eval data profiles. Use time data profiles" << std::endl;
+        fout.close();
+        return false;
+    }
 
     std::cout << "\t writing of " << out.get_plain_file_name() << " ..." << std::flush;
 
@@ -953,16 +962,26 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
 
     // compute the data profile:
     // -------------------------
-    int max_alpha = Problem::getNbSimplexEvals() ;
+    // int max_alpha = Problem::getNbSimplexEvals() ;
+    int max_alpha = out.get_x_max();
 
-    // Update the range for x axis according to all problems considered (take the max of all problems max_bb_eval)
-    // Warning pb max_bb_eval may depend on the value of _nb_simplex_evals
-    if ( _use_evals_for_dataprofiles )
+    // Update the range for x axis according to all problems considered:
+    // - take the max of all problems last bbe OR
+    // - take the max of all problems last bbe divided by n+1
+    bool useNp1Evals = (out.get_x_select() == Output::X_Select::NP1EVAL);
+    if ( max_alpha == RUNNERPOST::P_INF_INT )
     {
         max_alpha = 0;
         for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
         {
-            max_alpha = std::max (max_alpha , _selected_pbs[i_pb]->getMaxBBEvals() );
+            size_t dimPb= ( useNp1Evals ) ?  _selected_pbs[i_pb]->get_n() : 0;
+            for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+            {
+                for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_pbInstance().size() ; ++i_pb_instance )
+                {
+                    max_alpha = std::max(max_alpha , int(_results[i_pb][i_algo][i_pb_instance].get_last_bbe()/(dimPb+1)));
+                }
+            }
         }
     }
 //    int dim_all_pb=0;
@@ -985,7 +1004,6 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
 //            }
 //        }
 //    }
-    
 
     size_t cnt, cnt_pb_instance;
     for (int alpha = 0 ; alpha <= max_alpha ; ++alpha )
@@ -1003,7 +1021,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
                 cnt_pb_instance += n_pb_instance;
                 
                 // Use evals instead of (n+1)*evals
-                size_t dimPb= ( _use_evals_for_dataprofiles ) ? 0 : _selected_pbs[i_pb]->get_n();
+                size_t dimPb= ( useNp1Evals ) ?  _selected_pbs[i_pb]->get_n() : 0;
                 if ( fx0s[i_pb] < INF && fxe[i_pb] < INF )
                 {
                     for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance ; ++i_pb_instance )
@@ -2995,7 +3013,7 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
     out_tex << "\\begin{tikzpicture} "<<std::endl;
     out_tex << "\\begin{axis}[ " << std::endl;
 
-    out_tex << "       title = " << profileTitle << "," << std::endl;
+    out_tex << "       title = {" << profileTitle << "}," << std::endl;
     out_tex << "       xmin=-10, ymin = -5, ymax= 105," << std::endl;
 
     if (RUNNERPOST::Output::Profile_Type::DATA_PROFILE == profile_type)

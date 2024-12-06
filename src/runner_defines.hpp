@@ -41,7 +41,7 @@ const std::string DEFAULT_STATS_FILE = "history.txt";
 // If true we add pb instance in stats file name. For example history.txt -> history.0.txt
 const bool DEFAULT_ADD_PBINSTANCE_TO_STATS_FILE = false;
 
-const std::string STATS_FILE_RUN_DIR_BASE = "Run";
+const std::string STATS_FILE_RUN_DIR_BASE = "./";
 
 // If true we have a directory structure AlgoId/PbId
 // If false we have PbId/AlgoId

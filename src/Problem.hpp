@@ -10,10 +10,10 @@ class Problem {
 
 private:
 
-    std::string                        _id;
-    std::string                        _name;
-    int                                _n;
-    int                                _m;
+    std::string                        _id="";
+    std::string                        _name="";
+    int                                _n =-1;
+    int                                _m =-1;
     
     std::vector<std::string>           _pbInstance; // Can be undefined (single instance, no id -> not used in history name)
     
@@ -34,19 +34,14 @@ public:
     
     // constructor #1
     Problem (const std::string & id       )
-    : _id              ( id     ) ,
-      _name            ( ""     ) ,
-      _n               ( -1     ) ,
-      _m               ( -1     )
+    : _id              ( id     ) 
     {};
     
     // constructor #2:
     Problem ( const std::string & id          ,
              const std::string & name )
     : _id              ( id     ) ,
-      _name            ( name   ) ,
-      _n               ( -1     ) ,
-      _m               ( -1     )
+      _name            ( name   ) 
     {};
     
     // constructor #3:
@@ -61,7 +56,7 @@ public:
     {};
     
     // Constructor #4
-    Problem (std::string & single_pb_description, std::string & error_msg);
+    Problem (std::string single_pb_description, std::string & error_msg);
 
     
     // destructor:

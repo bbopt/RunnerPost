@@ -64,7 +64,7 @@ struct StatOutputType
     }
     
     // TODO make a template
-    bool isOfType(const StatOutputType & type) const
+    bool isOfType(const StatOutputType::Type & type) const
     {
         return (_type == type);
     }
@@ -133,7 +133,7 @@ size_t getNbConstraints(const StatOutputTypeList& sotList);
 /// Count the number of objectives
 size_t getNbObj(const StatOutputTypeList& sotList);
 
-size_t getNbOfType(const StatOutputTypeList& sotList, const StatOutputType & type);
+size_t getNbOfType(const StatOutputTypeList& sotList, const StatOutputType::Type & type);
 
 
 /// Displau StatOutputType

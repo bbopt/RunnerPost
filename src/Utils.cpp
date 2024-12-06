@@ -133,6 +133,7 @@ RUNNERPOST::StatOutputType::StatOutputType(const std::string &sConst)
     }
     else if (s == "UNDEFINED")
     {
+        std::cerr << "Unrecognized string for RUNNERPOST::StatOutputType: "  << s << std::endl;
         _type = RUNNERPOST::StatOutputType::Type::UNDEFINED;
     }
     else
@@ -208,7 +209,7 @@ size_t RUNNERPOST::getNbObj(const StatOutputTypeList& sotList)
 }
 
 // Count the number of objectives
-size_t RUNNERPOST::getNbOfType(const StatOutputTypeList& sotList, const StatOutputType & type)
+size_t RUNNERPOST::getNbOfType(const StatOutputTypeList& sotList, const StatOutputType::Type & type)
 {
     size_t nbOfType = 0;
     for (size_t i = 0; i < sotList.size(); i++)

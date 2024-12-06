@@ -61,17 +61,12 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
     std::string   s, line;
     size_t        bbe =0;
     double time = 0 , obj = INF, obj_prev = INF ;
-    bool valid=true;
-    
     
     bool first_line = true;
     bool first_line_is_infeasible = false;
     
     // Number of objectives
     _nb_obj = std::count(sotList.begin(),sotList.end(),StatOutputType::OBJ);
-
-    // Number of variable to be read in the stats file (can be null!)
-    const size_t n = std::count(sotList.begin(),sotList.end(),StatOutputType::SOL);
     
     const size_t m = _nb_obj + std::count(sotList.begin(),sotList.end(),StatOutputType::CST);
     if (m == 0)
@@ -205,20 +200,20 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
         // Read according to the format
         for (const auto & sot: sotList)
         {
-            if (StatOutputType::Type::CNT_EVAL == sot)
+            if ( sot.isOfType(StatOutputType::Type::CNT_EVAL) )
             {
                 iss >> bbe;
             }
-            else if(StatOutputType::Type::SOL == sot)
+            else if(sot.isOfType(StatOutputType::Type::SOL))
             {
                 iss >> s;
                 _last_x.append(s+" ");
             }
-            else if(StatOutputType::Type::TIME == sot)
+            else if(sot.isOfType(StatOutputType::Type::TIME))
             {
                 iss >> time;
             }
-            else if(StatOutputType::Type::OBJ == sot || StatOutputType::Type::CST == sot)
+            else if(sot.isOfType(StatOutputType::Type::OBJ) || sot.isOfType(StatOutputType::Type::CST))
             {
                 iss >> bbo[i];
                 if (iss.fail())
@@ -226,7 +221,7 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
                     bbo[i] = INF;
                     obj = INF;
                 }
-                if (StatOutputType::Type::CST == sot)
+                if (sot.isOfType(StatOutputType::Type::CST))
                 {
                     if ( _use_h_for_obj )
                     {

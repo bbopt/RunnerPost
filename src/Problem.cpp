@@ -6,13 +6,19 @@
 
 // Default values. Can be set.
 // TODO: this is available from Algo
-int RUNNERPOST::Problem::_nbSimplexEvals = 100;
+int RUNNERPOST::Problem::_nbSimplexEvals = 150;
 int RUNNERPOST::Problem::_overallMaxBBEvals = 20000;
 
 // TODO: accept the syntax * () to use all directory names as pb ids. This should work only when output has no constraint, a single objective. Can be default format: SOL OBJ for all evals or EVAL SOL OBJ. We need SOL to determine the dimenstion from the outputs.
 
-RUNNERPOST::Problem::Problem(std::string & s, std::string & error_msg)
+RUNNERPOST::Problem::Problem(std::string  s, std::string & error_msg)
 {
+    if (s.empty())
+    {
+        error_msg = "Error: Empty output description";
+        return;
+    }
+
     std::string sO = s;
     
     // Remove trailing comments

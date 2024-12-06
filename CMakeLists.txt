@@ -69,7 +69,7 @@ option(BUILD_TESTS "Option to build the unit tests" OFF)
 if(BUILD_TESTS MATCHES ON)
    message(CHECK_START "  Configuring unit tests build")
 
-   if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/internal/unit_tests)
+   if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tests)
         message(FATAL_ERROR "The unit tests are not available. ")
    endif()
      
@@ -87,7 +87,7 @@ if(BUILD_TESTS MATCHES ON)
 
    enable_testing()
 
-   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/internal/unit_tests)
+   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tests)
    message(CHECK_PASS " done")
 else()
    message(STATUS "  Unit tests NOT built")

@@ -22,14 +22,6 @@ private:
     
     StatOutputTypeList         _sotList;  ///< Stat output type list extracted from output options.
     
-    // reset info
-    void resetInfo ( void );
-
-    
-    // No copy constructor
-    Algorithm (const Algorithm &) = delete;
-    // No copy assignment constructor
-    Algorithm & operator=(const Algorithm & ) = delete;
     
     bool set_id(const std::string & id) { if (id.empty()) return false; _id = id; return true;}
     
@@ -46,13 +38,23 @@ public:
     }
     
     // Constructor #2
-    Algorithm (std::string & single_pb_description, std::string & error_msg);
+    Algorithm (std::string single_pb_description, std::string & error_msg);
     
+    // No default constructor
     Algorithm() = delete;
+
+    // No copy constructor
+    Algorithm(const Algorithm&) = delete;
+
+    // No copy assignment operator
+    Algorithm& operator=(const Algorithm&) = delete;
     
     // destructor:
     virtual ~Algorithm ( void ) { }
     
+    // reset info
+    void resetInfo ( void );
+
     // SET methods:
     void set_name ( const std::string & name) { _nameAndExtra = name ;}
 

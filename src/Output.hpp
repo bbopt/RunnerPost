@@ -6,6 +6,9 @@
 
 #include "runnerpost_nsbegin.hpp"
 
+
+// This class is for the output options of the runner.
+// It is used to specify the output format of the runner.
 class Output {
 
 
@@ -42,7 +45,7 @@ private:
     std::string                        _plainFileName ="dp3.txt";
     std::string                        _latexFileName ="dp3.tex";
     std::string                        _title="";
-    
+
     
 public:
     
@@ -62,7 +65,7 @@ public:
     };
     
     // Constructor #2
-    Output (std::string & single_output_description, std::string & error_msg);
+    Output (std::string single_output_description, std::string & error_msg);
 
     // Maybe more constructors
 //    // constructor #2:

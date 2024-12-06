@@ -16,9 +16,12 @@ void RUNNERPOST::Algorithm::resetInfo ( void )
 }
 
 
-RUNNERPOST::Algorithm::Algorithm(std::string & s, std::string & error_msg)
+RUNNERPOST::Algorithm::Algorithm(std::string s, std::string & error_msg)
 {
-    std::string sO = s;
+    if (s.empty())
+        return;
+    
+    std::string s0 = s;
     
     // Remove trailing comments
     size_t i = s.find("#");
@@ -37,7 +40,7 @@ RUNNERPOST::Algorithm::Algorithm(std::string & s, std::string & error_msg)
     std::string pType_str = s.substr(0,i);
     if ( !set_id(pType_str))
     {
-        error_msg = "Error: Cannot read output profile type in \"" + sO + "\"" ;
+        error_msg = "Error: Cannot read output profile type in \"" + s0 + "\"" ;
     }
     
     s.erase(0,i);
@@ -48,7 +51,8 @@ RUNNERPOST::Algorithm::Algorithm(std::string & s, std::string & error_msg)
 
     if ( i0 == std::string::npos || i1 == std::string::npos )
     {
-        error_msg = "Error(2) in output selection file. Output title must be provided between parenthesis in " + sO ;
+        resetInfo();
+        error_msg = "Error(2) in output selection file. Output title must be provided between parenthesis in " + s0 ;
         return ;
     }
     set_name(s.substr(i0+1,i1-i0-1));
@@ -68,12 +72,14 @@ RUNNERPOST::Algorithm::Algorithm(std::string & s, std::string & error_msg)
         
         if ( p.first.empty() || p.second.empty())
         {
+            resetInfo();
             error_msg = "Error: Cannot read output bracket value in " + s;
             break;
         }
         
         if ( !setSingleAttribute(p) )
         {
+            resetInfo();
             error_msg = "Error: Cannot read output bracket value in " + s;
         }
         
@@ -102,6 +108,8 @@ bool RUNNERPOST::Algorithm::setSingleAttribute(const std::pair<std::string,std::
     {
         s += v + " ";
     }
+    // Remove trailing space
+    s.erase(s.length()-1);
     
     _output_options.push_back(s);
     
