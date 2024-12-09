@@ -19,7 +19,10 @@ void RUNNERPOST::Algorithm::resetInfo ( void )
 RUNNERPOST::Algorithm::Algorithm(std::string s, std::string & error_msg)
 {
     if (s.empty())
-        return;
+    {
+        error_msg = "Error: Empty output description";
+        return
+    }
     
     std::string s0 = s;
     
