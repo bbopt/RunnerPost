@@ -76,7 +76,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=${{matrix.config.cxx}} \
             -DTEST_OPENMP=OFF \
             -DBUILD_INTERFACE_PYTHON=ON
-            -DCMAKE_INSTALL_PREFIX=../instdir \
+            -DCMAKE_INSTALL_PREFIX=./instdir \
             ..
 
       - name: Configure on WindowsType
@@ -84,7 +84,7 @@ jobs:
         shell: bash
         run: |
           mkdir instdir
-          cmake .. -DTEST_OPENMP=OFF -DBUILD_INTERFACE_PYTHON=ON -DCMAKE_INSTALL_PREFIX=../instdir
+          cmake .. -DTEST_OPENMP=OFF -DBUILD_INTERFACE_PYTHON=ON -DCMAKE_INSTALL_PREFIX=./instdir
 
       - name: Build
         shell: bash
