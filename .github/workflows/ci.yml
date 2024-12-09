@@ -88,7 +88,7 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          cmake --config ${{matrix.config.build_type}} --clean-first --parallel 2
+          cmake --config ${{matrix.config.build_type}} --clean-first --parallel
 
       - name: Install
         shell: bash
