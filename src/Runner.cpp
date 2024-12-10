@@ -2324,6 +2324,49 @@ bool RUNNERPOST::Runner::read_algo_selection_file ( const std::string  & algo_se
     return true;
 }
 
+bool RUNNERPOST::Runner::read_algo_selection ( const std::string  & algo_selection_formatted ,
+                                                std::string        & error_msg        )
+{
+
+    error_msg.clear();
+
+    if ( algo_selection_formatted.empty() )
+    {
+        error_msg = "Error(0). Cannot read formatted string. It is empty. " ;
+        return false;
+    }
+
+    // Read the algo selection from formatted string
+    std::stringstream in ( algo_selection_formatted.c_str(), std::ios::in );
+
+    while(!in.eof())
+    {
+        std::string line;
+        getline (in , line);
+        
+        if (line.empty())
+        {
+            continue;
+        }
+        
+        _selected_algos.push_back(new Algorithm(line, error_msg));
+        if (!error_msg.empty())
+        {
+            return false;
+        }
+    }
+    
+    if (_selected_algos.empty())
+    {
+        error_msg = "Error(1) in file " + algo_selection_formatted + ". Cannot read a single algo config. First line in string must contain an algo config." ;
+        return false;
+    }
+
+    return true;
+}
+
+
+
 //std::vector<std::string> RUNNERPOST::Runner::get_selected_algo_options ( void ) const
 //{
 //    std::vector<std::string> algosOptions;
@@ -2451,6 +2494,48 @@ bool RUNNERPOST::Runner::read_problem_selection_file ( const std::string  & pb_s
 
     return true;
 }
+
+bool RUNNERPOST::Runner::read_problem_selection ( const std::string  & problem_selection_formatted ,
+                                                    std::string        & error_msg        )
+{
+    error_msg.clear();
+
+    if ( problem_selection_formatted.empty() )
+    {
+        error_msg = "Error(0). Cannot read formatted string. It is empty. " ;
+        return false;
+    }
+
+    // Read the algo selection from formatted string
+    std::stringstream in ( problem_selection_formatted.c_str(), std::ios::in );
+
+    while(!in.eof())
+    {
+        std::string line;
+        getline (in , line);
+        
+        if (line.empty())
+        {
+            continue;
+        }
+        
+        _selected_pbs.push_back(new Problem(line, error_msg));
+        if (!error_msg.empty())
+        {
+            return false;
+        }
+    }
+    
+    if (_selected_pbs.empty())
+    {
+        error_msg = "Error(1) in file " + problem_selection_formatted + ". Cannot read a single problem config. First line in string must contain a problem config." ;
+        return false;
+    }
+
+    return true;
+
+}
+
 
 //bool Runner::addToCombinedPareto(const std::vector<NOMAD_BASE::Point> & paretoPoints, const size_t & pbIndex )
 //{
@@ -2729,6 +2814,48 @@ bool RUNNERPOST::Runner::read_output_selection_file( const std::string  & output
     
     in.close();
     return true;
+}
+
+
+bool RUNNERPOST::Runner::read_output_selection ( const std::string  & output_selection_formatted ,
+                                                std::string        & error_msg        )
+{
+    error_msg.clear();
+
+    if ( output_selection_formatted.empty() )
+    {
+        error_msg = "Error(0). Cannot read formatted string. It is empty. " ;
+        return false;
+    }
+
+    // Read the algo selection from formatted string
+    std::stringstream in ( output_selection_formatted.c_str(), std::ios::in );
+
+    while(!in.eof())
+    {
+        std::string line;
+        getline (in , line);
+        
+        if (line.empty())
+        {
+            continue;
+        }
+        
+        _selected_outputs.push_back(new Output(line, error_msg));
+        if (!error_msg.empty())
+        {
+            return false;
+        }
+    }
+    
+    if (_selected_outputs.empty())
+    {
+        error_msg = "Error(1) in file " + output_selection_formatted + ". Cannot read a single output config. First line in string must contain a valid output config." ;
+        return false;
+    }
+
+    return true;
+
 }
 
 void RUNNERPOST::Runner::display_selected_outputs   ( void ) const

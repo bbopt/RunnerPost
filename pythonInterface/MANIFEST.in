@@ -1,0 +1,6 @@
+include ../README.md
+include ../LICENSE
+include ../CONTRIBUTING
+include tests/post_selection.json
+recursive-include tests/Algo_1
+recursive-include tests/Algo_2

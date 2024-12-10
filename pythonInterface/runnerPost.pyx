@@ -24,16 +24,14 @@ def __doc__():
     printRunnerPostUsage()
 
 
-# Define the interface function to perform optimization
-# For now, we only show one best solution.
-def run(algo_selection_file, pb_selection_file, output_selection_file):
-    readAndPostprocess(algo_selection_file, pb_selection_file, output_selection_file)
-
+# Define the interface function to perform run post processing
+def run(algo_selection, pb_selection, output_selection):
+    readAndPostprocess(algo_selection, pb_selection, output_selection)
 
 cdef extern from "RunnerPostCythonInterface.cpp":
     void printRunnerPostVersion()
     void printRunnerPostUsage()
     void printRunnerPostInfo()
-    int readAndPostprocess(string & algo_selection_file,
-                           string & pb_selection_file,
-                           string & output_selection_file) except+
+    int readAndPostprocess(string & algo_selection,
+                           string & pb_selection,
+                           string & output_selection) except+

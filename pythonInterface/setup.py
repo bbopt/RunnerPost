@@ -100,8 +100,13 @@ setuptools.setup(
     author_email = 'christophe.tribes@polymtl.ca',
     description = 'RunnerPost Python interface for optimization results post processing and profiling',
     url = 'https://github.com/bbopt/RunnerPost',
+    package_dir = {
+            '': '.',
+    },
+    packages = [
+        'RunnerPost',],
     ext_modules = cythonize(setuptools.Extension(
-        'RunnerPost',
+        'RunnerPost.RunnerPost',
         sources = [ 'runnerPost.pyx' ],
         include_dirs = [ path_include ],
         extra_compile_args = setup_compile_args,
@@ -110,5 +115,6 @@ setuptools.setup(
         library_dirs = setup_library_dirs,
         language  =  'c++'
     )),
+     include_package_data=True,
 )
 

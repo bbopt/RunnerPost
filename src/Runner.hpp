@@ -236,16 +236,26 @@ public:
     // Maybe we need to make Output, Problem and Algo derive from Selection class.
     bool read_problem_selection_file    ( const std::string & pb_selection_file_name ,
                                          std::string       & error_msg          );
+
+    bool read_problem_selection         ( const std::string & pb_selection_formatted ,
+                                         std::string       & error_msg          );
+
     void clear_selected_problems     ( void );
     void  display_selected_problems   ( void ) const;
 
     bool read_algo_selection_file    ( const std::string & algo_selection_file_name ,
                                    std::string       & error_msg          );
+    bool read_algo_selection         ( const std::string & algo_selection_formatted ,
+                                      std::string       & error_msg          );
+
     void clear_selected_algos     ( void );
     void display_selected_algos   ( void ) const;
     
     bool read_output_selection_file( const std::string  & output_selection_file_name ,
                                     std::string        & error_msg );
+    
+    bool read_output_selection     ( const std::string  & output_selection_formatted ,
+                                      std::string        & error_msg );
     
     void display_selected_outputs ( void ) const;
     
