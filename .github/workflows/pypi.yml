@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.8'
+          python-version: '3.9'
           
       - name: Prepare Python environment
         run: >-
@@ -70,7 +70,7 @@ jobs:
             RUNNERPOST_MSVC_FLAG=${{ matrix.target.msvc }}
             RUNNERPOST_MSVC_CONF=Release
           CIBW_PROJECT_REQUIRES_PYTHON: >-
-            >=3.8
+            >=3.9
           CIBW_BUILD_FRONTEND: >-
             build
           CIBW_BUILD_VERBOSITY: >-
