@@ -98,7 +98,7 @@ jobs:
       - name: Install
         shell: bash
         run: |
-          cmake --config ${{matrix.config.build_type}}
+          cmake --install build
 
 #      - name: Tests
 #        shell: bash
