@@ -24,7 +24,7 @@ static void printRunnerPostUsage()
     std::cout << "--------------------------------------------------------------"       << std::endl;
     std::cout << " RunnerPost Python interface usage"                                             << std::endl;
     std::cout << "--------------------------------------------------------------"       << std::endl;
-    std::cout << "  RunnerPost : result = RunnerPost.readAndPostprocess(param)"       << std::endl;
+    std::cout << "  >>> RunnerPost.run(runnerPostSelection.json)"       << std::endl;
     std::cout << "--------------------------------------------------------------"       << std::endl;
     
 }

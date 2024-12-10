@@ -102,7 +102,7 @@ setuptools.setup(
     url = 'https://github.com/bbopt/RunnerPost',
     ext_modules = cythonize(setuptools.Extension(
         'RunnerPost',
-        sources = [ 'RunnerPost.pyx' ],
+        sources = [ 'runnerPost.pyx' ],
         include_dirs = [ path_include ],
         extra_compile_args = setup_compile_args,
         extra_objects = setup_extra_objects,
