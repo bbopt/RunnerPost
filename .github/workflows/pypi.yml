@@ -59,7 +59,7 @@ jobs:
             ${{ matrix.target.archs }}
           CIBW_BEFORE_ALL: >-
             cmake -DBUILD_INTERFACE_PYTHON=ON -DTEST_OPENMP=OFF -S . -B build &&
-            cmake --build build --config Release --clean-first --target nomadStatic --parallel 2
+            cmake --build build --config Release --clean-first --target runnerPostStatic
           CIBW_ENVIRONMENT: >-
             RUNNERPOST_SRC=../../src
             RUNNERPOST_BUILD_DIR=../../build
@@ -73,7 +73,7 @@ jobs:
             3
         with:
           output-dir: wheelhouse
-          package-dir: PythonInterface
+          package-dir: pythonInterface
 
       - name: Collect wheels for processing
         uses: actions/upload-artifact@v3
