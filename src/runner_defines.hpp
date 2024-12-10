@@ -7,9 +7,11 @@
 #include <sstream>
 #include <limits.h> // For INT_MAX
 #include <limits>   // For numeric_limits
+#include <math.h> // For pow, fabs, round, etc
 #include <cstdlib>
 #include <memory>   // For shared_ptr, unique_ptr
 #include <vector>
+#include <algorithm>
 
 // All directories are relative to the run directory
 //const std::string PROBLEMS_DIR         = "./problems/";

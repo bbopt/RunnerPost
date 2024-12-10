@@ -15,9 +15,9 @@ RunnerPost is a C++ and Python interface for post-processing and profiling optim
 
 To install RunnerPost, follow these steps:
 
-### From PyPI
+### From TestPyPI
 
-To install the Python package from PyPI, ensure you have Python 3.8 or higher:
+To install the Python package from TestPyPI, ensure you have Python 3.8 or higher:
 
 ```sh
 pip install RunnerPost
@@ -27,7 +27,7 @@ pip install RunnerPost
 
 1. Clone the repository:
     ```bash
-    git clone https://github.com/yourusername/RunnerPost.git
+    git clone https://github.com/bbopt/RunnerPost.git
     ```
 2. Navigate to the project directory:
     ```bash
@@ -72,7 +72,27 @@ cd example/
 ```
 
 ### Syntax of selection files
-TODO
+Summary
+
+RunnerPost uses selection files to select problems, algorithms, and outputs for post-processing and profiling optimization results.
+Each file follows a consistent structure where each line represents a selection with a description and a list of parameter-value pairs enclosed in square brackets. This format allows for easy parsing and processing of the configuration data.
+
+problem_selection: Defines problems with an ID, a name and description, and some parameters.
+algo_selection: Defines algorithms with an ID, a name and description, and parameters.
+output_selection: Defines output profiles with a type, a description, and parameters.
+
+Problem selection file Syntax
+Each line in the problem_selection file selects an optimization problem with the following format:
+
+<id> (<description>) [<parameter1> <value1>] [<parameter2> <value2>] ... [<parameterN> <valueN>]
+
+<id>: A unique identifier for the problem (e.g., 1, 2, 3).
+<description>: A brief description of the problem enclosed in parentheses (e.g., (Pb1), (Pb2)). 
+[<parameter> <value>]: A list of parameters and their corresponding values enclosed in square brackets. 
+
+
+### LaTeX outputs
+This step requires to have a LaTeX distribution installed on your machine.
 
 To obtained pdf files from tex file:
 ```bash
