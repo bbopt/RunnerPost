@@ -21,7 +21,7 @@ RUNNERPOST::Algorithm::Algorithm(std::string s, std::string & error_msg)
     if (s.empty())
     {
         error_msg = "Error: Empty output description";
-        return
+        return;
     }
     
     std::string s0 = s;

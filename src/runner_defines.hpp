@@ -9,7 +9,7 @@
 #include <limits>   // For numeric_limits
 #include <cstdlib>
 #include <memory>   // For shared_ptr, unique_ptr
-
+#include <vector>
 
 // All directories are relative to the run directory
 //const std::string PROBLEMS_DIR         = "./problems/";
