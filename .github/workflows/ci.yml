@@ -7,7 +7,7 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "nomad"
+  # This workflow contains a single job called "RunnerPost"
   nomad:
     # The type of runner that the job will run on
     name: ${{ matrix.config.name }}
@@ -16,23 +16,22 @@ jobs:
       fail-fast: false
       matrix:
         config:
-#          - {
-#            name: "Windows -- VS2022", artifact: "Windows_VS2022.tar.xz",
-#            os: windows-latest,
-#            build_type: "Release", cc: "cl", cxx: "cl",
-#            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2022/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
-#          }
-
+          - {
+            name: "Windows -- VS2022", artifact: "Windows_VS2022.tar.xz",
+            os: windows-latest,
+            build_type: "Release", cc: "cl", cxx: "cl",
+            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2022/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
+          }
           - {
             name: "Ubuntu", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             build_type: "Release", cc: "gcc", cxx: "g++"
           }
-#          - {
-#            name: "MacOS", artifact: "macOS.tar.xz",
-#            os: macos-latest,
-#            build_type: "Release", cc: "clang", cxx: "clang++"
-#          }
+          - {
+            name: "MacOS", artifact: "macOS.tar.xz",
+            os: macos-latest,
+            build_type: "Release", cc: "clang", cxx: "clang++"
+          }
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       # Usually this is always needed
