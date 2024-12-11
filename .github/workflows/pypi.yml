@@ -75,6 +75,8 @@ jobs:
             build
           CIBW_BUILD_VERBOSITY: >-
             3
+          CIBW_SKIP: >-
+            pp*
         with:
           output-dir: wheelhouse
           package-dir: pythonInterface
