@@ -17,17 +17,9 @@ def toConfig(JSonFile):
 
     return data
 
-def main():
-    parser = argparse.ArgumentParser(description='Convert JSON file to config format.')
-    parser.add_argument('json_file', type=str, help='Path to the JSON file')
-    args = parser.parse_args()
+def postProcess(json_file):
 
-    # test if json file exists
-    if not os.path.exists(args.json_file):
-        print("JSON file does not exist: ", args.json_file)
-        return
-
-    postConfig = toConfig(args.json_file)
+    postConfig = toConfig(json_file)
 
     # Create the config strings for each selection file
     algo_selection = ""
@@ -111,4 +103,12 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description='Convert JSON file to config format.')
+    parser.add_argument('json_file', type=str, help='Path to the JSON file')
+    args = parser.parse_args()
+
+    # test if json file exists
+    if not os.path.exists(args.json_file):
+        print("JSON file does not exist: ", args.json_file)
+    else:
+        postProcess(args.json_file)

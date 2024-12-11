@@ -91,6 +91,15 @@ with open(path_version, encoding = 'utf-8') as file:
             __version__ = match.group(1)
             break
 
+def package_files(directory):
+    paths = []
+    for (path, directories, filenames) in os.walk(directory):
+        for filename in filenames:
+            paths.append(os.path.join('..', path, filename))
+    return paths
+
+extra_files = package_files('RunnerPost/Data')
+
 # Off we go.
 
 setuptools.setup(
@@ -105,6 +114,9 @@ setuptools.setup(
     },
     packages = [
         'RunnerPost',],
+    package_data = {
+        'RunnerPost': extra_files,
+    },
     ext_modules = cythonize(setuptools.Extension(
         'RunnerPost.RunnerPost',
         sources = [ 'runnerPost.pyx' ],
