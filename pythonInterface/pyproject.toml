@@ -8,7 +8,7 @@ maintainers = [
   { name = "Christophe Tribes", email="christophe.tribes@polymtl.ca"},
 ]
 description = "RunnerPost Python interface and script"
-readme = { file = "README.md", content-type = "text/markdown"}
+readme = { file = "../README.md", content-type = "text/markdown"}
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
