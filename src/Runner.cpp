@@ -3151,7 +3151,7 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
         }
         else if (RUNNERPOST::Output::X_Select::NP1EVAL == out.get_x_select())
         {
-            out_tex << "       xlabel = Number of ($n+1$) evaluations," <<std::endl;
+            out_tex << "       xlabel = Groups of ($n_p+1$) evaluations," <<std::endl;
         }
         else if (RUNNERPOST::Output::X_Select::TIME == out.get_x_select())
         {
@@ -3166,11 +3166,11 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
         
         if (RUNNERPOST::Output::Y_Select::OBJ == out.get_y_select())
         {
-            out_tex << "       ylabel = Percentage of problems solved," <<std::endl;
+            out_tex << "       ylabel = Portion of $\tau$-solved instances," <<std::endl;
         }
         else if (RUNNERPOST::Output::Y_Select::INFEAS == out.get_y_select())
         {
-            out_tex << "       ylabel = Percentage of problems solved," <<std::endl;
+            out_tex << "       ylabel = Portion of feasible instances," <<std::endl;
         }
         else
         {
