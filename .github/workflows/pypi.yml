@@ -77,6 +77,8 @@ jobs:
             3
           CIBW_SKIP: >-
             pp*
+          CIBW_BUILD: >-
+            cp38-* cp39-* cp310-* cp311-*
         with:
           output-dir: wheelhouse
           package-dir: pythonInterface
