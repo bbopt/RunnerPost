@@ -4,6 +4,10 @@
 #include "ArrayOfString.hpp"
 
 
+//  Static member initialization
+const std::string RUNNERPOST::Algorithm::DEFAULT_STATS_FILE_NAME = "history.txt";
+const bool RUNNERPOST::Algorithm::DEFAULT_ADD_PBINSTANCE_TO_STATS_FILE = false;
+
 /*----------------------------------------------*/
 /*                 reset (private)              */
 /*----------------------------------------------*/
@@ -195,9 +199,9 @@ void RUNNERPOST::Algorithm::set_stats_output_type_list()
         std::cerr << "Invalid STATS_FILE_OUTPUT for " << get_name() << ". The definition contains more than one entry for TIME." << std::endl;
         _sotList.clear();
     }
-    if (RUNNERPOST::getNbOfType(_sotList, StatOutputType::INFEAS) > 1)
+    if (RUNNERPOST::getNbOfType(_sotList, StatOutputType::FEAS) > 1)
     {
-        std::cerr << "Invalid STATS_FILE_OUTPUT for " << get_name() << ". The definition contains more than one entry for INFEAS." << std::endl;
+        std::cerr << "Invalid STATS_FILE_OUTPUT for " << get_name() << ". The definition contains more than one entry for FEAS." << std::endl;
         _sotList.clear();
     }
     

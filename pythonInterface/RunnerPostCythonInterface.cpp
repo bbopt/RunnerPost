@@ -48,7 +48,7 @@ static int readAndPostprocess( const std::string & algo_selection, const std::st
     
     int runFlag = 0 ;
 
-    std::cout<<"Runner for optimization postprocessing  "<<std::endl;
+    std::cout<<"RunnerPost for optimization results postprocessing  "<<std::endl;
     try
     {
         Py_BEGIN_ALLOW_THREADS

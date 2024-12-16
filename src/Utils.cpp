@@ -115,9 +115,9 @@ RUNNERPOST::StatOutputType::StatOutputType(const std::string &sConst)
     {
         _type = RUNNERPOST::StatOutputType::Type::CST;
     }
-    else if (s == "INFEAS")
+    else if (s == "FEAS")
     {
-        _type = RUNNERPOST::StatOutputType::Type::INFEAS;
+        _type = RUNNERPOST::StatOutputType::Type::FEAS;
     }
     else if (s == "TIME" )
     {
@@ -254,8 +254,8 @@ std::string RUNNERPOST::StatOutputType::display() const
         case StatOutputType::Type::CNT_EVAL:
             s = "CNT_EVAL";
             break;
-        case StatOutputType::Type::INFEAS:
-            s = "INFEAS";
+        case StatOutputType::Type::FEAS:
+            s = "FEAS";
             break;
         case StatOutputType::Type::SOL:
             s = "SOL";

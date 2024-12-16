@@ -4,8 +4,12 @@ import argparse
 
 import RunnerPost.RunnerPost as RunnerPost
 
-import matplotlib.pyplot as plt
 
+try:
+    import matplotlib.pyplot as plt
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
 
 def toConfig(JSonFile):
 
@@ -106,6 +110,8 @@ def postProcess(json_file):
 
 def plot(file_path,tau):
 
+    # 
+
     # Read data from file
     x = []
     algo1 = []
@@ -147,3 +153,11 @@ if __name__ == '__main__':
         print("JSON file does not exist: ", args.json_file)
     else:
         postProcess(args.json_file)
+
+
+        # If matplotlib is available, plot the data
+    if MATPLOTLIB_AVAILABLE:
+        print("Matplotlib is available but some code is missing (TODO). Skipping plot.")
+    else:
+        print("Matplotlib is not available. Skipping plot.")
+

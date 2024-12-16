@@ -24,7 +24,7 @@ struct StatOutputType
         SOL,         ///<  Variable value
         TIME,        ///< Time elapsed since start
         CNT_EVAL,   ///< Evaluation count
-        INFEAS,        ///< Infeasibility flag: 0 is infeas, 1 is feas
+        FEAS,        ///< Feasibility flag: 0 is infeas, 1 is feas
         UNDEFINED ///< Output ignored
     };
 

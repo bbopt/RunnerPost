@@ -1,5 +1,8 @@
 # RunnerPost
-RunnerPost is a C++ and Python interface for post-processing and profiling optimization results.
+RunnerPost is a C++ and Python interface for post-processing and profiling available optimization results. 
+
+For plotting and visualization, Matplotlib library can be used. Also, LaTeX can be used to generate pdf files from generated tex files.
+
 
 ## Table of Contents
 
@@ -17,13 +20,31 @@ To install RunnerPost, follow these steps:
 
 ### From TestPyPI
 
-To install the Python package from TestPyPI, ensure you have Python 3.8 or higher:
-
+# Ensure you have Python 3.8 or higher
 ```sh
-pip install RunnerPost
+python --version 
+````
+or 
+```sh
+python3 --version
+```
+
+# If you don't have Python 3.8 or higher, you can download and install it from https://www.python.org/downloads/
+
+# You may want to create a virtual environment:
+```sh
+python3 -m venv venv
+source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+```sh
+
+# Install RunnerPost from TestPyPI:
+```sh
+pip3 install -i https://test.pypi.org/simple/ RunnerPost
 ```
 
 ### From Source
+
+Alternatively, you can build RunnerPost from source. To do so, follow these steps:
 
 1. Clone the repository:
     ```bash
@@ -47,23 +68,51 @@ pip install RunnerPost
 
 ## Usage
 
+RunnerPost is a post-processing tool that produces text data profiles from existing optimization results. 
+It requires three selection files: algo_selection, problem_selection, and output_selection. 
+The selection files define the algorithms, problems, and outputs to be profiled.
+
 ### Python
+
+# A simple sanity test using Data provided is available in the RunnerPost package:
 
 ```python
 import RunnerPost
 
-# Example to get usage
-RunnerPost.info()
-
-# Produce data profile from provided example
-# And selection file (in the example dir)
-RunnerPost.run("algo_selection", "problem_selection", "output_selection")
-
+RunnerPost.run_test()
 ```
 
-TODO: give an example with selection parameters and run.
+The following example demonstrates how to use RunnerPost to produce text data profiles from the provided example obtained when downloading the source from GitHub.
+To run the example, you need to provide the selection files: 'algo_selection', 'problem_selection', and 'output_selection' available in the example/Run directory. 
+First go to the example directory and run the following Python code:
+
+```python
+import RunnerPost
+
+# Get usage
+RunnerPost.info()
+
+# Produce text data profiles from provided example.
+# In the example/Run directory, you can find the selection files for the example.
+# The selection files are algo_selection, problem_selection, and output_selection.
+RunnerPost.run('algo_selection', 'problem_selection', 'output_selection')
+```
+
+The content of the selection files is also available in the 'post_select.json' file in the example directory.
+
+```python
+import RunnerPost
+
+# Produce text data profiles from provided example.
+# In the example/Run directory, you can find the json file for the example.
+# The 'post_selection.json' files is equivalent to the selection files are algo_selection, problem_selection, and output_selection.
+RunnerPost.run("post_selection.json")
+```
+
 
 ### Command line
+
+Alternatively, you can use RunnerPost from the command line without Python.
 
 To start using RunnerPost on the given example, run the following commands:
 ```bash
@@ -75,7 +124,7 @@ cd example/
 
 #### Summary
 
-RunnerPost uses problems, algorithms, and outputs selection files for post-processing and profiling optimization results.
+RunnerPost uses problems, algorithms, and outputs selection files for post-processing and profiling available optimization results.
 Each file follows a consistent structure where each line represents a selection with a description and a list of parameter-value pairs enclosed in square brackets. This format allows for easy editing, parsing and processing of the post-processing data.
 
 algo_selection: Defines algorithms with an ID, a name and description, and parameters.
@@ -85,28 +134,73 @@ output_selection: Defines outputs with a type, a description, and parameters.
 #### Algorithm selection file syntax
 Each line in the algo_selection file selects an algorithm with its configuration in the following format:
 
-<id> (<description>) [<parameter1> <value1>] [<parameter2> <value2>] ... [<parameterN> <valueN>]
+`<id> (<description>) [<parameter1> <value1>] [<parameter2> <value2>] ... [<parameterN> <valueN>]`
 
 - `<id>`: A unique identifier for the algorithm (e.g., Algo_1, Algo_2).
 - `<description>`: A brief description of the algorithm enclosed in parentheses.
-- `[<parameter> <value>]`: A list of parameters and their corresponding values enclosed in square brackets.
+- `[<parameter> <value>]`: A parameter and its corresponding value enclosed in square brackets.
 
-The <id> and <description> fields are mandatory, the rest are optional.
+The `<id>` and `<description>` fields are mandatory, the rest are optional. The description is used as legends of the latex output files.
 
 Example of algo_selection file:
 ```
-Algo_1 (DAMON X: Default) [STATS_FILE_NAME history.txt][STATS_FILE_OUTPUT SOL OBJ CST] [ADD_PBINSTANCE_TO_STATS_FILE yes]
+Algo_1 (DAMON X: Default for all params) [STATS_FILE_OUTPUT SOL OBJ CST] [ADD_PBINSTANCE_TO_STATS_FILE yes]
 Algo_2 (DAMON Y: Default + 2n dirs) [DISPLAY_ALL_EVAL yes] [STATS_FILE_NAME stats.txt] [ADD_PBINSTANCE_TO_STATS_FILE yes]
 ````
+
+The `STATS_FILE_NAME` parameter is used to specify the name of the files containing the optimization stats for all runs of an algorithm. If not provided, the default name is "history.txt". 
+The files must be in directories constructed with the algorithm and the problem id-s. The given file name is the same for all problems and for all instances of a problem. An instance number is automatically added to the file name.
+
+The `ADD_PBINSTANCE_TO_STATS_FILE` is a boolean parameter (`True` or `Yes` or `1` values are interpreted as True, other values are interpreted as False) is used to specify if the instance names should be automatically added when reading the optimization stats file. If the flag is False (default), the stats file name are not modified and a single instance for each problem run is considered.
+
+With this option enabled, The structure of the run directories follows the pattern:
+```
+ MyRuns/
+ ├── Algo_1/
+ │   ├── Pb1/
+ │   │   ├── stats.A.txt
+ │   │   ├── stats.B.txt
+ │   │   └── stats.C.txt
+ │   └──  Pb2/
+ │       ├── stats.0.txt
+ │       ├── stats.5.txt
+ │       └── stats.6.txt
+ └── Algo_2/
+     ├── Pb1/
+     │   ├── history.A.txt
+     │   ├── history.B.txt
+     │   └── history.C.txt
+     └── Pb2/
+         ├── history.0.txt
+         ├── history.5.txt
+         └── history.6.txt
+```
+
+The `STATS_FILE_OUTPUT` is used to describe the stats file content, i.e the outputs of the optimizer. The evaluation outputs are given column-wise. The columns must be separated by a space.
+Obviously, the number of columns varies depending on the problem considered. The `STATS_FILE_OUTPUT` parameters describes the organization of the columns.
+The column organization must be respected for all problems (and on all the instances) solved by an algorithm. 
+The type of columns must be among the following: 
+    -- `CNT_EVAL`: the evaluation counter (in the order of the evaluations),
+    -- `SOL`: the vector of input variables; the number of variables is given in the problem selection file,
+    -- `OBJ`: the objective function value (can be more than one),   
+    -- `CST`: the constraints functions value. Even if the problem has several constraints, a single `CST` is required. Indeed the number of constraint can depend on the problem. The number of constraints is given in the problem selection file. 
+    -- `TIME`: the time of the evaluation (in seconds),
+    -- `FEAS`: the infeasibility flag of an evaluation (0: infeasible, 1: feasible),
+    -- `OTHER`: other information (e.g., the number of function evaluations, the number of iterations, the number of constraints evaluations, the number of gradient evaluations, the number of hessian evaluations, the number of hessian-vector evaluations, the number of jacobian evaluations, the number of jacobian-vector evaluations, the number of jacobian
+
+When `CNT_EVAL` is not provided, it is considered that the stats files contain all evaluations performed during optimization.
+
+NOTE: Some cross-validation is done on the stats file content to ensure that the file is correctly formatted.
+
 
 #### Problem selection file syntax
 Each line in the problem_selection file selects a problem with its configuration in the following format:
 
-<id> (<description>) [<parameter1> <value1>] [<parameter2> <value2>] ... [<parameterN> <valueN>]
+`<id> (<description>) [<parameter1> <value1>] [<parameter2> <value2>] ... [<parameterN> <valueN>]`
 
-<id>: A unique identifier for the problem (e.g., 1, 2, 3).
-<description>: A brief description of the problem enclosed in parentheses (e.g., (Pb1), (Pb2)).
-[<parameter> <value>]: A list of parameters and their corresponding values enclosed in square brackets.
+`<id>`: A unique identifier for the problem (e.g., 1, 2, 3).
+`<description>`: A brief description of the problem enclosed in parentheses (e.g., (Pb1), (Pb2)).
+`[<parameter> <value>]`: A parameter and its corresponding value(s) enclosed in square brackets.
 
 The following parameters are mandatory:
 - N, the number of variables must be provided. 
@@ -126,11 +220,11 @@ Example of problem_selection file:
 #### Output selection file syntax
 Each line in the output_selection file selects an output profile with the following format:
 
-<type> (<description>) [<parameter1> <value1>] [<parameter2> <value2>] ... [<parameterN> <valueN>]
+`<type> (<description>) [<parameter1> <value1>] [<parameter2> <value2>] ... [<parameterN> <valueN>]`
 
-<type>: The type of profile or output (e.g., DATA_PROFILE).
-<description>: A brief description of the profile or output enclosed in parentheses (e.g., (Data profile on 10 pbs with $\tau\; 10^{-1}$)). This information is used as the title of the output.
-[<parameter> <value>]: A list of parameters and their corresponding values enclosed in square brackets.
+`<type>`: The type of profile or output (e.g., DATA_PROFILE).
+`<description>`: A brief description of the profile or output enclosed in parentheses (e.g., (Data profile on 10 pbs with $\tau\; 10^{-1}$)). This information is used as the title of the output.
+`[<parameter> <value>]`: A parameter and its corresponding value enclosed in square brackets.
 
 Comments can be added at the end of each line starting with the # character.
 
@@ -148,7 +242,7 @@ pdflatex dp1.tex
 ```
 
 ## Tests
-TODO
+TODO. In progress.
 
 ## Contributing
 

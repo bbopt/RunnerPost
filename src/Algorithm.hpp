@@ -12,6 +12,12 @@
 #include "runnerpost_nsbegin.hpp"
 
 class Algorithm {
+public:
+
+    static const std::string DEFAULT_STATS_FILE_NAME;
+
+    // If true we add pb instance in stats file name. For example history.txt -> history.0.txt
+    static const bool DEFAULT_ADD_PBINSTANCE_TO_STATS_FILE;
 
 private:
     

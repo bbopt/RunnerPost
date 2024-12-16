@@ -38,11 +38,6 @@ const size_t INF_SIZE_T = std::numeric_limits<size_t>::max();///< The infinity f
 typedef std::vector<double> ArrayOfDouble;
 
 
-// TODO pass these options in the algo configuration file
-const std::string DEFAULT_STATS_FILE = "history.txt";
-// If true we add pb instance in stats file name. For example history.txt -> history.0.txt
-const bool DEFAULT_ADD_PBINSTANCE_TO_STATS_FILE = false;
-
 const std::string STATS_FILE_RUN_DIR_BASE = "./";
 
 // If true we have a directory structure AlgoId/PbId

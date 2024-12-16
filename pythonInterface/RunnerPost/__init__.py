@@ -26,9 +26,10 @@ def run(json_file):
 # Run on test data set included
 def run_test():
 
-    json_file = pkg_resources.resource_filename(__name__, f'Data/post_selection.json')
+    json_file_name = pkg_resources.resource_filename(__name__, f'Data/post_selection.json')
 
+    print(json_file_name)
 
     # json_file = os.path.join(os.path.abspath(os.path.dirname(__file__)),"Data","post_selection.json")
 
-    run(json_file)
+    postProcess.postProcess(json_file)

@@ -78,9 +78,9 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
     const bool hasCntEval = (std::count(sotList.begin(),sotList.end(),StatOutputType::CNT_EVAL) > 0);
     
     // TODO
-    if (std::count(sotList.begin(),sotList.end(),StatOutputType::INFEAS) > 0)
+    if (std::count(sotList.begin(),sotList.end(),StatOutputType::FEAS) > 0)
     {
-        std::cout << "Result::read INFEAS tag is not yet managed." <<std::endl;
+        std::cout << "Result::read FEAS tag is not yet managed." <<std::endl;
         return false;
     }
     if (_use_hypervolume_for_obj)

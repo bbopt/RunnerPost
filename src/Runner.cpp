@@ -3278,8 +3278,8 @@ std::string RUNNERPOST::Runner::get_stats_file_name (const Algorithm    & ac    
 {
     
     
-    std::string statsFileName = DEFAULT_STATS_FILE;
-    bool flag_add_pbinstance_to_stats_file = DEFAULT_ADD_PBINSTANCE_TO_STATS_FILE;
+    std::string statsFileName = Algorithm::DEFAULT_STATS_FILE_NAME;
+    bool flag_add_pbinstance_to_stats_file = Algorithm::DEFAULT_ADD_PBINSTANCE_TO_STATS_FILE;
 
     for (const auto & o: ac.get_output_options())
     {
@@ -3346,7 +3346,10 @@ bool RUNNERPOST::Runner::algo_pb_check_consistency(std::string       & error_msg
         error_msg = base_error_msg + algo->get_id() + " (" + algo->get_name() + ")\n";
         
         std::vector<std::string> sWords = algo->get_output_option("ADD_PBINSTANCE_TO_STATS_FILE");
-        if (sWords.empty() && !RUNNERPOST::DEFAULT_ADD_PBINSTANCE_TO_STATS_FILE)
+        if (sWords.empty() && !RUNNERPOST::Algorithm::DEFAULT_ADD_PBINSTANCE_TO_STATS_FILE)
+        {
+            return false;
+        }
         {
             return false;
         }
