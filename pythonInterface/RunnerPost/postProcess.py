@@ -4,6 +4,8 @@ import argparse
 
 import RunnerPost.RunnerPost as RunnerPost
 
+import matplotlib.pyplot as plt
+
 
 def toConfig(JSonFile):
 
@@ -101,6 +103,39 @@ def postProcess(json_file):
     # Encode strings before calling RunnerPost
     RunnerPost.run(algo_selection.encode(), problem_selection.encode(), output_selection.encode())
 
+
+def plot(file_path,tau):
+
+    # Read data from file
+    x = []
+    algo1 = []
+    algo2 = []
+
+    with open(file_path, 'r') as file:
+        for line in file:
+            parts = line.split()
+            x.append(int(parts[0]))
+            algo1.append(float(parts[1]))
+            algo2.append(float(parts[2]))
+
+    # Plot the data
+    plt.figure(figsize=(10, 6))
+    plt.plot(x, algo1, label='Algo1', marker='o')
+    plt.plot(x, algo2, label='Algo2', marker='s')
+
+    # Add titles and labels
+    plt.title('$\tau$ = ')
+    plt.xlabel('Number of (n+1) evaluations')
+    plt.ylabel('Proportion of instances $\tau$-solved')
+
+    # Add legend
+    plt.legend()
+
+    # Show grid
+    plt.grid(True)
+
+    # Show plot
+    plt.show()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert JSON file to config format.')
