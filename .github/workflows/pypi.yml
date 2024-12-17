@@ -22,10 +22,12 @@ jobs:
           - name: macOS_X86
             os: macos-latest
             archs: x86_64
+            extra_option: -DCMAKE_OSX_ARCHITECTURES=x86_64
 
           - name: macOS_ARM
             os: macos-latest
             archs: arm64
+            extra_option: -DCMAKE_OSX_ARCHITECTURES=arm64
 
     name: Wheels for ${{ matrix.target.name }}
     runs-on: ${{ matrix.target.os }}
@@ -66,11 +68,7 @@ jobs:
           CIBW_ARCHS: >-
             ${{ matrix.target.archs }}
           CIBW_BEFORE_ALL: >-
-            if [[ "${{ matrix.target.name }}" == "macOS_X86" ]]; then
-              cmake -DBUILD_INTERFACE_PYTHON=ON -DTEST_OPENMP=OFF -DCMAKE_OSX_ARCHITECTURES=x86_64 -S . -B build
-            else
-              cmake -DBUILD_INTERFACE_PYTHON=ON -DTEST_OPENMP=OFF -S . -B build
-            fi
+            cmake -DBUILD_INTERFACE_PYTHON=ON -DTEST_OPENMP=OFF ${{ matrix.target.extra_option }} -S . -B build
             cmake --build build --config Release --clean-first --target runnerPostStatic
           CIBW_ENVIRONMENT: >-
             RUNNERPOST_SRC=../src
