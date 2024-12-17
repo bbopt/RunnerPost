@@ -1,7 +1,7 @@
 # RunnerPost
 RunnerPost is a C++ and Python interface for post-processing and profiling available optimization results. 
 
-For plotting and visualization, Matplotlib library can be used. Also, LaTeX can be used to generate pdf files from generated tex files.
+For plotting and visualization, Matplotlib library is an option (TODO: script). Also, LaTeX can produce pdf files from tex files created during post-processing.
 
 
 ## Table of Contents
@@ -14,6 +14,7 @@ For plotting and visualization, Matplotlib library can be used. Also, LaTeX can 
 - [Contact](#contact)
 
 
+
 ## Installation
 
 To install RunnerPost, follow these steps:
@@ -23,19 +24,19 @@ To install RunnerPost, follow these steps:
 # Ensure you have Python 3.8 or higher
 ```sh
 python --version 
-````
+```
 or 
 ```sh
 python3 --version
 ```
 
-# If you don't have Python 3.8 or higher, you can download and install it from https://www.python.org/downloads/
+If you don't have Python 3.8 or higher, you can download and install it from https://www.python.org/downloads/
 
 # You may want to create a virtual environment:
 ```sh
 python3 -m venv venv
 source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-```sh
+```
 
 # Install RunnerPost from TestPyPI:
 ```sh
@@ -74,7 +75,7 @@ The selection files define the algorithms, problems, and outputs to be profiled.
 
 ### Python
 
-# A simple sanity test using Data provided is available in the RunnerPost package:
+A simple sanity check using provided data is available in the RunnerPost package:
 
 ```python
 import RunnerPost

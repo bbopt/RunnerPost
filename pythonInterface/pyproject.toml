@@ -7,7 +7,7 @@ authors = [
 maintainers = [
   { name = "Christophe Tribes", email="christophe.tribes@polymtl.ca"},
 ]
-description = "RunnerPost Python interface and script"
+description = "RunnerPost Python interface and script for optimization post-processing"
 readme = { file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.8"
 classifiers = [
