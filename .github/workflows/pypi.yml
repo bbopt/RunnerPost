@@ -69,6 +69,7 @@ jobs:
             ${{ matrix.target.archs }}
           CIBW_BEFORE_ALL: >-
             cmake -DBUILD_INTERFACE_PYTHON=ON -DTEST_OPENMP=OFF ${{ matrix.target.extra_option }} -S . -B build
+            
             cmake --build build --config Release --clean-first --target runnerPostStatic
           CIBW_ENVIRONMENT: >-
             RUNNERPOST_SRC=../src
