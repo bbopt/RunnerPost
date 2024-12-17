@@ -45,7 +45,14 @@ pip3 install -i https://test.pypi.org/simple/ RunnerPost
 
 ### From Source
 
-Alternatively, you can build RunnerPost from source. To do so, follow these steps:
+Alternatively, you can build RunnerPost from source.
+
+On Linux, Windows and Mac OS X, RunnerPost can be compiled using *CMake*, a tool to manage building of source code.
+
+The minimum version of *CMake* is 3.15. *CMake* will detect which compiler is available. A recent C++ compiler supporting C++14 is also required.
+
+
+Follow these steps for getting the source and build RunnerPost:
 
 1. Clone the repository:
     ```bash
@@ -66,6 +73,7 @@ Alternatively, you can build RunnerPost from source. To do so, follow these step
     ```bash
     pip install --user --force-reinstall dist/*whl
     ```
+
 
 ## Usage
 
