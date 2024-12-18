@@ -227,16 +227,27 @@ Each line in the output_selection file selects an output profile with the follow
 
 `<type> (<description>) [<parameter1> <value1>] [<parameter2> <value2>] ... [<parameterN> <valueN>]`
 
-`<type>`: The type of profile or output (e.g., DATA_PROFILE).
-`<description>`: A brief description of the profile or output enclosed in parentheses (e.g., (Data profile on 10 pbs with $\tau\; 10^{-1}$)). This information is used as the title of the output.
-`[<parameter> <value>]`: A parameter and its corresponding value enclosed in square brackets.
+-`<type>`: The type of profile or output (e.g., DATA_PROFILE).
+- `<description>`: A brief description of the profile or output enclosed in parentheses (e.g., (Data profile on 10 pbs with $\tau\; 10^{-1}$)). This information is used as the title of the output.
+- `[<parameter> <value>]`: A parameter and its corresponding value enclosed in square brackets.
 
 Comments can be added at the end of each line starting with the # character.
+
+The current beta version only supports `DATA_PROFILE`, other types will be available in the first release.
+
+The following parameters are all mandatory:
+- `x_select`, the type of x-axis:  `NP1Eval` or   
+- `y_select`, the type of y-axis: `OBJ`
+- `tau`, the value of the tolerance with respect to the best solution: typical values are 0.1, 0.00001.
+- `output_plain`, the plain output file name. A good practice is to name it according to the tau value. For example, `tau 0.1` - > `output_plain dp1.txt`.
+- `output_latex`, the latex output file name. 
+-`x_max`, the x-axis max value for plotting. `INF` can be used to parse all the runs of a problem and deduce the maximum value.
+
 
 Example of output_selection file:
 ```
 DATA_PROFILE (Data profile on 10 pbs with $\tau\; 10^{-1}$) [x_select NP1Eval] [y_select OBJ] [tau 0.1] [output_plain dp1.txt] [output_latex dp1.tex] [x_max INF]
-DATA_PROFILE (Data profile on 10 pbs with $\tau\; 10^{-3}$) # default (tau=0.001, np1eval, obj, dp3.txt, INF, dp3.tex)
+DATA_PROFILE (Data profile on 10 pbs with $\tau\; 10^{-3}$) [x_select NP1Eval] [y_select OBJ] [tau 0.001] [output_plain dp3.txt] [output_latex dp3.tex] [x_max INF]
 
 ### LaTeX outputs
 This step requires to have a LaTeX distribution installed on your machine.
