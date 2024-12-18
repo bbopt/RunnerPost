@@ -1,6 +1,6 @@
 [project]
 name = "RunnerPost"
-version = "1.0b3"
+version = "1.0b4"
 authors = [
   { name = "Christophe Tribes" },
 ]
