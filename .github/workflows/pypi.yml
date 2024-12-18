@@ -10,10 +10,10 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - name: Windows
-            os: windows-latest
-            archs: AMD64
-            msvc: 1
+#          - name: Windows
+#            os: windows-latest
+#            archs: AMD64
+#            msvc: 1
 
           - name: Ubuntu
             os: ubuntu-latest
