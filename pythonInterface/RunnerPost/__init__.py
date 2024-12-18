@@ -28,8 +28,24 @@ def run_test():
 
     json_file_name = pkg_resources.resource_filename(__name__, f'Data/post_selection.json')
 
-    print(json_file_name)
+    # Get the current directory
+    current_directory = os.getcwd()
 
-    # json_file = os.path.join(os.path.abspath(os.path.dirname(__file__)),"Data","post_selection.json")
+    #Extract the path from the json file
+    path = os.path.dirname(json_file_name)
+        
+    # Change the working directory to the directory of the json file
+    if path:
+        os.chdir(path)
+
+        # Remove the path from the json file
+        json_file = json_file_name.replace(path + "/", "")
+    else:
+        json_file = json_file_name
 
     postProcess.postProcess(json_file)
+
+    # Change the working directory back to the original directory
+    os.chdir(current_directory)
+
+    
