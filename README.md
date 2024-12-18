@@ -93,15 +93,15 @@ RunnerPost.run_test()
 
 The following example demonstrates how to use RunnerPost to produce text data profiles from the provided example obtained when downloading the source from GitHub.
 
-To run the example, you need to provide the selection files: 'algo_selection', 'problem_selection', and 'output_selection' available in the example/Run directory. 
+To run the example, you need to provide the selection files: `algo_selection.def`, `problem_selection.def`, and `output_selection.def` available in the `example/Unconstrained_Runs_With_Two_Algos` directory. 
 
 First go to the example directory and run the following Python script:
 
 ```sh
-python3 -m RunnerPost --algo_selection algo_selection.txt --problem_selection problem_selection.txt --output_selection output_selection.txt
+python3 -m RunnerPost --algo_selection algo_selection.def --problem_selection problem_selection.def --output_selection output_selection.def
 ```
 
-The content of the selection files is also available in the 'post_selection.json' file in the example directory. 
+The content of the selection files is also available in the `post_selection.json` file in the example directory. 
 
 ```sh
 python3 -m RunnerPost --json_file post_selection.json
@@ -115,7 +115,7 @@ Alternatively, you can use RunnerPost from the command line without Python.
 To start using RunnerPost on the given example, run the following commands:
 ```bash
 cd example/
-../build/release/bin/runnerPost algo_selection problem_selection output_selection
+../build/release/bin/runnerPost algo_selection.def problem_selection.def output_selection.def
 ```
 
 ### Syntax of selection files
@@ -147,6 +147,7 @@ Algo_2 (DAMON Y: Default + 2n dirs) [DISPLAY_ALL_EVAL yes] [STATS_FILE_NAME stat
 ````
 
 The `STATS_FILE_NAME` parameter is used to specify the name of the files containing the optimization stats for all runs of an algorithm. If not provided, the default name is "history.txt". 
+
 The files must be in directories constructed with the algorithm and the problem id-s. The given file name is the same for all problems and for all instances of a problem. An instance number is automatically added to the file name.
 
 The `ADD_PBINSTANCE_TO_STATS_FILE` is a boolean parameter (`True` or `Yes` or `1` values are interpreted as True, other values are interpreted as False) is used to specify if the instance names should be automatically added when reading the optimization stats file. If the flag is False (default), the stats file name are not modified and a single instance for each problem run is considered.
@@ -175,18 +176,21 @@ With this option enabled, The structure of the run directories follows the patte
 ```
 
 The `STATS_FILE_OUTPUT` is used to describe the stats file content, i.e the outputs of the optimizer. The evaluation outputs are given column-wise. The columns must be separated by a space.
+
 Obviously, the number of columns varies depending on the problem considered. The `STATS_FILE_OUTPUT` parameters describes the organization of the columns.
+
 The column organization must be respected for all problems (and on all the instances) solved by an algorithm. 
-The type of columns must be among the following: 
-    -- `CNT_EVAL`: the evaluation counter (in the order of the evaluations),
-    -- `SOL`: the vector of input variables; the number of variables is given in the problem selection file,
-    -- `OBJ`: the objective function value (can be more than one),   
-    -- `CST`: the constraints functions value. Even if the problem has several constraints, a single `CST` is required. Indeed the number of constraint can depend on the problem. The number of constraints is given in the problem selection file. 
-    -- `TIME`: the time of the evaluation (in seconds),
-    -- `FEAS`: the infeasibility flag of an evaluation (0: infeasible, 1: feasible),
-    -- `OTHER`: other information (e.g., the number of function evaluations, the number of iterations, the number of constraints evaluations, the number of gradient evaluations, the number of hessian evaluations, the number of hessian-vector evaluations, the number of jacobian evaluations, the number of jacobian-vector evaluations, the number of jacobian
+A column type must be among the following: 
+- `CNT_EVAL`: the evaluation counter (in the order of the evaluations),
+- `SOL`: the vector of input variables; the number of variables is given in the problem selection file,
+- `OBJ`: the objective function value (can be more than one),   
+- `CST`: the constraints functions value. Even if the problem has several constraints, a single `CST` is required. Indeed the number of constraint can depend on the problem. The number of constraints is given in the problem selection file. 
+- `TIME`: the time of the evaluation (in seconds),
+- `FEAS`: the infeasibility flag of an evaluation (0: infeasible, 1: feasible),
+- `OTHER`: other information (e.g., the number of function evaluations, the number of iterations, the number of constraints evaluations, the number of gradient evaluations, the number of hessian evaluations, the number of hessian-vector evaluations, the number of jacobian evaluations, the number of jacobian-vector evaluations, the number of jacobian
 
 When `STATS_FILE_OUTPUT` is NOT provided, the column types must be deduced. The stats files can contain all evaluations of an optimization (no need to specify the evaluation counter `CNT_EVAL`) or only the best solutions (the evaluation counter `CNT_EVAL`must be provided). 
+
 Hence, the stats file can minimally contain the following columns: `CTN_EVAL OBJ CST` or only `OBJ CST` (the `CST` column is optional).
 This is determined from the `DISPLAY_ALL_EVAL` parameter. If `DISPLAY_ALL_EVAL` is set to `yes`, the stats file contains all evaluations of an optimization. If `DISPLAY_ALL_EVAL` is set to `no` (column types are `CNT_EVAL OBJ CST` by default), the stats file contains only the best solutions (column types are `OBJ CST`). The default for `DISPLAY_ALL_EVAL` is `false`.
 
@@ -204,8 +208,8 @@ Each line in the problem_selection file selects a problem with its configuration
 `[<parameter> <value>]`: A parameter and its corresponding value(s) enclosed in square brackets.
 
 The following parameters are mandatory:
-- N, the number of variables must be provided. 
-- M, the number of outputs must be provided. Outputs include objectives and constraints. M must be greater than or equal to 1.
+- `N`, the number of variables must be provided. 
+- `M`, the number of outputs must be provided. Outputs include objectives and constraints. M must be greater than or equal to 1.
 
 In addition, the following parameter is optional:
 
