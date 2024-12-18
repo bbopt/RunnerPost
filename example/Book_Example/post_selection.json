@@ -1,0 +1,152 @@
+{
+  "output_selection": [
+    {
+      "type": "DATA_PROFILE",
+      "description": "Data profile on 20 pbs with $\\tau\\; 10^{-1}$",
+      "parameters": {
+        "x_select": "NP1Eval",
+        "y_select": "OBJ",
+        "tau": "0.1",
+        "output_plain": "dp1.txt",
+        "output_latex": "dp1.tex",
+        "x_max": "INF"
+      }
+    },
+    {
+      "type": "DATA_PROFILE",
+      "description": "Data profile on 20 pbs with $\\tau\\; 10^{-2}$",
+      "parameters": {
+        "x_select": "NP1Eval",
+        "y_select": "OBJ",
+        "tau": "0.01",
+        "output_plain": "dp2.txt",
+        "output_latex": "dp2.tex",
+        "x_max": "INF"
+      }
+    }
+  ],
+  "algo_selection": [
+    {
+      "id": "Algo_1",
+      "name": "Algo 1",
+      "parameters": {
+        "DISPLAY_ALL_EVAL": "no",
+        "STATS_FILE_NAME": "history.txt",
+        "STATS_FILE_OUTPUT": "CNT_EVAL OBJ",
+        "ADD_PBINSTANCE_TO_STATS_FILE": "yes"
+      }
+    },
+    {
+      "id": "Algo_2",
+      "name": "Algo 2",
+      "parameters": {
+        "DISPLAY_ALL_EVAL": "no",
+        "STATS_FILE_NAME": "history.txt",
+        "STATS_FILE_OUTPUT": "CNT_EVAL OBJ",
+        "ADD_PBINSTANCE_TO_STATS_FILE": "yes"
+      }
+    },
+    {
+      "id": "Algo_3",
+      "name": "Algo 3",
+      "parameters": {
+        "DISPLAY_ALL_EVAL": "no",
+        "STATS_FILE_NAME": "history.txt",
+        "STATS_FILE_OUTPUT": "CNT_EVAL OBJ",
+        "ADD_PBINSTANCE_TO_STATS_FILE": "yes"
+      }
+    }
+  ],
+  "problem_selection": [
+    {
+      "id": "1",
+      "name": "Pb1",
+      "parameters": {
+        "N": "11",
+        "M": "1",
+        "PB_INSTANCE": "0"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Pb2",
+      "parameters": {
+        "N": "12",
+        "M": "1",
+        "PB_INSTANCE": "0"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Pb3",
+      "parameters": {
+        "N": "13",
+        "M": "1",
+        "PB_INSTANCE": "0"
+      }
+    },
+    {
+      "id": "4",
+      "name": "Pb4",
+      "parameters": {
+        "N": "14",
+        "M": "1",
+        "PB_INSTANCE": "0"
+      }
+    },
+    {
+      "id": "5",
+      "name": "Pb5",
+      "parameters": {
+        "N": "15",
+        "M": "1",
+        "PB_INSTANCE": "0"
+      }
+    },
+    {
+      "id": "9",
+      "name": "Pb9",
+      "parameters": {
+        "N": "16",
+        "M": "1",
+        "PB_INSTANCE": "0"
+      }
+    },
+    {
+      "id": "10",
+      "name": "Pb10",
+      "parameters": {
+        "N": "17",
+        "M": "1",
+        "PB_INSTANCE": "0"
+      }
+    },
+    {
+      "id": "18",
+      "name": "Pb18",
+      "parameters": {
+        "N": "18",
+        "M": "1",
+        "PB_INSTANCE": "0"
+      }
+    },
+    {
+      "id": "19",
+      "name": "Pb19",
+      "parameters": {
+        "N": "19",
+        "M": "1",
+        "PB_INSTANCE": "0"
+      }
+    },
+    {
+      "id": "20",
+      "name": "Pb20",
+      "parameters": {
+        "N": "20",
+        "M": "1",
+        "PB_INSTANCE": "0"
+      }
+    }
+  ]
+}
