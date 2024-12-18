@@ -38,31 +38,31 @@ public:
 private:
 
     Profile_Type                       _pType = Profile_Type::UNDEFINED;
-    Y_Select                           _ySel = Y_Select::OBJ ;
-    X_Select                           _xSel = X_Select::NP1EVAL;
-    int                                _xMax = P_INF_INT;
-    double                             _tau =0.001;
-    std::string                        _plainFileName ="dp3.txt";
-    std::string                        _latexFileName ="dp3.tex";
+    Y_Select                           _ySel;
+    X_Select                           _xSel;
+    int                                _xMax;
+    double                             _tau;
+    std::string                        _plainFileName;
+    std::string                        _latexFileName;
     std::string                        _title="";
 
     
 public:
     
-    // constructor #1
-    Output (const Profile_Type & ptype, const std::string title = "", const double tau = 0.001,   const std::string plainFileName = "dp3.txt", const std::string latexFileName = "dp3.tex", const Y_Select ySel = Y_Select::OBJ, const X_Select xSel = X_Select::NP1EVAL, const int xMax = P_INF_INT)
-    : _pType              ( ptype    ) ,
-      _plainFileName      ( plainFileName ) ,
-      _latexFileName      ( latexFileName ) ,
-      _ySel               ( ySel ) ,
-      _xSel               ( xSel ) ,
-      _xMax               ( xMax ),
-      _tau                ( tau     ),
-      _title              ( title )
-    {
-        // TODO: check inconsistencies. Example: tau provided but default output file name are used. At least give a warning
-        
-    };
+//    // constructor #1
+//    Output (const Profile_Type & ptype, const std::string title = "", const double tau = 0.001,   const std::string plainFileName = "dp3.txt", const std::string latexFileName = "dp3.tex", const Y_Select ySel = Y_Select::OBJ, const X_Select xSel = X_Select::NP1EVAL, const int xMax = P_INF_INT)
+//    : _pType              ( ptype    ) ,
+//      _plainFileName      ( plainFileName ) ,
+//      _latexFileName      ( latexFileName ) ,
+//      _ySel               ( ySel ) ,
+//      _xSel               ( xSel ) ,
+//      _xMax               ( xMax ),
+//      _tau                ( tau     ),
+//      _title              ( title )
+//    {
+//        // TODO: check inconsistencies. Example: tau provided but default output file name are used. At least give a warning
+//
+//    };
     
     // Constructor #2
     Output (std::string single_output_description, std::string & error_msg);

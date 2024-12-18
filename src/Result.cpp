@@ -252,6 +252,14 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
                 return false;
             }
         }
+        if ( first_line && bbe!=1)
+        {
+            std::cout << "(3) Result file is expected to have a first line with evaluation counter equals 1. But bbe = " << bbe << "." << std::endl;
+            delete [] bbo;
+            return false;
+            
+        }
+        
 
         // Keep only improving feasible values
         if ( isFeas && ( first_line || obj < obj_prev ) && bbe <= max_bbe )

@@ -38,7 +38,7 @@ const size_t INF_SIZE_T = std::numeric_limits<size_t>::max();///< The infinity f
 typedef std::vector<double> ArrayOfDouble;
 
 
-const std::string STATS_FILE_RUN_DIR_BASE = "./";
+const std::string STATS_FILE_RUN_DIR_BASE = ".";
 
 // If true we have a directory structure AlgoId/PbId
 // If false we have PbId/AlgoId

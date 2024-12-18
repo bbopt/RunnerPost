@@ -837,13 +837,19 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     const size_t n_algo = _selected_algos.size();
     const size_t n_pb = _selected_pbs.size();
     
-    if ( out.get_tau() < 0 || n_pb == 0 || n_algo == 0 )
+    if ( out.get_tau() <= 0 || n_pb == 0 || n_algo == 0 )
     {
-        std::cerr << "Error: cannot compute data profile for tau < 0 or n_pb ==0 or n_algo == 0" << std::endl;
+        std::cerr << "Error: cannot compute data profile for tau <= 0 or n_pb ==0 or n_algo == 0. Make sure to provide a valid tau value in the output_definition file." << std::endl;
         return false;
     }
 
-
+    if ( out.get_plain_file_name().empty() )
+    {
+        std::cerr << "Error: output_plain must be specified in the output_definition file." << std::endl;
+        return false;
+        
+    }
+    
     std::ofstream fout ( out.get_plain_file_name() );
     if ( fout.fail() ) {
         std::cerr << "Error: cannot create data profile output file "
@@ -3347,9 +3353,6 @@ bool RUNNERPOST::Runner::algo_pb_check_consistency(std::string       & error_msg
         
         std::vector<std::string> sWords = algo->get_output_option("ADD_PBINSTANCE_TO_STATS_FILE");
         if (sWords.empty() && !RUNNERPOST::Algorithm::DEFAULT_ADD_PBINSTANCE_TO_STATS_FILE)
-        {
-            return false;
-        }
         {
             return false;
         }
