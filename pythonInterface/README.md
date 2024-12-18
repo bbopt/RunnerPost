@@ -92,30 +92,19 @@ RunnerPost.run_test()
 ```
 
 The following example demonstrates how to use RunnerPost to produce text data profiles from the provided example obtained when downloading the source from GitHub.
+
 To run the example, you need to provide the selection files: 'algo_selection', 'problem_selection', and 'output_selection' available in the example/Run directory. 
-First go to the example directory and run the following Python code:
 
-```python
-import RunnerPost
+First go to the example directory and run the following Python script:
 
-# Get usage
-RunnerPost.info()
-
-# Produce text data profiles from provided example.
-# In the example/Run directory, you can find the selection files for the example.
-# The selection files are algo_selection, problem_selection, and output_selection.
-RunnerPost.run('algo_selection', 'problem_selection', 'output_selection')
+```sh
+python3 -m RunnerPost --algo_selection algo_selection.txt --problem_selection problem_selection.txt --output_selection output_selection.txt
 ```
 
-The content of the selection files is also available in the 'post_select.json' file in the example directory.
+The content of the selection files is also available in the 'post_selection.json' file in the example directory. 
 
-```python
-import RunnerPost
-
-# Produce text data profiles from provided example.
-# In the example/Run directory, you can find the json file for the example.
-# The 'post_selection.json' files is equivalent to the selection files are algo_selection, problem_selection, and output_selection.
-RunnerPost.run("post_selection.json")
+```sh
+python3 -m RunnerPost --json_file post_selection.json
 ```
 
 
