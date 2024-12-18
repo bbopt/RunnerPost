@@ -21,7 +21,9 @@ To install RunnerPost, follow these steps:
 
 ### From TestPyPI
 
-# Ensure you have Python 3.8 or higher
+
+Ensure you have Python 3.8 or higher:
+
 ```sh
 python --version 
 ```
@@ -32,13 +34,13 @@ python3 --version
 
 If you don't have Python 3.8 or higher, you can download and install it from https://www.python.org/downloads/
 
-# You may want to create a virtual environment:
+You may want to create a virtual environment:
 ```sh
 python3 -m venv venv
 source venv/bin/activate  # On Windows use `venv\Scripts\activate`
 ```
 
-# Install RunnerPost from TestPyPI:
+**To install RunnerPost from TestPyPI:**
 ```sh
 pip3 install -i https://test.pypi.org/simple/ RunnerPost
 ```
@@ -129,7 +131,7 @@ algo_selection: Defines algorithms with an ID, a name and description, and param
 problem_selection: Defines problems with an ID, a name and description, and some parameters.
 output_selection: Defines outputs with a type, a description, and parameters.
 
-#### Algorithm selection file syntax
+#### Algorithm selection
 Each line in the algo_selection file selects an algorithm with its configuration in the following format:
 
 `<id> (<description>) [<parameter1> <value1>] [<parameter2> <value2>] ... [<parameterN> <valueN>]`
@@ -198,7 +200,7 @@ This is determined from the `DISPLAY_ALL_EVAL` parameter. If `DISPLAY_ALL_EVAL` 
 NOTE: Some cross-validation is done on the stats file content to ensure that the file is correctly formatted.
 
 
-#### Problem selection file syntax
+#### Problem selection
 Each line in the problem_selection file selects a problem with its configuration in the following format:
 
 `<id> (<description>) [<parameter1> <value1>] [<parameter2> <value2>] ... [<parameterN> <valueN>]`
@@ -223,7 +225,7 @@ Example of problem_selection file:
 2 (Pb2) [N 9] [M 1] [PB_INSTANCE 0 1 2]
 ```
 
-#### Output selection file syntax
+#### Output selection
 Each line in the output_selection file selects an output profile with the following format:
 
 `<type> (<description>) [<parameter1> <value1>] [<parameter2> <value2>] ... [<parameterN> <valueN>]`
