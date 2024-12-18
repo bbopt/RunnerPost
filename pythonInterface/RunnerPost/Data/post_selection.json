@@ -14,7 +14,15 @@
     },
     {
       "type": "DATA_PROFILE",
-      "description": "Data profile on 10 pbs with $\\tau\\; 10^{-3}$"
+      "description": "Data profile on 10 pbs with $\\tau\\; 10^{-3}$",
+      "parameters": {
+        "x_select": "NP1Eval",
+        "y_select": "OBJ",
+        "tau": "0.001",
+        "output_plain": "dp3.txt",
+        "output_latex": "dp3.tex",
+        "x_max": "INF"
+      }
       
     }
   ],
