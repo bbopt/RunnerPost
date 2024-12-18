@@ -203,9 +203,10 @@ Each line in the problem_selection file selects a problem with its configuration
 
 `<id> (<description>) [<parameter1> <value1>] [<parameter2> <value2>] ... [<parameterN> <valueN>]`
 
-`<id>`: A unique identifier for the problem (e.g., 1, 2, 3).
-`<description>`: A brief description of the problem enclosed in parentheses (e.g., (Pb1), (Pb2)).
-`[<parameter> <value>]`: A parameter and its corresponding value(s) enclosed in square brackets.
+With:
+- `<id>`: A unique identifier for the problem (e.g., 1, 2, 3).
+- `<description>`: A brief description of the problem enclosed in parentheses (e.g., (Pb1), (Pb2)).
+- `[<parameter> <value>]`: A parameter and its corresponding value(s) enclosed in square brackets.
 
 The following parameters are mandatory:
 - `N`, the number of variables must be provided. 
@@ -227,7 +228,8 @@ Each line in the output_selection file selects an output profile with the follow
 
 `<type> (<description>) [<parameter1> <value1>] [<parameter2> <value2>] ... [<parameterN> <valueN>]`
 
--`<type>`: The type of profile or output (e.g., DATA_PROFILE).
+With:
+- `<type>`: The type of profile or output (e.g., DATA_PROFILE).
 - `<description>`: A brief description of the profile or output enclosed in parentheses (e.g., (Data profile on 10 pbs with $\tau\; 10^{-1}$)). This information is used as the title of the output.
 - `[<parameter> <value>]`: A parameter and its corresponding value enclosed in square brackets.
 
