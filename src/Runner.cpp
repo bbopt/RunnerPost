@@ -985,37 +985,17 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
             {
                 for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_pbInstance().size() ; ++i_pb_instance )
                 {
-                    max_alpha = std::max(max_alpha , int(_results[i_pb][i_algo][i_pb_instance].get_last_bbe()/(dimPb+1)));
+                    max_alpha = std::max(max_alpha , int(std::ceil(_results[i_pb][i_algo][i_pb_instance].get_last_bbe()/(dimPb+1.0))));
                 }
             }
         }
     }
-//    int dim_all_pb=0;
-//    if ( _scale_xaxis_by_np1_for_dataprofiles )
-//    {
-//        if ( ! _use_evals_for_dataprofiles )
-//        {
-//            std::cerr << "Error: Option scale_axis_by_np1 available only with option use_evals_for_dataprofiles" << std::endl;
-//            fout.close();
-//            return false;
-//        }
-//        dim_all_pb = _selected_pbs[0]->get_n();
-//        for ( i_pb = 1 ; i_pb < _n_pb ; ++i_pb )
-//        {
-//            if ( dim_all_pb != _selected_pbs[i_pb]->get_n() )
-//            {
-//                std::cerr << "Error: Option scale_axis_by_np1 not available when problems have different dimension" << std::endl;
-//                fout.close();
-//                return false;
-//            }
-//        }
-//    }
-
+    
     size_t cnt, cnt_pb_instance;
     for (int alpha = 0 ; alpha <= max_alpha ; ++alpha )
     {
 
-            fout << alpha << " ";
+        fout << alpha << " ";
 
         for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
         {
@@ -1032,7 +1012,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
                 {
                     for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance ; ++i_pb_instance )
                     {
-                        if ( fx0s[i_pb]-_results[i_pb][i_algo] [i_pb_instance].get_sol(alpha*(dimPb+1)) >= (1-out.get_tau())*(fx0s[i_pb]-fxe[i_pb]) )
+                        if ( fx0s[i_pb]-_results[i_pb][i_algo] [i_pb_instance].get_sol(alpha*(dimPb+1)) >= (1.0-out.get_tau())*(fx0s[i_pb]-fxe[i_pb]) )
                             ++cnt;
                     }
                 }
@@ -3172,7 +3152,7 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
         
         if (RUNNERPOST::Output::Y_Select::OBJ == out.get_y_select())
         {
-            out_tex << "       ylabel = Portion of $\tau$-solved instances," <<std::endl;
+            out_tex << "       ylabel = Portion of {$\tau$}-solved instances," <<std::endl;
         }
         else if (RUNNERPOST::Output::Y_Select::INFEAS == out.get_y_select())
         {
