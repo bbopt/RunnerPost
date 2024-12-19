@@ -16,6 +16,7 @@ private:
     int                                _m =-1;
     
     std::vector<std::string>           _pbInstance; // Can be undefined (single instance, no id -> not used in history name)
+    size_t                             _nbPbInstances;
     
     
     // The max_bb_eval termination criterion is min( _overallMaxBBEvals, (n+1)*_nbSimplexEvals
@@ -95,6 +96,7 @@ public:
     int                 get_n         ( void ) const { return _n;                }
     int                 get_m         ( void ) const { return _m;                }
     const std::vector<std::string> & get_pbInstance( void) const { return _pbInstance; }
+    const size_t get_nbPbInstances( void) const { return _nbPbInstances; }
     
 //    const NOMAD_BASE::Point  & get_x0          ( void ) const { return _x0;               }
 //    bool hasX0FeasInfo( void ) const { return _x0_feas_info ; }

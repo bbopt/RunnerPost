@@ -9,9 +9,9 @@ TEST(OutputTest, DefaultConstructor) {
     // When the default constructor is called, the profile type, y select, and x select should be undefined
     std::string error_msg;
     Output output("", error_msg);
-    EXPECT_EQ(output.get_profile_type(), Output::Profile_Type::UNDEFINED);
-    EXPECT_EQ(output.get_y_select(), Output::Y_Select::OBJ);
-    EXPECT_EQ(output.get_x_select(), Output::X_Select::NP1EVAL);
+    EXPECT_EQ(output.get_profile_type(), Output::Profile_Type::UNDEFINED_PROFILE);
+    EXPECT_EQ(output.get_y_select(), Output::Y_Select::UNDEFINED_Y);
+    EXPECT_EQ(output.get_x_select(), Output::X_Select::UNDEFINED_X);
 }
 
 TEST(OutputTest, SetProfileType) {
@@ -29,8 +29,8 @@ TEST(OutputTest, SetProfileType) {
     output.setProfileType(Output::Profile_Type::ACCURACY_PROFILE);
     EXPECT_EQ(output.get_profile_type(), Output::Profile_Type::ACCURACY_PROFILE);
 
-    output.setProfileType(Output::Profile_Type::UNDEFINED);
-    EXPECT_EQ(output.get_profile_type(), Output::Profile_Type::UNDEFINED);
+    output.setProfileType(Output::Profile_Type::UNDEFINED_PROFILE);
+    EXPECT_EQ(output.get_profile_type(), Output::Profile_Type::UNDEFINED_PROFILE);
 }
 
 TEST(OutputTest, SetYSelect) {
@@ -46,6 +46,10 @@ TEST(OutputTest, SetYSelect) {
 TEST(OutputTest, SetXSelect) {
     std::string error_msg;
     Output output("", error_msg);
+
+    output.setXSelect(Output::X_Select::NP1EVAL);
+    EXPECT_EQ(output.get_x_select(), Output::X_Select::NP1EVAL);   
+
     output.setXSelect(Output::X_Select::TIME);
     EXPECT_EQ(output.get_x_select(), Output::X_Select::TIME);
 

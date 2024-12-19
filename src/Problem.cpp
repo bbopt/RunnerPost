@@ -80,6 +80,15 @@ RUNNERPOST::Problem::Problem(std::string  s, std::string & error_msg)
         
     }
     
+    if (_pbInstance.empty())
+    {
+        _nbPbInstances = 1;
+    }
+    else
+    {
+        _nbPbInstances = _pbInstance.size();
+    }
+    
     // TODO: check inconsistencies. Example: tau provided but default output file name are used. At least give a warning
     
 }

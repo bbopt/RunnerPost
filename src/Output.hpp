@@ -20,26 +20,28 @@ public:
         PERFORMANCE_PROFILE,
         HISTORY,
         ACCURACY_PROFILE,
-        UNDEFINED
+        UNDEFINED_PROFILE
     };
     enum Y_Select
     {
         OBJ,
         INFEAS,
+        UNDEFINED_Y
     };
     enum X_Select
     {
         EVAL,
         NP1EVAL,
-        TIME
+        TIME,
+        UNDEFINED_X
     };
     
 
 private:
 
-    Profile_Type                       _pType = Profile_Type::UNDEFINED;
-    Y_Select                           _ySel;
-    X_Select                           _xSel;
+    Profile_Type                       _pType = Profile_Type::UNDEFINED_PROFILE;
+    Y_Select                           _ySel = Y_Select::UNDEFINED_Y;
+    X_Select                           _xSel = X_Select::UNDEFINED_X;
     int                                _xMax;
     double                             _tau;
     std::string                        _plainFileName;
@@ -49,26 +51,12 @@ private:
     
 public:
     
-//    // constructor #1
-//    Output (const Profile_Type & ptype, const std::string title = "", const double tau = 0.001,   const std::string plainFileName = "dp3.txt", const std::string latexFileName = "dp3.tex", const Y_Select ySel = Y_Select::OBJ, const X_Select xSel = X_Select::NP1EVAL, const int xMax = P_INF_INT)
-//    : _pType              ( ptype    ) ,
-//      _plainFileName      ( plainFileName ) ,
-//      _latexFileName      ( latexFileName ) ,
-//      _ySel               ( ySel ) ,
-//      _xSel               ( xSel ) ,
-//      _xMax               ( xMax ),
-//      _tau                ( tau     ),
-//      _title              ( title )
-//    {
-//        // TODO: check inconsistencies. Example: tau provided but default output file name are used. At least give a warning
-//
-//    };
     
-    // Constructor #2
+    // Constructor #1
     Output (std::string single_output_description, std::string & error_msg);
 
     // Maybe more constructors
-//    // constructor #2:
+//    // constructor #3:
 //    Output (const Profile_Type & ptype )
 //    : _pType              ( ptype    ) ,
 //      _fileName           ( fileName ) ,
@@ -99,7 +87,7 @@ public:
 
     // SET methods:
     bool setSingleAttribute(const std::pair<std::string,std::vector<std::string>> & att);
-    bool setProfileType(const std::string & s) { _pType = stringToProfileType(s); if (_pType == Profile_Type::UNDEFINED) return false; return true; }
+    bool setProfileType(const std::string & s) { _pType = stringToProfileType(s); if (_pType == Profile_Type::UNDEFINED_PROFILE) return false; return true; }
     void setProfileType(const Output::Profile_Type & pt) { _pType = pt; }
     bool setTau(const double & tau) { if (tau<=0) return false; _tau = tau ; return true; }
     bool setTau(const std::string & s) { return setTau(std::stod(s));}
@@ -130,13 +118,6 @@ public:
     
     static Profile_Type stringToProfileType(const std::string & s) ;
     static std::string profileTypeToString(const Profile_Type & pType) ;
-    
-//    static Y_Select stringToYSelect(const std::string & s) ;
-//    static std::string ySelectToString(const Y_Select & ySel) ;
-//    
-//    static X_Select stringToXSelect(const std::string & s) ;
-//    static std::string xSelectToString(const X_Select & xSel) ;
-    
     
 };
 

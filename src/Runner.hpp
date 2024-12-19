@@ -23,7 +23,6 @@ private:
     std::vector<Algorithm *>       _selected_algos;       // The selected algos
     std::vector<Output *>          _selected_outputs;        // The selected outputs
     
-//    size_t                         _n_seed_run;
     Result                     *** _results;      // results
     std::string                **  _test_id;      // the test names
     

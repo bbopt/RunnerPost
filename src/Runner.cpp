@@ -443,11 +443,7 @@ bool RUNNERPOST::Runner::run_post_processing ( std::string & error_msg )
         _results [i_pb] = new Result    * [n_algo];
         _test_id [i_pb] = new std::string [n_algo];
         
-        auto n_pb_inst = _selected_pbs[i_pb]->get_pbInstance().size();
-        if (n_pb_inst == 0)
-        {
-            n_pb_inst = 1;
-        }
+        auto n_pb_inst = _selected_pbs[i_pb]->get_nbPbInstances();
         
         // loop on the algorithm parameters:
         for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
@@ -460,7 +456,7 @@ bool RUNNERPOST::Runner::run_post_processing ( std::string & error_msg )
             {
                 _results[i_pb][i_algo][i_pb_inst].reset( _use_hypervolume_for_profiles, _use_h_for_profiles );
             }
-            
+
             if ( !RUNNERPOST::Runner::get_results ( _test_id              [i_pb][i_algo]  ,
                                                    *_selected_pbs         [i_pb]          ,
                                                    *_selected_algos       [i_algo]        ,
@@ -684,7 +680,7 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     {
         for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
         {
-            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_pbInstance().size() ; ++i_pb_instance )
+            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
 
                 if ( !_results[i_pb][i_algo][i_pb_instance].has_solution()  )
@@ -759,7 +755,7 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
         {
             for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
             {
-                for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_pbInstance().size() ; ++i_pb_instance )
+                for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
                 {
                     if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
                     {
@@ -801,7 +797,7 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
         {
             cnt = 0;
             for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
-                for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_algo]->get_pbInstance().size(); ++i_pb_instance )
+                for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances(); ++i_pb_instance )
                     if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
                     {
                         for ( size_t bbe = 1 ; bbe <= bbe_max ; ++bbe )
@@ -874,7 +870,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     {
         for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
         {
-            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_pbInstance().size() ; ++i_pb_instance )
+            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
                 if ( !_results[i_pb][i_algo][i_pb_instance].has_solution()  )
                 {
@@ -983,7 +979,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
             size_t dimPb= ( useNp1Evals ) ?  _selected_pbs[i_pb]->get_n() : 0;
             for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
             {
-                for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_pbInstance().size() ; ++i_pb_instance )
+                for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
                 {
                     max_alpha = std::max(max_alpha , int(std::ceil(_results[i_pb][i_algo][i_pb_instance].get_last_bbe()/(dimPb+1.0))));
                 }
@@ -1003,7 +999,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
             cnt_pb_instance = 0;
             for (i_pb = 0 ; i_pb < n_pb ; ++i_pb)
             {
-                auto n_pb_instance = _selected_pbs[i_pb]->get_pbInstance().size();
+                auto n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
                 cnt_pb_instance += n_pb_instance;
                 
                 // Use evals instead of (n+1)*evals
@@ -1047,7 +1043,7 @@ bool RUNNERPOST::Runner::output_time_profile_plain(const Output& out) const
     {
         for (size_t i_algo = 0; i_algo < n_algo; ++i_algo)
         {
-            for (size_t i_pb_instance = 0; i_pb_instance < _selected_pbs[i_pb]->get_pbInstance().size(); ++i_pb_instance)
+            for (size_t i_pb_instance = 0; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances(); ++i_pb_instance)
             {
                 if (!_results[i_pb][i_algo][i_pb_instance].has_solution())
                 {
@@ -1116,7 +1112,7 @@ bool RUNNERPOST::Runner::output_time_profile_plain(const Output& out) const
         // ------------------------
         for (size_t i_pb = 0; i_pb < n_pb; ++i_pb)
         {
-            auto n_pb_instance = _selected_pbs[i_pb]->get_pbInstance().size();
+            auto n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
             
             for (size_t i_pb_instance = 0 ; i_pb_instance < n_pb_instance ; ++i_pb_instance)
             {
@@ -1157,7 +1153,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     {
         for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
         {
-            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_pbInstance().size() ; ++i_pb_instance )
+            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
                 if ( !_results[i_pb][i_algo][i_pb_instance].has_solution()  )
                 {
@@ -1240,7 +1236,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
         size_t dimPb = (_use_evals_for_dataprofiles) ? 0 : _selected_pbs[i_pb]->get_n();
         for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
         {
-            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_pbInstance().size() ; ++i_pb_instance )
+            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
                 int beta = std::round(_results[i_pb][i_algo][i_pb_instance].get_time()) / dimPb;
                 if (beta > max_beta)
@@ -1259,7 +1255,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
             cnt = 0;
             for (i_pb = 0 ; i_pb < n_pb ; ++i_pb)
             {
-                auto n_pb_instance = _selected_pbs[i_pb]->get_pbInstance().size();
+                auto n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
                 cnt_pb_instance += n_pb_instance;
                 // Use evals instead of (n+1)*evals
                 size_t dimPb= ( _use_evals_for_dataprofiles ) ? 0 : _selected_pbs[i_pb]->get_n();
@@ -1304,7 +1300,7 @@ void RUNNERPOST::Runner::output_problems_unsolved ( const double & tau , const d
     {
         for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
         {
-            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_pbInstance().size(); ++i_pb_instance )
+            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances(); ++i_pb_instance )
             {
                 if ( !_results[i_pb][i_algo][i_pb_instance].has_solution()  )
                 {
@@ -1345,7 +1341,7 @@ void RUNNERPOST::Runner::output_problems_unsolved ( const double & tau , const d
         if ( fx0s[i_pb] < INF && fxe[i_pb] < INF )
         {
             size_t dimPb= _selected_pbs[i_pb]->get_n();
-            size_t n_pb_instance = _selected_pbs[i_pb]->get_pbInstance().size();
+            size_t n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
             for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
             {
                 for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance ; ++i_pb_instance )
@@ -1402,7 +1398,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
         fx0s[i_pb] = fx0;
         for (size_t i_algo = 1 ; i_algo < n_algo ; ++i_algo )
         {
-            for (size_t i_pb_instance=1 ; i_pb_instance < _selected_pbs[i_pb]->get_pbInstance().size() ; ++i_pb_instance)
+            for (size_t i_pb_instance=1 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance)
             {
                 fx0 = _results[i_pb][i_algo][i_pb_instance].get_sol(1);
 
@@ -1425,7 +1421,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
             fx0s[i_pb]=0.0;
             for (size_t  i_algo = 0 ; i_algo < n_algo ; ++i_algo )
             {
-                for (size_t i_pb_instance=0 ; i_pb_instance < _selected_pbs[i_pb_instance]->get_pbInstance().size() ; ++i_pb_instance)
+                for (size_t i_pb_instance=0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance)
                 {
                     first_fx = _results[i_pb][i_algo][i_pb_instance].get_first_fx();
                     if ( first_fx != INF )
@@ -1488,7 +1484,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx() const
         {
             for (size_t i_algo = 0 ; i_algo < n_algo ; ++i_algo )
             {
-                for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_pbInstance().size() ; ++i_pb_instance )
+                for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
                 {
                     size_t max_bb_evals=_selected_pbs[i_pb]->getMaxBBEvals();
                     fxe_tmp = _results[i_pb][i_algo][i_pb_instance].get_sol ( max_bb_evals );
@@ -1525,7 +1521,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_mean_algo_times(size_t bbe) co
                 // time for this problem and algo should not be counted for this bbe.
                 continue;
             }
-            for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_pbInstance().size(); ++i_pb_instance)
+            for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances(); ++i_pb_instance)
             {
                 totalAlgoTime += _results[i_pb][i_algo][i_pb_instance].get_time(bbe);
                 totalNbPbAndSeeds++;
@@ -1574,7 +1570,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_relative_algo_times(size_t bbe
                 // time for this problem and algo should not be counted for this bbe.
                 continue;
             }
-            for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_pbInstance().size(); ++i_pb_instance)
+            for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances(); ++i_pb_instance)
             {
                 totalAlgoTime += _results[i_pb][i_algo][i_pb_instance].get_time(bbe);
                 meanTime0     += _results[i_pb][0][i_pb_instance].get_time(bbe);
@@ -1609,7 +1605,7 @@ size_t RUNNERPOST::Runner::get_bbe_max() const
     {
         for (size_t i_algo = 0 ; i_algo < n_algo ; ++i_algo )
         {
-            for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_pbInstance().size() ; ++i_pb_instance )
+            for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
                 tmp = _results[i_pb][i_algo][i_pb_instance].get_sol_bbe();
                 if ( tmp > bbe_max )
@@ -1636,7 +1632,7 @@ size_t RUNNERPOST::Runner::get_bbe_max(size_t i_algo) const
     size_t bbe_max = 0;
     for (size_t i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
-        for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_pbInstance().size() ; ++i_pb_instance)
+        for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance)
         {
             tmp = _results[i_pb][i_algo][i_pb_instance].get_sol_bbe();
             if (tmp > bbe_max)
@@ -1658,7 +1654,7 @@ size_t RUNNERPOST::Runner::get_bbe_max(size_t i_pb, size_t i_algo) const
 
     size_t tmp = 0;
     size_t bbe_max = 0;
-    for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_pbInstance().size() ; ++i_pb_instance)
+    for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance)
     {
         tmp = _results[i_pb][i_algo][i_pb_instance].get_sol_bbe();
         if (tmp > bbe_max)
@@ -1781,7 +1777,7 @@ void RUNNERPOST::Runner::display_special_options ( void ) const
 void RUNNERPOST::Runner::display_instance_name (const Problem & pb, const  Algorithm & ac, size_t i_pb_instance) const
 {
     std::cout << "\t (" << pb.get_id() << ", " << ac.get_id() << ")";
-    if (i_pb_instance < INF_SIZE_T && pb.get_pbInstance().size()> 1)
+    if (i_pb_instance < INF_SIZE_T && pb.get_nbPbInstances()> 1)
     {
         std::cout << ", pb run instance " << pb.get_pbInstance()[i_pb_instance];
     }
@@ -1914,8 +1910,7 @@ void RUNNERPOST::Runner::set_result (const std::string        & test_id /*not us
     //  and not necessarily to the last entry in the stats file, while
     //  xe and fxe  correspond to the best solution (last entry in the
     //  stats file).
-    auto pb_instances = pb.get_pbInstance();
-    for (size_t i_pb_instance=0 ; i_pb_instance < pb_instances.size() ; ++i_pb_instance )
+    for (size_t i_pb_instance=0 ; i_pb_instance < pb.get_nbPbInstances() ; ++i_pb_instance )
     {
         
         display_instance_name ( pb , ac , i_pb_instance );
@@ -2400,75 +2395,6 @@ bool RUNNERPOST::Runner::read_problem_selection_file ( const std::string  & pb_s
     }
     in.close();
 
-//    std::string s;
-//    while(!fin.eof())  // std::getline(fin, s) && !s.empty())
-//    {
-//        getline (fin , s);
-//
-//        if (s.empty())
-//        {
-//            continue;
-//        }
-//
-//        // Get pb id as the first word on the line
-//        size_t i = s.find_first_not_of(" ");
-//        if (i > 0)
-//        {
-//            s.erase(i) ;  // Remove initial white spaces
-//        }
-//        i = s.find(" ");
-//        std::string id = s.substr(0,i);
-//
-//        // pb name is provided between parenthesis
-//        size_t i0 = s.find("(",0);
-//        size_t i1 = s.find(")",i0+1);
-//
-//        if ( i0 == std::string::npos || i1 == std::string::npos )
-//        {
-//            error_msg = "Error(2) in file " + pb_selection_file_name + ". Line #" + std::to_string(_n_algo+1) + ". Pb name must be provided between parentheses after pb id.";
-//            return false;
-//        }
-//        std::string name = s.substr(i0+1,i1-i0-1);
-//
-//        // TODO parse bbot
-//        s.erase(0,i1);
-//        size_t pos = 0;
-//        // Parse for n and m given as bracket values
-//        while ((pos = s.find("[")) != std::string::npos)
-//        {
-//
-//            // Strip empty spaces before a [
-//            pos = s.find_first_not_of("[");
-//            if (pos == std::string::npos)
-//            {
-//                break;
-//            }
-//            s.erase(0, pos+1);
-//
-//            n = extract_from_bracket("n",s);
-//
-//            if ( n==M_INF_INT)
-//            {
-//                error_msg = "Error(4) in file " + pb_selection_file_name + ". Cannot read problem bracket value n." ;
-//                return false;
-//            }
-//
-//            m = extract_from_bracket("m",s);
-//            if ( m==M_INF_INT)
-//            {
-//                error_msg = "Error(4) in file " + pb_selection_file_name + ". Cannot read problem bracket value m." ;
-//                return false;
-//            }
-//
-//        }
-//
-//
-//        _selected_pbs.push_back ( new Problem ( id , name , n, m /* todo bbot */) );
-//
-//        _n_pb++ ;
-//
-//    }
-//    fin.close();
     
     if (_selected_pbs.empty())
     {

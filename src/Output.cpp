@@ -81,7 +81,7 @@ RUNNERPOST::Output::Output (std::string s, std::string & error_msg)
 
 RUNNERPOST::Output::Profile_Type RUNNERPOST::Output::stringToProfileType(const std::string & sConst)
 {
-    Profile_Type pType = Output::Profile_Type::UNDEFINED;
+    Profile_Type pType = Output::Profile_Type::UNDEFINED_PROFILE;
     
     std::string s = sConst;
     RUNNERPOST::toUpperCase(s);
@@ -177,6 +177,8 @@ std::string RUNNERPOST::Output::profileTypeToString(const Output::Profile_Type &
 bool RUNNERPOST::Output::setXSelect(const std::string &s)
 {
     std::string sUpper = s;
+    _xSel = RUNNERPOST::Output::X_Select::UNDEFINED_X;
+
     RUNNERPOST::toUpperCase(sUpper);
     if (sUpper == "EVAL")
     {
@@ -200,6 +202,11 @@ bool RUNNERPOST::Output::setXSelect(const std::string &s)
 
 bool RUNNERPOST::Output::setYSelect(const std::string &s)
 {
+    _ySel = RUNNERPOST::Output::Y_Select::UNDEFINED_Y;  
+
+    std::string sUpper = s;
+    RUNNERPOST::toUpperCase(sUpper);
+
     if (s.find("OBJ") != std::string::npos)
     {
         _ySel = RUNNERPOST::Output::Y_Select::OBJ;
