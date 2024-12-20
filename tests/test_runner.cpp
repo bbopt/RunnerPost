@@ -95,27 +95,31 @@ TEST(RunnerTest, DataProfile) {
     std::ifstream dp_file("dp2.txt");
     EXPECT_TRUE(dp_file.good());
 
-    // Read all the lines of dp2.txt keeping only the last line
-    std::string line;
-    while (std::getline(dp_file, line))
+    // Let's check the first line of dp2.txt
+    std::string lineTmp, line;
+    std::getline(dp_file, line);
+    // Remove return carriage from line
+    line.erase(std::remove(line.begin(), line.end(), '\n'), line.end());
+    // Check if the content is correct
+    std::string expected_content = "0 0 0 0";
+    EXPECT_EQ(line.find(expected_content) != std::string::npos, true);
+
+    // Read all the lines of dp2.txt keeping only the last line 
+    while (std::getline(dp_file, lineTmp))
     {
-    }
+        line = lineTmp;
+    }   
 
     // Check if the content is correct
-    std::string expected_content = "94 55 85 100";
+    expected_content = "94 55 85 100";
+
+    // Remove return carriage from line
+    line.erase(std::remove(line.begin(), line.end(), '\n'), line.end());
 
     // Compare expected_content and dp_content
-    EXPECT_EQ(expected_content.compare(line), 0);
+    EXPECT_EQ(line.find(expected_content) != std::string::npos, true);
 
-    // Read the line of dp2.txt 
-    std::string last_line;
-
-
-
-
-    std::getline(dp_file, last_line);
-
-
+    // Close the file
     dp_file.close();
 
 
