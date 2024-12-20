@@ -554,34 +554,3 @@ int main ( int argc , char ** argv )
     return 0;
 }
 
-// MENU:
-// -----
-//
-//   RUNNER version X.X
-//
-//   1. Select problems
-//      1. Select all problems
-//      2. Select a single problem
-//      3. Select a group of problems
-//      1. Load selection
-//      2. Save selection
-//   2. Define test configurations
-//      1. New test configuration
-//      2. Load configurations
-//      3. Save configurations
-//   3. Display data
-//      1. All problems
-//      2. Selected problems
-//      3. Test configurations
-//      4. Available tests
-//   4. Clear data
-//      1. Selected problems
-//      2. Test configurations
-//      3. Remove invalid tests
-//      4. Remove all tests
-//   5. Execute tests
-//   6. Display results
-//
-//   7. Quit
-//
-//   > _

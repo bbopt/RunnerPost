@@ -8,39 +8,39 @@ if __name__ == '__main__':
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Post process RunnerPost output.')
 
-    # Depending on the arguments, we will either run with the user provided 3 definition files or single JSON file
+    # Depending on the arguments, we will either run with the user provided 3 selection files or single JSON file
 
-    # Case 1: 3 definition files
-    parser.add_argument('--algo_selection', required = False, type=str, help='Path to the algorithm definition file')
-    parser.add_argument('--problem_selection',required = False, type=str, help='Path to the problem definition file')
-    parser.add_argument('--output_selection', required = False, type=str, help='Path to the output definition file')
+    # Case 1: 3 selection files
+    parser.add_argument('--algo_selection', required = False, type=str, help='Path to the algorithm selection file')
+    parser.add_argument('--problem_selection',required = False, type=str, help='Path to the problem selection file')
+    parser.add_argument('--output_selection', required = False, type=str, help='Path to the output selection file')
 
-    # Case 2: JSON file
+    # Case 2: 1 JSON file
     parser.add_argument('--json_file', required = False, type=str, help='Path to the JSON file')
     
     args = parser.parse_args()
 
-    # Manage the case where the user provides 3 definition files
+    # Manage the case where the user provides 3 selection files
     if args.algo_selection and args.problem_selection and args.output_selection:
 
         if args.json_file:
-            print("Error: JSON file should not be provided when using definition files.")
+            print("Error: JSON file should not be provided when using selection files.")
             exit(1)
 
         if not args.algo_selection or not args.problem_selection or not args.output_selection:
-            print("Error: All three definition files must be provided.")
+            print("Error: All three selection files must be provided.")
             exit(1)
 
         if not os.path.isfile(args.algo_selection):
-            print(f"Error: Algorithm definition file '{args.algo_selection}' does not exist.")
+            print(f"Error: Algorithm selection file '{args.algo_selection}' does not exist.")
             exit(1)
 
         if not os.path.isfile(args.problem_selection):
-            print(f"Error: Problem definition file '{args.problem_selection}' does not exist.")
+            print(f"Error: Problem selection file '{args.problem_selection}' does not exist.")
             exit(1)
 
         if not os.path.isfile(args.output_selection):
-            print(f"Error: Output definition file '{args.output_selection}' does not exist.")
+            print(f"Error: Output selection file '{args.output_selection}' does not exist.")
             exit(1)
 
         #Extract the path from the algo_selection file
@@ -48,7 +48,7 @@ if __name__ == '__main__':
         path2 = os.path.dirname(args.problem_selection)
         path3 = os.path.dirname(args.output_selection)
         if (path1 != path2) or (path2 != path3):
-            print("Error: All three definition files must be in the same directory.")
+            print("Error: All three selection files must be in the same directory.")
             exit(1)
 
         with open(args.algo_selection, 'r') as file:
@@ -64,7 +64,7 @@ if __name__ == '__main__':
         working_directory = os.getcwd()
         
         if path1:
-            # Change the working directory to the directory of the definition files
+            # Change the working directory to the directory of the selection files
             os.chdir(path1)
 
         RunnerPost.run(algo_selection.encode(), problem_selection.encode(), output_selection.encode())
@@ -75,7 +75,7 @@ if __name__ == '__main__':
     # Manage the case where the user provides a JSON file
     elif args.json_file:
         if args.algo_selection or args.problem_selection or args.output_selection:
-            print("Error: Definition files should not be provided when using a JSON file.")
+            print("Error: selection files should not be provided when using a JSON file.")
             exit(1)
 
         if not os.path.isfile(args.json_file):
