@@ -9,7 +9,7 @@ ${CMAKE_CURRENT_SOURCE_DIR}/setup.py
 # The build process supports both GCC and MSVC.
 
 add_custom_target(
-    RunnerPost ALL
+    PyRunnerPost ALL
     COMMAND
     ${CMAKE_COMMAND} -E env "RUNNERPOST_SRC=${CMAKE_SOURCE_DIR}/src" "RUNNERPOST_BUILD_DIR=${CMAKE_BINARY_DIR}" "RUNNERPOST_MSVC_FLAG=${MSVC}" "RUNNERPOST_MSVC_CONF=$<CONFIG>" ${Python_EXECUTABLE} -m pip wheel -w dist -- .
     DEPENDS 
