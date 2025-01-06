@@ -632,7 +632,8 @@ void RUNNERPOST::Runner::display_algo_diff ( void ) const
                 std::cout << msg.str() ;
                 for ( k = 0 ; k < n_pb ; ++k )
                     if ( _results[k][i] && _results[k][j] &&
-                        !(*_results[k][i] == *_results[k][j]) /* TODO: implement comparison of result */ ) {
+                        *_results[k][i] != *_results[k][j] )
+                    {
                         std::cout << "pb #";
                         // TODO std::cout.display_int_w ( k , _n_pb );
                         std::cout << " ["
@@ -1038,7 +1039,7 @@ bool RUNNERPOST::Runner::output_time_profile_plain(const Output& out) const
         return false;
     }
     // check that best solution and all results are available:
-    std::list<int> miss_list;
+    std::list<size_t> miss_list;
     for (size_t i_pb = 0; i_pb < n_pb; ++i_pb)
     {
         for (size_t i_algo = 0; i_algo < n_algo; ++i_algo)
@@ -1066,7 +1067,7 @@ bool RUNNERPOST::Runner::output_time_profile_plain(const Output& out) const
     if ( !miss_list.empty() )
     {
         std::cout << "... the following results are missing" ;
-        std::list<int>::const_iterator it;
+        std::list<size_t>::const_iterator it;
         bool need_for_fix = false;
         for (it = miss_list.begin(); it != miss_list.end(); ++it)
         {
@@ -1116,8 +1117,8 @@ bool RUNNERPOST::Runner::output_time_profile_plain(const Output& out) const
             
             for (size_t i_pb_instance = 0 ; i_pb_instance < n_pb_instance ; ++i_pb_instance)
             {
-                int bbe = _results[i_pb][i_algo][i_pb_instance].getTotalBbe();
-                double time = _results[i_pb][i_algo][i_pb_instance].getTotalTime();
+                auto bbe = _results[i_pb][i_algo][i_pb_instance].getTotalBbe();
+                auto time = _results[i_pb][i_algo][i_pb_instance].getTotalTime();
                 if (time < INF)
                 {
                         fout << bbe << " " << time << std::endl;
@@ -1626,7 +1627,6 @@ size_t RUNNERPOST::Runner::get_bbe_max(size_t i_algo) const
 {
     
     const size_t n_pb = _selected_pbs.size();
-    const size_t n_algo = _selected_algos.size();
     
     size_t tmp = 0;
     size_t bbe_max = 0;

@@ -125,10 +125,18 @@ public:
     void display ( ) const;
     
     // comparison operator:
-    bool operator == ( const Result & r )
+    bool operator == ( const Result & r ) const
     {
         return _bbe == r._bbe && _obj == r._obj;
     }
+    
+    // comparison operator:
+    bool operator != ( const Result & r ) const
+    {
+        return ! operator==(r);
+    }
+    
+    
 };
 
 #include "runnerpost_nsend.hpp"
