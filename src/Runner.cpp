@@ -1252,7 +1252,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
         fout << beta << " ";
         for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
         {
-            cnt = 0;
+            cnt = cnt_pb_instance = 0;
             for (i_pb = 0 ; i_pb < n_pb ; ++i_pb)
             {
                 auto n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
