@@ -104,9 +104,9 @@ RUNNERPOST::Output::Profile_Type RUNNERPOST::Output::stringToProfileType(const s
     {
         pType = Profile_Type::PERFORMANCE_PROFILE;
     }
-    else if (s == "HISTORY")
+    else if (s == "HISTORY_PROFILE")
     {
-        pType = Profile_Type::HISTORY;
+        pType = Profile_Type::HISTORY_PROFILE;
     }
     else if (s == "ACCURACY_PROFILE")
     {
@@ -176,8 +176,8 @@ std::string RUNNERPOST::Output::profileTypeToString(const Output::Profile_Type &
         case Profile_Type::PERFORMANCE_PROFILE:
             pTypeStr = "PERFORMANCE_PROFILE";
             break;
-        case Profile_Type::HISTORY:
-            pTypeStr = "HISTORY";
+        case Profile_Type::HISTORY_PROFILE:
+            pTypeStr = "HISTORY_PROFILE";
             break;
         case Profile_Type::ACCURACY_PROFILE:
             pTypeStr = "ACCURACY_PROFILE";

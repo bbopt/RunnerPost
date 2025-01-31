@@ -18,7 +18,7 @@ public:
     {
         DATA_PROFILE,
         PERFORMANCE_PROFILE,
-        HISTORY,
+        HISTORY_PROFILE,
         ACCURACY_PROFILE,
         UNDEFINED_PROFILE
     };

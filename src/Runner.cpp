@@ -549,6 +549,11 @@ bool RUNNERPOST::Runner::generate_outputs(std::string &error_msg)
             output_perf_profile_plain(*out);
             output_profile_pgfplots(*out);
         }
+        else if (Output::Profile_Type::HISTORY_PROFILE == pt)
+        {
+            output_history_profile_plain(*out);
+            output_profile_pgfplots(*out);
+        }
         else
         {
             error_msg = "Profile type not handled.";
@@ -864,6 +869,116 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     std::cout << "... done" << std::endl;
     return true;
 }
+
+/*---------------------------------------*/
+/*       display history profiles    */
+/*---------------------------------------*/
+bool RUNNERPOST::Runner::output_history_profile_plain ( const Output & out ) const
+{
+    
+    const size_t n_pb = _selected_pbs.size();
+    const size_t n_algo = _selected_algos.size();
+    
+    if ( n_pb == 0 || n_algo == 0 )
+    {
+        std::cerr << "Error: cannot compute history profile for n_pb ==0 or n_algo == 0" << std::endl;
+        return false;
+    }
+    if ( out.get_x_select() == Output::X_Select::NP1EVAL)
+    {
+        std::cerr << "Error: cannot compute history profile for X_SEL NP1EVAL, N may vary for each problem. Use EVAL instead." << std::endl;
+        return false;
+    }
+
+    size_t i_pb, i_algo, i_pb_instance;
+
+    // check that best solution and all results are available:
+    std::list<size_t> miss_list;
+    std::list<size_t> infeas_list;
+    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+    {
+        for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+        {
+            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
+            {
+                    double fxBest = INF;
+                    if ( !_results[i_pb][i_algo][i_pb_instance].has_solution()  )
+                    {
+                        miss_list.push_back ( i_pb   );
+                        miss_list.push_back ( i_algo );
+                        miss_list.push_back ( i_pb_instance );
+                        
+                        // An infeasible run has no solution -> special flag in miss_list is set
+                        if ( _results[i_pb][i_algo][i_pb_instance].is_infeas() )
+                            miss_list.push_back( 1 );
+                        else
+                            miss_list.push_back( 0 );
+                    }
+                    else
+                    {
+                        
+                        std::string plainFileName = out.get_plain_file_name()+"_Pb"+std::to_string(i_pb)+"_Algo"+std::to_string(i_algo)+"_Inst"+std::to_string(i_pb_instance)+".txt";
+                        std::ofstream fout (plainFileName);
+                        if ( fout.fail() )
+                        {
+                            std::cerr << "Warning: cannot create performance profile (MW) output file "
+                            << plainFileName << std::endl;
+                            return false;
+                        }
+                        
+                        std::cout << "\t writing of " << plainFileName << " ..." << std::flush;
+                        
+                        size_t max_bbe = out.get_x_max();
+                        if ( max_bbe == RUNNERPOST::P_INF_INT )
+                        {
+                            max_bbe = _results[i_pb][i_algo][i_pb_instance].get_last_bbe();
+                        }
+                        
+                        for ( size_t bbe = 1 ; bbe < max_bbe ; ++bbe )
+                        {
+                            double fx = _results[i_pb][i_algo][i_pb_instance].get_sol(bbe);
+                            if (fx < fxBest )
+                            {
+                                fxBest = fx;
+                                fout << bbe << " " << fxBest << std::endl;
+                            }
+                        }
+                        fout.close();
+                        std::cout << "... done" << std::endl;
+                    }
+    
+            }
+        }
+    }
+
+    if ( !miss_list.empty() )
+    {
+        std::cout << "... the following results are missing" ;
+        std::list<size_t>::const_iterator it , end = miss_list.end();
+        bool need_for_fix = false;
+        for ( it = miss_list.begin() ; it != end ; ++it )
+        {
+            i_pb = *it;
+            ++it;
+            i_algo = *it;
+            display_instance_name ( *_selected_pbs[i_pb] , *_selected_algos[i_algo]);
+            ++it;
+            i_pb_instance = *it;
+            std::cout << " seed run#" << i_pb_instance ;
+            ++it;
+            if ( *it==1 )
+                std::cout << " --> no feasible point found " <<std::endl;
+            else
+            {
+                std::cout << " --> run failed, fix it to get data profile " <<std::endl;
+                need_for_fix = true;
+            }
+        }
+        std::cout << std::endl;
+    }
+    return true;
+}
+
 
 /*-------------------------------------------------*/
 /*              data profiles .........            */

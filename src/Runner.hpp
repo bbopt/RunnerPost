@@ -148,6 +148,7 @@ private:
     bool output_time_profile_plain(const Output & out) const;
     // Data profile in function of time
     bool output_time_data_profile_plain(const Output & out) const;
+    bool output_history_profile_plain(const Output & out) const;
     
     bool output_profile_pgfplots (const Output & out) const;
     
