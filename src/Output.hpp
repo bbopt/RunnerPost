@@ -43,10 +43,13 @@ private:
     Y_Select                           _ySel = Y_Select::UNDEFINED_Y;
     X_Select                           _xSel = X_Select::UNDEFINED_X;
     int                                _xMax;
+    int                                _nbLines = 100 ; // Default value for Nb lines
     double                             _tau;
     std::string                        _plainFileName;
     std::string                        _latexFileName;
     std::string                        _title="";
+    
+    std::vector<std::string>           _profile_type_options;
 
     
 public:
@@ -97,6 +100,8 @@ public:
     void setXSelect(const Output::X_Select & xs) { _xSel = xs;}
     bool setXMax(const int & xMax) { if (xMax<=0) return false; _xMax = xMax ; return true; }
     bool setXMax(const std::string & s) {return setXMax(std::stoi(s));}
+    bool setNbLines(const int & nbLines) { if (nbLines<=0) return false; _nbLines = nbLines; return true; }
+    bool setNbLines(const std::string & s) {  return setNbLines(std::stoi(s)); }
     
     bool setPlainFileName(const std::string & s) { if (s.empty()) return false; _plainFileName = s; return true; }
     bool setLatexFileName(const std::string & s) { if (s.empty()) return false; _latexFileName = s; return true; }
@@ -114,7 +119,9 @@ public:
     const std::string &         get_plain_file_name() const { return _plainFileName;}
     const std::string &         get_latex_file_name() const { return _latexFileName;}
     const std::string &         get_title() const { return _title;}
+    const int &                 get_nb_lines() const { return _nbLines; }
     
+    const std::vector<std::string> & get_profile_type_options() const { return _profile_type_options;}
     
     static Profile_Type stringToProfileType(const std::string & s) ;
     static std::string profileTypeToString(const Profile_Type & pType) ;

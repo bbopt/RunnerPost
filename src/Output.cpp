@@ -58,7 +58,7 @@ RUNNERPOST::Output::Output (std::string s, std::string & error_msg)
         pos = s.find_first_not_of(" ");
         s.erase(0, pos);
         
-        auto p = RUNNERPOST::extract_from_bracket(s);
+        const auto& p = RUNNERPOST::extract_from_bracket(s);
         
         if ( p.first.empty() || p.second.empty())
         {
@@ -71,6 +71,16 @@ RUNNERPOST::Output::Output (std::string s, std::string & error_msg)
             error_msg = "Error: Cannot read output bracket value in " + s;
             break;
         }
+        
+        // Concatenate the key and the values into a single string
+        std::string tmp = p.first + " ";
+        for (const auto & v: p.second)
+        {
+            tmp += v + " ";
+        }
+        _profile_type_options.push_back(tmp);
+
+        
         
     }
     
@@ -135,6 +145,10 @@ bool RUNNERPOST::Output::setSingleAttribute(const std::pair<std::string,std::vec
         {
             return setXMax(att.second[0]);
         }
+    }
+    else if (att.first.find("NB_LINES") != std::string::npos )
+    {
+        return setNbLines(att.second[0]);
     }
     else if (att.first.find("OUTPUT_PLAIN") != std::string::npos)
     {

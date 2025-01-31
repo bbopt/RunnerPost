@@ -529,12 +529,11 @@ bool RUNNERPOST::Runner::generate_outputs(std::string &error_msg)
     // loop on outputs:
     for ( const auto & out: _selected_outputs )
     {
-        auto pt = out->get_profile_type();
+        const auto& pt = out->get_profile_type();
         
         if (Output::Profile_Type::DATA_PROFILE == pt)
         {
-            auto xSel = out->get_x_select();
-            auto ySel = out->get_y_select();
+            const auto& xSel = out->get_x_select();
             if (Output::X_Select::TIME == xSel)
             {
                 output_time_data_profile_plain(*out);
@@ -547,8 +546,8 @@ bool RUNNERPOST::Runner::generate_outputs(std::string &error_msg)
         }
         else if (Output::Profile_Type::PERFORMANCE_PROFILE == pt)
         {
-            error_msg = "Performance profile. TODO.";
-            return false;
+            output_perf_profile_plain(*out);
+            output_profile_pgfplots(*out);
         }
         else
         {
@@ -737,10 +736,10 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     }
 
     // Get fx0s for all problems
-    ArrayOfDouble fx0s = get_fx0s();
+    const ArrayOfDouble& fx0s = get_fx0s();
 
     // get the best solution for each problem:
-    ArrayOfDouble fxe = get_best_fx();
+    const ArrayOfDouble& fxe = get_best_fx();
 
 
     // compute tpsMin and alpha_max (Moré and Wild  2009, eq. 2.1)
@@ -776,7 +775,6 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
                             (tpsMinTmp!=bbe_max+1 && alpha_max < bbe/tpsMinTmp))
                         {
                             alpha_max=bbe/tpsMinTmp;
-
                         }
                     }
                 }
@@ -784,21 +782,64 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
         }
         tpsMin.push_back(tpsMinTmp);
     }
-
-
+    
+    if (tpsMin.size() != n_pb)
+    {
+        std::cerr << "Error: tpsMin not computed for all problems" << std::endl;
+        fout.close();
+        return false;
+    }
+    
+    
+    // Compute list of alphas
+    // -------------------------
+    std::vector<double> alphas;
+    for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+    {
+        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb)
+        {
+            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
+            {
+                if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
+                {
+                    size_t bbe = 1;
+                    for ( bbe = 1 ; bbe <= bbe_max ; ++bbe )
+                    {
+                        if (fx0s[i_pb]-_results[i_pb][i_algo][i_pb_instance].get_sol(bbe) >= (1-out.get_tau())*(fx0s[i_pb]-fxe[i_pb]) )
+                        {
+                            alphas.push_back(double(bbe)/tpsMin[i_pb]);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Sort alphas in ascending order
+    /// -------------------------
+    std::sort(alphas.begin(), alphas.end());
+    
+    /// Remove doublons in alphas
+    /// -------------------------
+    std::vector<double>::iterator it = std::unique(alphas.begin(), alphas.end());
+    alphas.resize(std::distance(alphas.begin(), it));
+    
+    
     size_t cnt;
     
-    const size_t PP_NB_LINES = 100; // TEMP for building
-    double dalpha = 20 / (PP_NB_LINES-1.0);
-    double alpha                = 0.0;
-
-    for (size_t i = 0 ; i < PP_NB_LINES ; ++i)
+    for (const auto& alpha: alphas)
     {
+        fout << alpha;
         for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
         {
             cnt = 0;
+            int cnt_pb_instance = 0;
             for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
-                for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances(); ++i_pb_instance )
+            {
+                auto n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
+                cnt_pb_instance += n_pb_instance;
+                for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance; ++i_pb_instance )
                     if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
                     {
                         for ( size_t bbe = 1 ; bbe <= bbe_max ; ++bbe )
@@ -811,13 +852,12 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
                             }
                         }
                     }
-
+            }
             fout << " ";
+            fout << 100.0*cnt/cnt_pb_instance;
         }
         fout << std::endl;
-        alpha += dalpha;
     }
-
 
     fout.close();
 
@@ -925,7 +965,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     }
 
     // Get fx0s for all problems
-    ArrayOfDouble fx0s = get_fx0s();
+    const auto& fx0s = get_fx0s();
     
     // TODO Failsafe for Fx0
 //    if ( fx0s.isComplete())
@@ -944,7 +984,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     }
 
     // get the best solution for each problem:
-    ArrayOfDouble fxe = get_best_fx();
+    const auto& fxe = get_best_fx();
 
     if ( _use_h_for_profiles )
     {
@@ -965,7 +1005,6 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
 
     // compute the data profile:
     // -------------------------
-    // int max_alpha = Problem::getNbSimplexEvals() ;
     int max_alpha = out.get_x_max();
 
     // Update the range for x axis according to all problems considered:
@@ -1468,7 +1507,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx() const
     const size_t n_algo = _selected_algos.size();
     
     ArrayOfDouble fxe(n_pb, INF);
-    double fxe_tmp, fxe_bb;
+    double fxe_tmp;
     size_t nbDomRefObj; // not used here
     for (size_t i_pb = 0; i_pb < n_pb ; ++i_pb)
     {
@@ -2348,18 +2387,6 @@ bool RUNNERPOST::Runner::read_algo_selection ( const std::string  & algo_selecti
 
 
 
-//std::vector<std::string> RUNNERPOST::Runner::get_selected_algo_options ( void ) const
-//{
-//    std::vector<std::string> algosOptions;
-//
-//    for (const auto& algo: _selected_algos)
-//    {
-//        algosOptions.push_back(algo->get_output_options());
-//    }
-//    return algosOptions;
-//}
-
-
 /*-----------------------------------------------------------*/
 /*          read and add problems from selection file           */
 /*-----------------------------------------------------------*/
@@ -2505,7 +2532,7 @@ bool RUNNERPOST::Runner::read_problem_selection ( const std::string  & problem_s
 //}
 
 bool RUNNERPOST::Runner::read_output_selection_file( const std::string  & output_selection_file_name ,
-                                        std::string        & error_msg )
+                                                    std::string        & error_msg )
 {
     std::ifstream in(output_selection_file_name , std::ios::in);
     if ( in.fail() )
@@ -2531,204 +2558,15 @@ bool RUNNERPOST::Runner::read_output_selection_file( const std::string  & output
             in.close();
             return false;
         }
-            
-        
-        // TODO
-//        if ( "output_data_profile_plain" == select_command )
-//        {
-//            if ( args.size() != 2 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_data_profile_plain should be 2 (tau,dp_file_name)" << std::endl;
-//                return false;
-//            }
-//            double tau = stod(args[0]);
-//            if ( tau < 0 )
-//            {
-//                std::cerr << "\n Error in output_selection: output_data_profile_plain first argument (tau value) should be a positive real" << std::endl;
-//                return false;
-//            }
-//            if ( tau == 0 && ! runner.get_use_h_for_profiles() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for tau=0 will be executed only if set_use_h_for_profiles has been set in problem_selection file" << std::endl;
-//                return false;
-//            }
-//            if ( runner.get_use_h_for_profiles() && runner.get_use_hypervolume_for_profiles() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for hypervolume is only for pareto points for the objectives for feasible points. Cannot be use in combination with use_h_for_profiles" << std::endl;
-//                return false;
-//            }
-//
-//            if ( ! get_dp_file_name(tau).empty() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for tau=" << tau << " was already processed." << std::endl << std::endl;
-//                return false;
-//            }
-//
-//            bool success = runner.output_data_profile_plain( tau ,args[1] );
-//            if ( ! success )
-//                return false;
-//
-//            // Register the dp_file_name in the file for duplicate testing and other outputs (matlab, pgfplots)
-//            map_tau_to_dp_file_name[tau] = args[1];
-//
-//        }
-//        else if ( "output_time_profile_plain" == select_command )
-//        {
-//            if ( args.size() != 1 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_time_profile_plain should be 1 (time_profile_file_name)" << std::endl;
-//                return false;
-//            }
-//            bool success = runner.output_time_profile_plain(args[0]);
-//            if ( ! success )
-//            {
-//                return false;
-//            }
-//        }
-//        else if ( "output_time_data_profile_plain" == select_command )
-//        {
-//            if ( args.size() != 2 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_time_data_profile_plain should be 2 (tau,tdp_file_name)" << std::endl;
-//                return false;
-//            }
-//            double tau;
-//            if ( ! tau.atof(args[0]) || !tau.isDefined() || tau < 0 )
-//            {
-//                std::cerr << "\n Error in output_selection: output_time_data_profile_plain first argument (tau value) should be a positive real" << std::endl;
-//                return false;
-//            }
-//            if ( tau == 0 && ! runner.get_use_h_for_profiles() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for tau=0 will be executed only if set_use_h_for_profiles has been set in problem_selection file" << std::endl;
-//                return false;
-//            }
-//            if ( runner.get_use_h_for_profiles() && runner.get_use_hypervolume_for_profiles() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for hypervolume is only for pareto points for the objectives for feasible points. Cannot be use in combination with use_h_for_profiles" << std::endl;
-//                return false;
-//            }
-//
-//            if ( ! get_tdp_file_name(tau).empty() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for tau=" << tau << " was already processed." << std::endl << std::endl;
-//                return false;
-//            }
-//
-//            bool success = runner.output_time_data_profile_plain( tau ,args[1] );
-//            if ( ! success )
-//                return false;
-//
-//            // Register the dp_file_name in the file for duplicate testing and other outputs (matlab, pgfplots)
-//            map_tau_to_tdp_file_name[tau] = args[1];
-//
-//        }
-//
-//        else if ("set_use_evals_for_dataprofiles" == select_command )
-//        {
-//            runner.set_use_evals_for_dataprofiles() ;
-//        }
-//
-//        else if ( "output_perf_prof_plain" == select_command )
-//        {
-//            std::cerr << "\n Error: output_perf_prof_plain not yet implemented" << std::endl;
-//            return false;
-//
-//// TODO
-////            std::map<double,string>::iterator it;
-////            it = map_tau_to_dp_file_name.find(tau);
-////            if (it != map_tau_to_dp_file_name.end())
-////            {
-////                std::cerr << "Error in output_selection: data profile for tau=" << tau << " was already processed." << std::endl;
-////                return false;
-////            }
-//
-//            // runner.output_perf_profile_plain( tau ,args[1] );
-//
-//            // Register the pp_file_name in the file for duplicate testing and other outputs (matlab, pgfplots)
-//            // map_tau_to_pp_file_name[tau] = args[1];
-//        }
-//
-//        if ("output_data_profile_pgfplots" == select_command)
-//        {
-//            if ( args.size() < 1 || args.size() > 6 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_data_profile_pgfplots should be greater than 1." <<std::endl;
-//                std::cerr << " Usage: output_data_profile_pgfplots (tau, pdflatex_cmd, tex_file_name,dp_plain_file_name, tex_file_name, dp_pdf_file_name); All parameters except tau are optional." << std::endl;
-//                return false;
-//            }
-//            bool success = output_profile_pgfplots(runner, "dataProfile", args);
-//            if (!success)
-//            {
-//                return false;
-//            }
-//        }
-//
-//        else if ("output_time_profile_pgfplots" == select_command)
-//        {
-//            if ( args.size() < 1 || args.size() > 6 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_time_profile_pgfplots should be greater than 1." <<std::endl;
-//                std::cerr << " Usage: output_time_profile_pgfplots(pdflatex_cmd, tex_file_name, time_profile_plain_file_name, tex_file_name, time_profile_pdf_file_name); All parameters are optional." << std::endl;
-//                return false;
-//            }
-//            bool success = output_profile_pgfplots(runner, "timeProfile", args);
-//            if (!success)
-//            {
-//                return false;
-//            }
-//        }
-//        if ("output_time_data_profile_pgfplots" == select_command)
-//        {
-//            if ( args.size() < 1 || args.size() > 6 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_time_data_profile_pgfplots should be greater than 1." <<std::endl;
-//                std::cerr << " Usage: output_time_data_profile_pgfplots (tau, pdflatex_cmd, tex_file_name,tdp_plain_file_name, tex_file_name, tdp_pdf_file_name); All parameters except tau are optional." << std::endl;
-//                return false;
-//            }
-//            bool success = output_profile_pgfplots(runner, "timeDataProfile", args);
-//            if (!success)
-//            {
-//                return false;
-//            }
-//        }
-//
-//        else if ( "display_algo_diff" == select_command )
-//        {
-//            runner.display_algo_diff();
-//        }
-//        else if( "output_problems_unsolved" == select_command)
-//        {
-//            if ( args.size() != 2 )
-//            {
-//                std::cerr << "\n Error in output_problems_solved: number of arguments should be 2." <<std::endl;
-//                std::cerr << " Usage: output_problems_solved (tau, nbSimplexEval); All parameters are mandatory. If nbSimplexEval == -1, the last eval point is used." << std::endl;
-//                return false;
-//            }
-//            double tau;
-//            if ( ! tau.atof(args[0]) || !tau.isDefined() || tau < 0 )
-//            {
-//                std::cerr << "\n Error in output_selection: output_problems_unsolved first argument (tau value) should be a positive real" << std::endl;
-//                return false;
-//            }
-//            double nbSimplexEval;
-//            if ( ! nbSimplexEval.atof(args[1]) || !nbSimplexEval.isDefined() )
-//            {
-//                std::cerr << "\n Error in output_selection: output_problems_unsolved second argument (nbSimplex value) should be a real" << std::endl;
-//                return false;
-//            }
-//            runner.output_problems_unsolved(tau,nbSimplexEval);
-//
-//        }
+
     }
-    
-    
-    
+
     in.close();
     return true;
 }
 
-
+// Used by Python interface only
+// Similar to read_output_selection_file
 bool RUNNERPOST::Runner::read_output_selection ( const std::string  & output_selection_formatted ,
                                                 std::string        & error_msg        )
 {
@@ -2772,7 +2610,47 @@ bool RUNNERPOST::Runner::read_output_selection ( const std::string  & output_sel
 
 void RUNNERPOST::Runner::display_selected_outputs   ( void ) const
 {
-    // TODO: similar to algo and pbs.
+    size_t n = _selected_outputs.size();
+
+    std::cout << std::endl;
+
+    if ( n == 0 )
+        std::cout << "there is no output configuration" << std::endl;
+    else
+    {
+
+        std::ostringstream msg;
+        msg << "selected outputs";
+        if ( n > 1 )
+            msg << "s (" << n << ")";
+        msg << ":\n";
+
+        std::cout << msg.str();
+        for ( size_t k = 0 ; k < n ; ++k )
+        {
+            std::cout << "\t " << RUNNERPOST::Output::profileTypeToString(_selected_outputs[k]->get_profile_type());
+            const auto & options = _selected_outputs[k]->get_profile_type_options();
+            if (options.size() > 0)
+            {
+                std::cout << " [ ";
+                size_t count = 1;
+                
+                for (const auto & o: options )
+                {
+                    std::cout << o << "]";
+                    if (count < options.size())
+                    {
+                        std::cout << " [ ";
+                    }
+                    count++;
+                }
+            }
+            std::cout << std::endl;
+        }
+    }
+    std::cout << std::endl;
+
+    
 }
 
 
@@ -3053,17 +2931,17 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
     out_tex << "\\begin{axis}[ " << std::endl;
 
     out_tex << "       title = {" << profileTitle << "}," << std::endl;
-    out_tex << "       xmin=-10, ymin = -5, ymax= 105," << std::endl;
 
     if (RUNNERPOST::Output::Profile_Type::DATA_PROFILE == profile_type)
     {
+        out_tex << "       xmin=-10, ymin = -5, ymax= 105," << std::endl;
         if (RUNNERPOST::Output::X_Select::EVAL == out.get_x_select())
         {
-            out_tex << "       xlabel = Number of evaluations, " <<std::endl;
+            out_tex << "       xlabel = {Number of evaluations}, " <<std::endl;
         }
         else if (RUNNERPOST::Output::X_Select::NP1EVAL == out.get_x_select())
         {
-            out_tex << "       xlabel = Groups of ($n_p+1$) evaluations," <<std::endl;
+            out_tex << "       xlabel = {Groups of ($n_p+1$) evaluations}," <<std::endl;
         }
         else if (RUNNERPOST::Output::X_Select::TIME == out.get_x_select())
         {
@@ -3078,11 +2956,11 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
         
         if (RUNNERPOST::Output::Y_Select::OBJ == out.get_y_select())
         {
-            out_tex << "       ylabel = Portion of {$\tau$}-solved instances," <<std::endl;
+            out_tex << "       ylabel = {Portion of {$\\tau$}-solved instances}," <<std::endl;
         }
         else if (RUNNERPOST::Output::Y_Select::INFEAS == out.get_y_select())
         {
-            out_tex << "       ylabel = Portion of feasible instances," <<std::endl;
+            out_tex << "       ylabel = {Portion of feasible instances}," <<std::endl;
         }
         else
         {
@@ -3091,14 +2969,26 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
             return false;
         }
         
-        
-        
     }
-    else
+    else if (RUNNERPOST::Output::Profile_Type::PERFORMANCE_PROFILE == profile_type)
     {
-        std::cerr << "\n Error:  profile type " << RUNNERPOST::Output::profileTypeToString(out.get_profile_type()) << " is not yet available for latex profile " << std::endl;
-        out_tex.close();
-        return false;
+        out_tex << "       xmin=1, ymin = -5, ymax= 105," << std::endl;
+        out_tex << "       xlabel = {Performance ratio, $\\alpha$}," <<std::endl;
+        
+        if (RUNNERPOST::Output::Y_Select::OBJ == out.get_y_select())
+        {
+            out_tex << "       ylabel = {Portion of {$\\tau$}-solved instances}," <<std::endl;
+        }
+        else if (RUNNERPOST::Output::Y_Select::INFEAS == out.get_y_select())
+        {
+            out_tex << "       ylabel = {Portion of feasible instances}," <<std::endl;
+        }
+        else
+        {
+            std::cerr << "\n Error:  y_select type is not available for latex profile " << std::endl;
+            out_tex.close();
+            return false;
+        }
     }
 
 
@@ -3145,7 +3035,8 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
     // For some profile we may need to plot with only marks
     // lineStyle = "only marks";
 
-    if (RUNNERPOST::Output::Profile_Type::DATA_PROFILE == profile_type)
+    if (RUNNERPOST::Output::Profile_Type::DATA_PROFILE == profile_type ||
+        RUNNERPOST::Output::Profile_Type::PERFORMANCE_PROFILE == profile_type)
     {
         for (const auto & leg : legends )
         {
