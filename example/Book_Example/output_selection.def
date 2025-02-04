@@ -1,4 +1,4 @@
-HISTORY_PROFILE (History profiles on 10 pbs with)[y_select OBJ][output_plain history][output_latex history.tex] [x_max INF]
+HISTORY_PROFILE (History profiles)[y_select OBJ][output_plain history.txt][output_latex history.tex] [x_max INF][plot_selection * 1 0][plot_type OnlyFFeasible]
 PERFORMANCE_PROFILE (Performance profile on 10 pbs with  $\tau\; 10^{-1}$)[ y_select  OBJ] [tau 0.1   ] [output_plain pp1.txt][output_latex pp1.tex]
 PERFORMANCE_PROFILE (Performance profile on 10 pbs with  $\tau\; 10^{-3}$)[ y_select  OBJ] [tau 0.001   ] [output_plain pp3.txt][output_latex pp3.tex] 
 DATA_PROFILE (Data profile on 10 pbs with $\tau\; 10^{-1}$) [x_select NP1Eval] [ y_select  OBJ] [tau 0.1   ] [output_plain dp1.txt][output_latex dp1.tex] [x_max INF]

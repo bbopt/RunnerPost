@@ -3,7 +3,6 @@
 
 #include <cctype>
 
-
 RUNNERPOST::Output::Output (std::string s, std::string & error_msg)
 {
     if (s.empty())
@@ -80,11 +79,18 @@ RUNNERPOST::Output::Output (std::string s, std::string & error_msg)
         }
         _profile_type_options.push_back(tmp);
 
-        
-        
+
     }
     
     // TODO: check inconsistencies. Example: tau provided but default output file name are used. At least give a warning
+    if ((_pType == DATA_PROFILE || _pType == PERFORMANCE_PROFILE) && _plotType != UNDEFINED_PLOT_TYPE)
+    {
+        error_msg = "Error: Plot type cannot be defined for DATA_PROFILE or PERFORMANCE_PROFILE, only for HISTORY_PROFILE.";
+    }
+    if (_pType == HISTORY_PROFILE && _tau != -1)
+    {
+        error_msg = "Error: Cannot set tau for HISTORY_PROFILE.";
+    }
     
 }
 
@@ -116,9 +122,60 @@ RUNNERPOST::Output::Profile_Type RUNNERPOST::Output::stringToProfileType(const s
     return pType;
 }
 
+RUNNERPOST::Output::Plot_Type RUNNERPOST::Output::stringToPlotType(const std::string & sConst)
+{
+    Plot_Type pType = Output::Plot_Type::UNDEFINED_PLOT_TYPE;
+    
+    std::string s = sConst;
+    RUNNERPOST::toUpperCase(s);
+    
+    if (s == "ONLYFFEASIBLE")
+    {
+        pType = Plot_Type::OnlyFFeasible;
+    }
+    else if (s == "ONLYF")
+    {
+        pType = Plot_Type::OnlyF;
+    }
+    else if (s == "ONLYH")
+    {
+        pType = Plot_Type::OnlyH;
+    }
+    else if (s == "COMBOHANDFFEASIBLE")
+    {
+        pType = Plot_Type::ComboHAndFFeasible;
+    }
+        
+    return pType;
+}
+
+std::string RUNNERPOST::Output::plotTypeToString(const Output::Plot_Type & pType)
+{
+    std::string pTypeStr;
+    switch (pType)
+    {
+        case Plot_Type::OnlyFFeasible:
+            pTypeStr = "OnlyFFeasible";
+            break;
+        case Plot_Type::OnlyF:
+            pTypeStr = "OnlyF";
+            break;
+        case Plot_Type::OnlyH:
+            pTypeStr = "OnlyH";
+            break;
+        case Plot_Type::ComboHAndFFeasible:
+            pTypeStr = "ComboHAndFFeasible";
+            break;
+        default:
+            break;
+    }
+    return pTypeStr;
+}
+
+
 bool RUNNERPOST::Output::setSingleAttribute(const std::pair<std::string,std::vector<std::string>> & att)
 {
-    if (att.second.size() != 1)
+    if (att.second.size() > 3)
     {
         return false;
     }
@@ -146,9 +203,13 @@ bool RUNNERPOST::Output::setSingleAttribute(const std::pair<std::string,std::vec
             return setXMax(att.second[0]);
         }
     }
-    else if (att.first.find("NB_LINES") != std::string::npos )
+    else if (att.first.find("PLOT_SELECTION") != std::string::npos )
     {
-        return setNbLines(att.second[0]);
+        return setPlotSelection(att.second);
+    }
+    else if (att.first.find("PLOT_TYPE") != std::string::npos )
+    {
+        return setPlotType(att.second[0]);
     }
     else if (att.first.find("OUTPUT_PLAIN") != std::string::npos)
     {
@@ -253,5 +314,60 @@ void RUNNERPOST::Output::display ( void ) const
 //    << "] [bin=" << _has_binaries << "] ["
 //    << ( is_batch() ? "batch" : "lib" )
 //    << "] [f*=" << _fxe << "]";
+}
+
+
+bool RUNNERPOST::Output::setPlotSelection(const std::vector<std::string> & s)
+{
+    _plotSelection.clear();
+    
+    if (s.empty())
+    {
+        std::cerr << "Error: PLOT_SELECTION requires at least one argument." << std::endl;
+        return false;
+    }
+    
+    if (s.size() > 3)
+    {
+        std::cerr << "Error: PLOT_SELECTION requires at most three arguments." << std::endl;
+        return false;
+    }
+    
+    
+    for (auto v: s)
+    {
+        RUNNERPOST::toUpperCase(v);
+        _plotSelection.push_back(v);
+    }
+    return true;
+}
+
+bool RUNNERPOST::Output::plotIsSelected(const std::string & algoId, const std::string & pbId, size_t i_pbInstance) const
+{
+    if (_plotSelection.empty())
+    {
+        return true;
+    }
+    
+    std::string s = algoId;
+    RUNNERPOST::toUpperCase(s);
+    bool algoIsSelected = (_plotSelection[0] == "ALL" || _plotSelection[0] == "*" || _plotSelection[0] == s );
+
+    if (_plotSelection.size() == 1 )
+    {
+        return algoIsSelected;
+    }
+    
+    s = pbId;
+    RUNNERPOST::toUpperCase(s);
+    bool pbIsSelected = (_plotSelection[1] == "ALL" || _plotSelection[1] == "*" || _plotSelection[1] == s );
+    if (_plotSelection.size() == 2 )
+    {
+        return algoIsSelected && pbIsSelected;
+    }
+    
+    bool pbInstanceIsSelected = (_plotSelection[2] == "ALL" || _plotSelection[2] == "*" || std::stoi(_plotSelection[2]) == i_pbInstance );
+    return algoIsSelected && pbIsSelected && pbInstanceIsSelected;
+    
 }
 

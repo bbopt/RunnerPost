@@ -895,12 +895,16 @@ bool RUNNERPOST::Runner::output_history_profile_plain ( const Output & out ) con
     // check that best solution and all results are available:
     std::list<size_t> miss_list;
     std::list<size_t> infeas_list;
-    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+    
+    for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
     {
-        for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
         {
             for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
+                    if (! out.plotIsSelected(_selected_algos[i_algo]->get_id(), _selected_pbs[i_pb]->get_id(),i_pb_instance))
+                        continue;
+                
                     double fxBest = INF;
                     if ( !_results[i_pb][i_algo][i_pb_instance].has_solution()  )
                     {
@@ -917,7 +921,9 @@ bool RUNNERPOST::Runner::output_history_profile_plain ( const Output & out ) con
                     else
                     {
                         
-                        std::string plainFileName = out.get_plain_file_name()+"_Pb"+std::to_string(i_pb)+"_Algo"+std::to_string(i_algo)+"_Inst"+std::to_string(i_pb_instance)+".txt";
+                        std::string plainFileName = out.get_plain_file_name() + "."+_selected_algos[i_algo]->get_id()+"."+_selected_pbs[i_pb]->get_id()+".Inst"+std::to_string(i_pb_instance);
+                        
+        
                         std::ofstream fout (plainFileName);
                         if ( fout.fail() )
                         {
@@ -934,7 +940,7 @@ bool RUNNERPOST::Runner::output_history_profile_plain ( const Output & out ) con
                             max_bbe = _results[i_pb][i_algo][i_pb_instance].get_last_bbe();
                         }
                         
-                        for ( size_t bbe = 1 ; bbe < max_bbe ; ++bbe )
+                        for ( size_t bbe = 1 ; bbe < max_bbe+1 ; ++bbe )
                         {
                             double fx = _results[i_pb][i_algo][i_pb_instance].get_sol(bbe);
                             if (fx < fxBest )
@@ -2952,23 +2958,18 @@ void RUNNERPOST::Runner::add_pbinstance_to_file_name ( const std::string       &
     file_name = fic + "." + pbInstance + ext;
 }
 
-
-
-bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
+bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) const
 {
-    if (out.get_latex_file_name().empty())
-    {
-        return true;
-    }
+    RUNNERPOST::Output::Profile_Type profile_type = out.get_profile_type();
     
-    std::string plain_file_name = out.get_plain_file_name();
-    std::string latex_file_name = out.get_latex_file_name();
-    
-    if (out.get_plain_file_name().empty())
+    if (profile_type == RUNNERPOST::Output::Profile_Type::HISTORY_PROFILE)
     {
-        std::cerr << "\n Error in output_selection: To output in latex the output_plain is mandatory. " << std::endl;
+        std::cerr << "\n Error: Use output_history_profile_pgfploats." << std::endl;
         return false;
     }
+    
+    // Get the plain file name
+    std::string plain_file_name = out.get_plain_file_name();
 
     std::ifstream infile(plain_file_name);
     if (! infile.good() )
@@ -2980,6 +2981,9 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
     
     // Modify plain file name to include the key "step"
     std::string plain_file_name_step = plain_file_name + ".step";
+    
+    // Get the latex file name
+    std::string latex_file_name = out.get_latex_file_name();
     
     std::cout<< "\t Writing of " << latex_file_name << " and " << plain_file_name_step << " ......";
     
@@ -3025,15 +3029,8 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
     outfile_step.close();
     infile.close();
 
-    // To be generalized.
-    // Multiple inputs.
-    // Single output.
-
     // Graph title
     std::string profileTitle = out.get_title();
-    
-    
-    RUNNERPOST::Output::Profile_Type profile_type = out.get_profile_type();
 
 
     // Output tex file from previous strings
@@ -3105,6 +3102,30 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
             return false;
         }
     }
+    else if (RUNNERPOST::Output::Profile_Type::HISTORY_PROFILE == profile_type)
+    {
+        out_tex << "       xmin=1," << std::endl;
+        out_tex << "       xlabel = {Number of evaluations}," <<std::endl;
+        
+        if (RUNNERPOST::Output::Plot_Type::OnlyF == out.get_plot_type())
+        {
+            out_tex << "       ylabel = {Objective function}," <<std::endl;
+        }
+        if (RUNNERPOST::Output::Plot_Type::OnlyFFeasible == out.get_plot_type())
+        {
+            out_tex << "       ylabel = {Objective function (feasible)}," <<std::endl;
+        }
+        else if (RUNNERPOST::Output::Plot_Type::OnlyH == out.get_plot_type())
+        {
+            out_tex << "       ylabel = {Infeasibility measure}," <<std::endl;
+        }
+        else
+        {
+            std::cerr << "\n Error: History file plot type is not available for latex profile " << std::endl;
+            out_tex.close();
+            return false;
+        }
+    }
 
 
     out_tex << " legend style={ " << std::endl;
@@ -3164,19 +3185,11 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
             }
         }
     }
+    else if (RUNNERPOST::Output::Profile_Type::HISTORY_PROFILE == profile_type)
+    {
+        out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[0] << ", mark repeat = 20, color=" << COLORS[0] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
+    }
 
-//    else if ("timeProfile" == profileName)
-//    {
-//        for (size_t i_algo = 0; i_algo < legends.size(); i_algo++)
-//        {
-//            std::string algoFileName = NOMAD_BASE::dirname(args[0]);
-//            algoFileName += profile_plain_noExt_noPath;
-//            algoFileName += NOMAD_BASE::itos(i_algo) + NOMAD_BASE::extension(args[0]);
-//            // VRM TODO
-//            out << "  \\addplot [" << lineStyle << ", mark="<< symbols[symbol_index++] << ", color=" << colors[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << algoFileName << "}; " << std::endl ;
-//            out << "\\addlegendentry{" << legends[i_algo] << "};" <<std::endl;
-//        }
-//    }
     out_tex << " \\end{axis} " << std::endl;
     out_tex << " \\end{tikzpicture}" << std::endl;
     out_tex << " \\end{document}" <<std::endl;
@@ -3186,6 +3199,238 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
     std::cout << " done " << std::endl;
 
     return true;
+
+}
+
+
+bool RUNNERPOST::Runner::output_history_profile_pgfplots(const Output & out ) const
+{
+    RUNNERPOST::Output::Profile_Type profile_type = out.get_profile_type();
+    
+    if (profile_type != RUNNERPOST::Output::Profile_Type::HISTORY_PROFILE)
+    {
+        std::cerr << "\n Error: Use output_profile_pgfploats." << std::endl;
+        return false;
+    }
+    
+    size_t i_pb, i_algo, i_pb_instance;
+    const size_t n_pb = _selected_pbs.size();
+    const size_t n_algo = _selected_algos.size();
+    
+    std::vector<std::string> listFileNames;
+    std::vector<std::string> listLegends;
+    
+    for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+    {
+        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+        {
+            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
+            {
+                if (! out.plotIsSelected(_selected_algos[i_algo]->get_id(), _selected_pbs[i_pb]->get_id(),i_pb_instance))
+                    continue;
+                
+                auto extension = "."+_selected_algos[i_algo]->get_id()+"."+_selected_pbs[i_pb]->get_id()+".Inst"+std::to_string(i_pb_instance);
+                auto legend = "Algo: " + _selected_algos[i_algo]->get_id()+" Pb: "+_selected_pbs[i_pb]->get_id()+" Instance: "+std::to_string(i_pb_instance);
+                
+                listFileNames.push_back(out.get_plain_file_name()+extension);
+                listLegends.push_back(legend);
+            }
+        }
+    }
+    if (listFileNames.empty())
+    {
+        std::cerr << "\n Error in output_history_profile_pgfplots: No history file to plot in latex." << std::endl;
+        return false;
+    }
+    
+    std::string latexFileName = out.get_latex_file_name() ;
+    
+    std::cout<< "\t Writing of " ;
+    for (const auto& plain_file_name: listFileNames)
+    {
+        std::ifstream infile(plain_file_name);
+        if (! infile.good() )
+        {
+            std::cerr << "\n Error in output_selection: file " << plain_file_name << " does not exist for latex profile " << std::endl;
+            infile.close();
+            return false;
+        }
+        
+        // Modify plain file name to include the key "step"
+        std::string plain_file_name_step = plain_file_name + ".step";
+        
+        std::cout << plain_file_name_step << " ...";
+        
+        // Create data for plotting data profile with step
+        std::ofstream outfile_step(plain_file_name_step);
+        
+        // The loop for reading plain_file_name and writing to plain_file_name_step
+        std::string line, prevLine, prevLineToken, lineFirstToken;
+        while (std::getline(infile, line))
+        {
+            if (line.empty())
+            {
+                std::cout << std::endl;
+                std::cerr << "Cannot read line from " << plain_file_name << ". Empty lines are present." << std::endl;
+                return false;
+            }
+            if (!prevLine.empty())
+            {
+                // Read the first token of the line
+                std::istringstream iss(line);
+                
+                iss >> lineFirstToken;
+                
+                // Write the first token of the previous line to the new line
+                outfile_step << lineFirstToken << " ";
+                
+                // Write all tokens of prevLine, except the first one
+                std::istringstream issPrev(prevLine);
+                issPrev >> prevLineToken;
+                while (std::getline(issPrev, prevLineToken, ' '))
+                {
+                    if (prevLineToken.empty())
+                    {
+                        continue;
+                    }
+                    outfile_step << prevLineToken << " ";
+                }
+                outfile_step << std::endl;
+            }
+            prevLine = line;
+            outfile_step << line << std::endl;
+            
+        }
+        outfile_step.close();
+        infile.close();
+    }
+    std::cout << " done " << std::endl;
+    
+    // Graph title
+    std::string profileTitle = out.get_title();
+    
+    std::cout<< "\t Writing of " << latexFileName << " ......";
+    
+    // Output tex file from previous strings
+    std::ofstream out_tex ( latexFileName , std::ofstream::out | std::ofstream::trunc );
+    out_tex << "\\documentclass{standalone}" <<std::endl;
+    out_tex << "\\usepackage{pgfplots} " <<std::endl;
+    out_tex << "\\pgfplotsset{width=10cm,compat=1.16} " <<std::endl;
+    out_tex << "\\begin{document}" <<std::endl;
+    out_tex << "\\begin{tikzpicture} "<<std::endl;
+    out_tex << "\\begin{axis}[ " << std::endl;
+    out_tex << "       title = {" << profileTitle << "}," << std::endl;
+    out_tex << "       xmin=1," << std::endl;
+    out_tex << "       xlabel = {Number of evaluations}," <<std::endl;
+    
+    if (RUNNERPOST::Output::Plot_Type::OnlyF == out.get_plot_type())
+    {
+        out_tex << "       ylabel = {Objective function}," <<std::endl;
+    }
+    if (RUNNERPOST::Output::Plot_Type::OnlyFFeasible == out.get_plot_type())
+    {
+        out_tex << "       ylabel = {Objective function (feasible)}," <<std::endl;
+    }
+    else if (RUNNERPOST::Output::Plot_Type::OnlyH == out.get_plot_type())
+    {
+        out_tex << "       ylabel = {Infeasibility measure}," <<std::endl;
+    }
+    else
+    {
+        std::cerr << "\n Error: plot type is not available for latex History profile " << std::endl;
+        out_tex.close();
+        return false;
+    }
+    
+    
+    out_tex << " legend style={ " << std::endl;
+    out_tex << "    font=\\tiny, " <<std::endl;
+    out_tex << "    cells={anchor=southeast}, " << std::endl;
+    out_tex << "    at={(1,-0.2)}, " <<std::endl;
+    out_tex << "   legend cell align=left, } ]" <<std::endl;
+    
+        
+    
+    int y_index = 1;
+    int color_index = 0;
+    int symbol_index = 0;
+    
+    // Maximum number of algorithms that can be plotted
+    const size_t maxPlots = std::min(SYMBOLS.size(),COLORS.size());
+    if ( listFileNames.size() > maxPlots )
+    {
+        if (SYMBOLS.size() != COLORS.size())
+        {
+            std::cerr << "\n Warning:  number of colors and symbols do not match." << std::endl;
+        }
+        std::cerr << "\n Warning:  not enough symbols/colors for the number of algo. Let's plot only the first " << std::to_string(maxPlots) << " plots." << std::endl;
+    }
+    
+    size_t nbPlotted = 0;
+    std::string lineStyle = "solid";
+    
+    std::vector<std::string>::iterator itLeg = listLegends.begin();
+    for (const auto & plain_file_name : listFileNames )
+    {
+        // Modify plain file name to include the key "step"
+        std::string plain_file_name_step = plain_file_name + ".step";
+
+        out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 20, color=" << COLORS[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
+        out_tex << "\\addlegendentry{\verb+" << *itLeg << "+};" <<std::endl;
+        nbPlotted++;
+        itLeg++;
+        if (nbPlotted >= maxPlots)
+        {
+            break;
+        }
+    }
+    
+    
+    out_tex << " \\end{axis} " << std::endl;
+    out_tex << " \\end{tikzpicture}" << std::endl;
+    out_tex << " \\end{document}" <<std::endl;
+    
+    out_tex.close();
+    
+    std::cout << " done " << std::endl;
+    
+    return true;
+    
+}
+
+bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
+{
+    if (out.get_latex_file_name().empty())
+    {
+        return true;
+    }
+    
+    std::string plain_file_name = out.get_plain_file_name();
+    
+    if (out.get_plain_file_name().empty())
+    {
+        std::cerr << "\n Error in output_selection: To output in latex the output_plain is mandatory. " << std::endl;
+        return false;
+    }
+    
+    if (_selected_algos.empty())
+    {
+        std::cerr << "\n Error:  no algos available." << std::endl;
+        return false;
+    }
+
+    
+    std::list<std::string> listFileNames;
+    if (out.get_profile_type() == RUNNERPOST::Output::Profile_Type::HISTORY_PROFILE)
+    {
+        return output_history_profile_pgfplots(out);
+    }
+    else
+    {
+        return output_dataperf_profile_pgfplots(out);
+    }
+    
+
 }
 
 
