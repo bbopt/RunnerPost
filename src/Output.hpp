@@ -49,10 +49,10 @@ public:
 private:
     
     Profile_Type                       _pType = Profile_Type::UNDEFINED_PROFILE;
-    Y_Select                           _ySel = Y_Select::UNDEFINED_Y;
-    X_Select                           _xSel = X_Select::UNDEFINED_X;
+    Y_Select                           _ySel = Y_Select::OBJ;
+    X_Select                           _xSel = X_Select::EVAL;
     int                                _xMax;
-    double                             _tau = -1.0; // Default value is not allowed. Must set explicitly depending on profile type. This is tested.
+    double                             _tau = -1.0; // Default value is not allowed. Must be set explicitly depending on profile type. This is tested.
     std::string                        _plainFileName;
     std::string                        _latexFileName;
     std::string                        _title="";

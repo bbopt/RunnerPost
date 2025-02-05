@@ -223,37 +223,6 @@ int RUNNERPOST::Problem::getMaxBBEvals() const
 //    return true;
 //}
 
-///*----------------------------------------------*/
-///*          set blackbox output types           */
-///*----------------------------------------------*/
-//bool Problem::set_bbot ( int i , NOMAD_BASE::BBOutputType t )
-//{
-//
-//    if ( i < 0 || i >= _m )
-//        throw NOMAD_BASE::Exception ( "RUNNER: Problem.cpp" , __LINE__ ,
-//        "Problem::set_bbot, index not in [0;m-1]." );
-//
-//    if ( _bbot.size() < (size_t)_m )
-//        _bbot.resize(_m);
-//
-//    _bbot[i] = t;
-//
-//    if ( t == NOMAD_BASE::BBOutputType::PB || t == NOMAD_BASE::BBOutputType::EB )
-//    {
-//        if ( ! _has_constraints )
-//        {
-//            _has_constraints = true;
-//            add_keyword ( "constrained" );
-//        }
-//    }
-//
-//    // Append from NOMAD_BASE::BBOutputType to string
-//    std::ostringstream s;
-//    s << " " << _bbot[i];
-//    _bbotS.append( s.str() );
-//
-//    return true;
-//}
 
 
 ///*----------------------------------------------*/
@@ -324,12 +293,7 @@ void RUNNERPOST::Problem::display ( void ) const
         std::cout << " ]";
     }
     
-//    << "] [bnds=" << has_bounds()
 //    << "] [cstr=" << _has_constraints
-//    << "] [trend=" << _has_trend_matrix
-//    << "] [int=" << _has_integers
-//    << "] [bin=" << _has_binaries << "] ["
-//    << ( is_batch() ? "batch" : "lib" )
 //    << "] [f*=" << _fxe << "]";
 }
 

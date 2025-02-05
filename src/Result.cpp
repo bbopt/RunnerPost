@@ -14,42 +14,49 @@
 /*----------------------------------*/
 /*               reset              */
 /*----------------------------------*/
-void RUNNERPOST::Result::reset ( bool use_hypervolume_for_obj, bool use_h_for_obj )
+void RUNNERPOST::Result::reset ( bool use_hypervolume_for_obj )
 {
     _bbe.clear();
     _obj.clear();
     // _mobj.clear();
     _last_x.clear();
     
-    if (_use_h_for_obj && _use_hypervolume_for_obj)
-    {
-        std::cout << "RUNNERPOST::Result::reset. Cannot use both h AND hypervolume for obj" <<std::endl;
-    }
-    
-    _use_h_for_obj = use_h_for_obj;
     _use_hypervolume_for_obj = use_hypervolume_for_obj;
     // For now use_std_h is always true;      // _use_std_h = use_std_h ;  
     _nb_obj = 0; // Need to be updated
     clear_solution();
 }
 
-/*-----------------------------------*/
-/*      clear solution (private)     */
-/*-----------------------------------*/
+/*------------------------*/
+/*      clear solution    */
+/*------------------------*/
 void RUNNERPOST::Result::clear_solution ( void )
 {
     _sol_bbe    = INF_SIZE_T;
     _sol_fx     = INF;
-    // _sol_xe.clear();
+    _sol_xe.clear();
     _sol_fxe    = INF;
+
     _has_sol = false;
     _is_infeas = false;
 }
+/*--------------------------------*/
+/*      clear best infeasible     */
+/*--------------------------------*/
+void RUNNERPOST::Result::clear_best_infeas ( void )
+{
+    
+    _bestInf_h  = INF;
+    _bestInf_xe.clear();
+    _bestInf_bbe = INF_SIZE_T;
+
+}
+
 
 /*----------------------------------*/
 /*          read results            */
 /*----------------------------------*/
-bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNNERPOST::StatOutputTypeList & sotList , const double & feasibilityThreshold )
+bool RUNNERPOST::Result::read_prev ( std::ifstream & in , size_t max_bbe , const RUNNERPOST::StatOutputTypeList & sotList , const double & feasibilityThreshold )
 {
     if (_use_h_for_obj && _use_hypervolume_for_obj)
     {
@@ -302,14 +309,259 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
     return true;
 }
 
+
+bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNNERPOST::StatOutputTypeList & sotList , const double & feasibilityThreshold )
+{
+
+    std::string   s, line;
+    size_t        bbe =0;
+    double time = 0 , obj, obj_prev = INF, h, h_prev = INF ;
+    
+    bool first_line = true;
+    
+    bool hasFeasEval = false;
+    
+    // Number of objectives
+    _nb_obj = std::count(sotList.begin(),sotList.end(),StatOutputType::OBJ);
+    
+    const size_t m = _nb_obj + std::count(sotList.begin(),sotList.end(),StatOutputType::CST);
+    if (m == 0)
+    {
+        std::cerr << "Result::read. Output format has no objective and no constraint." << std::endl;
+        return false;
+    }
+    
+    const bool hasCntEval = (std::count(sotList.begin(),sotList.end(),StatOutputType::CNT_EVAL) > 0);
+    
+    if (_use_hypervolume_for_obj)
+    {
+        std::cerr << "Result::read for hypervolumem not yet implemented." << std::endl;
+        return false;
+    }
+    
+    if (_use_hypervolume_for_obj && _nb_obj < 2)
+    {
+        std::cout << "Result::read Cannot compute hypervolume when nb objective is not greater than 1" <<std::endl;
+        return false;
+    }
+    
+    // For multi objective, for now, we can only compute profiles with hypervolume
+    if (!_use_hypervolume_for_obj && _nb_obj > 1)
+    {
+        std::cout << "Nb objectives is greater than 1. Need to enable option to compute hypervolume of pareto fronts" <<std::endl;
+        return false;
+    }
+    
+    if ( m-_nb_obj > 0 )
+    {
+        if ( !_use_std_h )
+        {
+            std::cout << "Other than standard h calculation not implemented" <<std::endl;
+            return false;
+        }
+    }
+    
+    int nb_fields=0; // Number of fields in the file. For history file we have nb_fields = n + m. For stats files nb_fields will be larger. This is determined from the first line.
+    
+    double *bbo = new double[m];
+    
+    while ( !in.eof() )
+    {
+        if (!std::getline(in, line))
+        {
+            if (first_line)
+            {
+                std::cout << "Result file is empty" <<std::endl;
+                delete [] bbo;
+                return false;
+            }
+        }
+        
+        // No more lines to read.
+        if (line.empty())
+        {
+            break;
+        }
+
+        // Put the line in a string stream for reading values.
+        std::istringstream iss(line);
+
+        // This is mostly for managing the case of a number of fields not compatible with format
+        if ( first_line )
+        {
+            const std::string lineTmp=line;
+            
+            // number of fields.
+            size_t pos = 0;
+            nb_fields = 0;
+            
+            // At least we have single field
+            if (line.find(" ") == std::string::npos && !line.empty())
+            {
+                nb_fields = 1;
+            }
+            
+            while ((pos = line.find(" ")) != std::string::npos)
+            {
+                
+                // Strip empty spaces before a field
+                pos = line.find_first_not_of(" ");
+                if (pos == std::string::npos)
+                {
+                    break;
+                }
+                line.erase(0, pos);
+                
+                // We have a field
+                nb_fields ++;
+                
+                // Strip a single field value
+                pos = line.find_first_of(" ");
+                if (pos != std::string::npos)
+                {
+                    line.erase(0, pos);
+                }
+            }
+            if (nb_fields != sotList.size())
+            {
+                std::cout << "(1) Result file does not comply with stats_file_output type: " << std::endl;
+                std::cout << "     + Line read is \"" << lineTmp << "\"" << std::endl;
+                std::cout << "     + Expected stats output is \"" << sotList << "\"" <<std::endl;
+                delete [] bbo;
+                return false;
+            }
+        }
+        
+        // Case without eval count. Auto-increment bbe. One line=one eval
+        if (!hasCntEval) // That is no CNT_EVAL output type
+        {
+            bbe++;
+        }
+        
+        size_t i= 0;
+        obj = 0;
+        h = 0;
+        time = 0.0;
+        _last_x.clear();
+        
+        // Read according to the format
+        for (const auto & sot: sotList)
+        {
+            if ( sot.isOfType(StatOutputType::Type::CNT_EVAL) )
+            {
+                iss >> bbe;
+            }
+            else if(sot.isOfType(StatOutputType::Type::SOL))
+            {
+                iss >> s;
+                _last_x.append(s+" ");
+            }
+            else if(sot.isOfType(StatOutputType::Type::TIME))
+            {
+                iss >> time;
+            }
+            else if(sot.isOfType(StatOutputType::Type::OBJ) || sot.isOfType(StatOutputType::Type::CST))
+            {
+                iss >> bbo[i];
+                if (iss.fail())
+                {
+                    bbo[i] = INF;
+                    obj = INF;
+                }
+                if (sot.isOfType(StatOutputType::Type::CST))
+                {
+                    h += pow( std::max( bbo[i], feasibilityThreshold ),2);
+                }
+                else
+                {
+                    obj = bbo[i];
+                }
+                i++;
+            }
+            else if(sot.isOfType(StatOutputType::Type::FEAS))
+            {
+                iss >> bbo[i];
+                if (iss.fail() || bbo[i] > 0)
+                {
+                    bbo[i] = INF;
+                    h = INF;
+                }
+            }
+            else
+            {
+                std::cout << "(2) Result file does not comply with stats_file_output type: " << std::endl;
+                std::cout << "      + Line read is \"" << line << "\"" << std::endl;
+                std::cout << "      + Expected stats output is \"" << sotList << "\"" <<std::endl;
+                delete [] bbo;
+                return false;
+            }
+        }
+        
+        // Consistency check
+        if ( first_line && bbe!=1)
+        {
+            std::cout << "(3) Result file is expected to have a first line with evaluation counter equals 1. But bbe = " << bbe << "." << std::endl;
+            delete [] bbo;
+            return false;
+            
+        }
+
+        // Keep improving feasible evaluations
+        if (h <= feasibilityThreshold)
+        {
+            if ( obj < obj_prev && bbe <= max_bbe )
+            {
+                _bbe.push_back( bbe );
+                _obj.push_back( obj );
+                _time.push_back(time);
+                obj_prev = obj;
+            }
+            hasFeasEval = true; // Once we have the first feasible eval, we are not interested in infeasible evals
+        }
+        // and improving infeasible evaluations
+        else
+        {
+            if ( !hasFeasEval && h < h_prev && bbe <= max_bbe )
+            {
+                _bbeForH.push_back( bbe );
+                _infH.push_back( obj );
+                _timeForH.push_back(time);
+                h_prev = h;
+            }
+        }
+        
+        // No need to parse for more eval than required
+        if (bbe > max_bbe)
+        {
+            break;
+        }
+
+         // Total time and total bbe - for time stats.
+        _totalBbe = bbe;
+        _totalTime = time; // Note: when using history file, time stays 0
+
+        if ( first_line )
+        {
+            first_line = false;
+        }
+    }
+    
+    delete [] bbo;
+    
+    return true;
+}
+
 /*-----------------------------------*/
 /*       get the last bbe entry      */
 /*-----------------------------------*/
 size_t RUNNERPOST::Result::get_last_bbe ( void ) const
 {
-    if ( _bbe.empty() )
+    if ( _bbe.empty() && _bbeForH.empty())
         return 0 ;
-    return _bbe[_bbe.size()-1];
+    if ( _bbe.empty() )
+        return _bbeForH[_bbeForH.size()-1];
+    else
+        return _bbe[_bbe.size()-1];
 }
 
 
@@ -638,8 +890,8 @@ size_t RUNNERPOST::Result::get_last_bbe ( void ) const
 /*-----------------------------------*/
 /*          compute solution         */
 /*-----------------------------------*/
-bool RUNNERPOST::Result::compute_solution ( int n    ,
-                               size_t  bbe)
+bool RUNNERPOST::Result::compute_solution_prev ( int n    ,
+                                                size_t  bbe)
 {
     
     if ( _bbe.empty() || _obj.empty() )
@@ -729,6 +981,129 @@ bool RUNNERPOST::Result::compute_solution ( int n    ,
 //
     
 //    _sol_fx  = _sol_fxe;
+    
+    return true;
+}
+bool RUNNERPOST::Result::compute_solution ( int n    ,
+                                           size_t  bbe)
+{
+    if (_bbe.size() != _obj.size())
+    {
+        std::cout << "Compute_solution: Inconsistent number of evaluations and objectives" <<std::endl;
+        return false;
+    }
+    
+    
+    if ( _bbe.empty() )
+    {
+        size_t sol_bbe = _sol_bbe;
+        clear_solution();
+        _sol_bbe = sol_bbe;
+    
+        _is_infeas = true;
+        return false;
+    }
+    
+    clear_solution();
+    
+    // _nb_pareto_points = 0;
+    
+    
+    
+// More test to identify that no feasible point has been obtained
+    if ( _obj.back()==INF ) // Case f = Inf
+    {
+        clear_solution();
+        _sol_bbe = INF_SIZE_T;
+        _is_infeas = true;
+    }
+
+    // We have a feasible solution
+    // Update the characteristics of the solution (bbe, f, x)
+    
+    _sol_bbe = _bbe.back();
+    _has_sol = true;
+    _sol_fx = _obj.back();
+     
+    // If last_x is not empty we can extract the solution
+    _sol_xe.clear();
+    if (!_last_x.empty())
+    {
+        _sol_xe.resize(n);
+        
+        // Extract the last x given as a string with space separated values into a vector of doubles
+        std::istringstream iss(_last_x);
+        for (int i = 0; i < n; i++)
+        {
+            iss >> _sol_xe[i];
+            if (iss.fail())
+            {
+                _sol_xe.clear();
+                break;
+            }
+        }
+    }
+    
+    return true;
+}
+
+bool RUNNERPOST::Result::compute_best_infeasible ( int n    ,
+                                                   size_t  bbe)
+{
+    // We already have computed a solution (feasible)
+    if (!_is_infeas)
+    {
+        return true;
+    }
+    
+    clear_best_infeas();
+    
+    if (_bbeForH .size() != _infH.size())
+    {
+        std::cout << "Compute_solution: Inconsistent number of evaluations and infeasibility h" <<std::endl;
+        return false;
+    }
+    
+    
+    if ( _bbeForH.empty() )
+    {
+        return false;
+    }
+
+    // _nb_pareto_points = 0;
+    
+// More test to identify that no infeasible point has been obtained
+    if ( _infH.back()==INF ) // Case h = Inf
+    {
+        clear_best_infeas();
+        _bestInf_bbe = INF_SIZE_T;
+    }
+
+    // We have a valid infeasible solution
+    // Update the characteristics of the best infeasible (bbe, h, x)
+    
+    _bestInf_bbe = _bbeForH.back();
+    _has_sol = false;
+    _bestInf_h = _infH.back();
+     
+    // If last_x is not empty we can extract the solution
+    _bestInf_xe.clear();
+    if (!_last_x.empty())
+    {
+        _bestInf_xe.resize(n);
+        
+        // Extract the last x given as a string with space separated values into a vector of doubles
+        std::istringstream iss(_last_x);
+        for (int i = 0; i < n; i++)
+        {
+            iss >> _bestInf_xe[i];
+            if (iss.fail())
+            {
+                _bestInf_xe.clear();
+                break;
+            }
+        }
+    }
     
     return true;
 }

@@ -11,7 +11,6 @@ _results    ( NULL ) ,
 _test_id    ( NULL ) ,
 _use_avg_fx_first_feas( false ) ,
 _use_evals_for_dataprofiles ( false ) ,
-_use_h_for_profiles ( false ),
 _use_hypervolume_for_profiles ( false ),
 _feasibilityThreshold (0.0)
 {
@@ -454,7 +453,7 @@ bool RUNNERPOST::Runner::run_post_processing ( std::string & error_msg )
             
             for (size_t i_pb_inst = 0 ; i_pb_inst < n_pb_inst ; i_pb_inst++)
             {
-                _results[i_pb][i_algo][i_pb_inst].reset( _use_hypervolume_for_profiles, _use_h_for_profiles );
+                _results[i_pb][i_algo][i_pb_inst].reset( _use_hypervolume_for_profiles );
             }
 
             if ( !RUNNERPOST::Runner::get_results ( _test_id              [i_pb][i_algo]  ,
@@ -1107,22 +1106,23 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     // get the best solution for each problem:
     const auto& fxe = get_best_fx();
 
-    if ( _use_h_for_profiles )
-    {
-        bool flag_ok = false;
-        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
-        {
-            if ( !flag_ok && fxe[i_pb] == 0 )
-                flag_ok = true;
-            if ( fxe[i_pb] == INF )
-                std::cout << "pb #" << i_pb+1 << " ---> no run returned a feasible point!"<<std::endl;
-        }
-        if ( ! flag_ok )
-        {
-            std::cerr << "Error: at least one run should return a feasible point"<<std::endl;
-            return false;
-        }
-    }
+    // TODO
+//    if ( _use_h_for_profiles )
+//    {
+//        bool flag_ok = false;
+//        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+//        {
+//            if ( !flag_ok && fxe[i_pb] == 0 )
+//                flag_ok = true;
+//            if ( fxe[i_pb] == INF )
+//                std::cout << "pb #" << i_pb+1 << " ---> no run returned a feasible point!"<<std::endl;
+//        }
+//        if ( ! flag_ok )
+//        {
+//            std::cerr << "Error: at least one run should return a feasible point"<<std::endl;
+//            return false;
+//        }
+//    }
 
     // compute the data profile:
     // -------------------------
@@ -1372,22 +1372,24 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     }
     // get the best solution for each problem:
     ArrayOfDouble fxe = get_best_fx();
-    if ( _use_h_for_profiles )
-    {
-        bool flag_ok = false;
-        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
-        {
-            if ( !flag_ok && fxe[i_pb] == 0 )
-                flag_ok = true;
-            if ( fxe[i_pb] == INF )
-                std::cout << "pb #" << i_pb+1 << " ---> no run returned a feasible point!"<<std::endl;
-        }
-        if ( ! flag_ok )
-        {
-            std::cerr << "Error: at least one run should return a feasible point"<<std::endl;
-            return false;
-        }
-    }
+
+    // TODO
+    //    if ( _use_h_for_profiles )
+//    {
+//        bool flag_ok = false;
+//        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+//        {
+//            if ( !flag_ok && fxe[i_pb] == 0 )
+//                flag_ok = true;
+//            if ( fxe[i_pb] == INF )
+//                std::cout << "pb #" << i_pb+1 << " ---> no run returned a feasible point!"<<std::endl;
+//        }
+//        if ( ! flag_ok )
+//        {
+//            std::cerr << "Error: at least one run should return a feasible point"<<std::endl;
+//            return false;
+//        }
+//    }
     // compute the time data profile:
     // -------------------------
     // Compute max time taken by all problems
@@ -2052,7 +2054,11 @@ void RUNNERPOST::Runner::display_selected_algos ( void ) const
 //}
 
 /*------------------------------------------------*/
-/*              set a result (private)            */
+/*   Set a result obtained by an algo on a pb     */
+/*   for all instances                            */
+/*   Call compute_solution and displays brief     */
+/*   solution info.                               */
+/*   Single objective only                        */
 /*------------------------------------------------*/
 void RUNNERPOST::Runner::set_result (const std::string        & test_id /*not used*/ ,
                          Result                     result[],
@@ -2090,13 +2096,26 @@ void RUNNERPOST::Runner::set_result (const std::string        & test_id /*not us
             << " f="    << result[i_pb_instance].get_sol_fx  ()
             << " fx0=" << result[i_pb_instance].get_sol(1)
             << " ffx=" << result[i_pb_instance].get_first_fx();
-//            if ( pb.update_xe ( result[i_seed].get_sol_xe() , result[i_seed].get_sol_fxe() ) )
-//                std::cout << " (new best solution)";
+            std::cout << std::endl;
+        }
+        else if ( result[i_pb_instance].compute_best_infeasible( pb.get_n() ,
+                                                                 bbe        ))
+        {
+            auto time = result[i_pb_instance].get_time(result[i_pb_instance].get_sol_bbe());
+            std::string time_str = "";
+            if (time > 0)
+            {
+                time_str = " time=" + std::to_string(time);
+            }
+            std::cout << "bbe="   << result[i_pb_instance].get_sol_bbe ()
+            << time_str
+            << " h="    << result[i_pb_instance].get_sol_fx  ()
+            << " hx0=" << result[i_pb_instance].get_sol(1);
             std::cout << std::endl;
         }
         else
         {
-            std::cout << "no solution" << std::endl;
+            std::cout << "no solution (feas. or infeas)" << std::endl;
         }
     }
 }
@@ -2808,7 +2827,7 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
         if ( fin.fail() )
         {
             fin.close();
-            result[i_pb_instance].reset(_use_hypervolume_for_profiles, _use_h_for_profiles);
+            result[i_pb_instance].reset(_use_hypervolume_for_profiles);
             return false;
         }
         
@@ -2819,7 +2838,7 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
         if ( !result[i_pb_instance].read ( fin , pb.getMaxBBEvals ( ) , statsFileFormat, _feasibilityThreshold )  )
         {
             fin.close();
-            result[i_pb_instance].reset( _use_hypervolume_for_profiles, _use_h_for_profiles);
+            result[i_pb_instance].reset( _use_hypervolume_for_profiles);
             return false;
         }
         fin.close();
@@ -2828,7 +2847,7 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
 
         if ( res_bbe <= 0 )
         {
-            result[i_pb_instance].reset( _use_hypervolume_for_profiles, _use_h_for_profiles);
+            result[i_pb_instance].reset( _use_hypervolume_for_profiles);
             return false;
         }
         i_pb_instance++;
@@ -3376,7 +3395,7 @@ bool RUNNERPOST::Runner::output_history_profile_pgfplots(const Output & out ) co
         std::string plain_file_name_step = plain_file_name + ".step";
 
         out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 20, color=" << COLORS[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
-        out_tex << "\\addlegendentry{\verb+" << *itLeg << "+};" <<std::endl;
+        out_tex << "\\addlegendentry{\\verb+" << *itLeg << "+};" <<std::endl;
         nbPlotted++;
         itLeg++;
         if (nbPlotted >= maxPlots)

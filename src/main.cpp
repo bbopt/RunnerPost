@@ -475,7 +475,7 @@ int main ( int argc , char ** argv )
         // TODO
         // Select special options
         
-        // Display special options ( Use h for data/perf profiles instead of f (default), use use the average fx value of all the first feasible points instead of the max (default) )
+        // Display special options ( Use h for data/perf profiles instead of f (default), use the average fx value of all the first feasible points instead of the max (default) )
         // runner.display_special_options();
         
         // Algo config file :

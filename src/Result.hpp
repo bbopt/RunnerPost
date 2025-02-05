@@ -9,7 +9,7 @@
 
 
 // Class to store the results from a stats file in a compact form.
-// Keep only improving solution for f or h (only if interested in the infeasibility).
+// Keep only improving solution for f or h.
 class Result
 {
     
@@ -21,6 +21,12 @@ private:
     double                          _totalTime;
     std::vector<double>             _obj;
     
+    // These are empty when a solution (feas) exists.
+    std::vector<size_t>             _bbeForH;
+    std::vector<double>             _timeForH;
+    std::vector<double>             _infH; // Values >=0
+    
+    
 //    std::vector<NOMAD_BASE::EvalPoint> _mobj;
 //    std::vector<size_t>                _nb_dominating_ref_obj;
     
@@ -30,20 +36,30 @@ private:
     bool                       _has_sol;
     bool                       _is_infeas;
     
+    // Option to compute f (hypervolume) and h
     bool                       _use_hypervolume_for_obj;
-    bool                       _use_h_for_obj;
     bool                       _use_std_h;
+    bool                       _use_h_for_obj; // NOT USED. KEEP IT FOR NOW (for prev version of functions!)
     
     size_t                     _nb_obj;  // Used for multi objective
     
+    // A solution is feasible
     size_t                     _sol_bbe;
     double                     _sol_fx;
     double                     _sol_fxe;
 //    size_t                     _nb_pareto_points;
-//    ArrayOfDouble              _sol_xe;
+    ArrayOfDouble              _sol_xe;
     
-    // clear solution:
+    // If we have no solution, we can have a best infeasible point (min h)
+    size_t                     _bestInf_bbe;
+    double                     _bestInf_h;
+    ArrayOfDouble              _bestInf_xe;
+    
+    // clear solution (feas):
     void clear_solution ( void );
+    
+    // clear best infeas:
+    void clear_best_infeas ( void );
 
 //
 //    // Helper to update pareto when a single objs point is provided, return success true if at least one point and false otherwise
@@ -53,29 +69,28 @@ private:
 public:
     
     // constructor:
-    Result ( bool use_hypervolume_for_obj =false, bool use_h_for_obj = false  ):
+    Result ( bool use_hypervolume_for_obj =false ):
         _totalBbe(0),
         _totalTime(0),
         _use_hypervolume_for_obj(use_hypervolume_for_obj),
-        _use_h_for_obj(use_h_for_obj),
         _use_std_h(true) // For now use_std_h is always true
     {
-        if (_use_h_for_obj && _use_hypervolume_for_obj)
-        {
-            std::cout << "Result constructor: Cannot use both h AND hypervolume for obj" <<std::endl;
-        }
         clear_solution();
     }
     
     // destructor:
     virtual ~Result ( void ) {}
     
-    // reset stored bbe, obj, mobjs and set option to use for obj computation
-    void reset ( bool use_hypervolume_for_obj , bool use_h_for_obj ); // Reset can change the default computation of obj set in constructor. For now _use_std_h is always true
+    // reset stored bbe, obj, mobjs and set option to use for h computation
+    void reset ( bool use_hypervolume_for_obj  ); // Reset can change the default computation of obj set in constructor. For now _use_std_h is always true
     
     // compute solution:
     bool compute_solution ( int                   n     ,
-                            size_t                   bbe );
+                            size_t                bbe );
+    bool compute_solution_prev ( int              n     ,
+                                 size_t           bbe );
+    bool compute_best_infeasible ( int            n ,
+                                   size_t         bbe);
     
 //    // compute hypervolume for multi objective:
 //    bool compute_hypervolume_solution ( int                   n     ,
@@ -102,6 +117,7 @@ public:
     
     // read results:
     bool read ( std::ifstream & in , size_t max_bbe , const StatOutputTypeList & sotList, const double & feasibilityThreshold );
+    bool read_prev ( std::ifstream & in , size_t max_bbe , const StatOutputTypeList & sotList, const double & feasibilityThreshold );
     
     // GET methods:
     size_t                     get_last_bbe   ( void    ) const;
