@@ -889,21 +889,56 @@ bool RUNNERPOST::Runner::output_history_profile_plain ( const Output & out ) con
         return false;
     }
 
+    // F, H or both?
+    bool plotF = ( out.get_plot_type() == Output::Plot_Type::OnlyFFeasible || out.get_plot_type() == Output::Plot_Type::ComboHInfAndFFeas );
+    bool plotH = ( out.get_plot_type() == Output::Plot_Type::OnlyHInfeasible || out.get_plot_type() == Output::Plot_Type::ComboHInfAndFFeas );
+    bool plotFAndH = ( out.get_plot_type() == Output::Plot_Type::ComboHInfAndFFeas );
+
+    bool iterPlotFlag = true;
+    
     size_t i_pb, i_algo, i_pb_instance;
 
     // check that best solution and all results are available:
     std::list<size_t> miss_list;
-    std::list<size_t> infeas_list;
-    
-    for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+
+    // For ComboHInfAndFFeas (plotFAndH=true), we need to loop twice
+    while (iterPlotFlag)
     {
-        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+        miss_list.clear();
+        
+        
+        if (!plotFAndH)
         {
-            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
+            // Just one loop. Next while condition will exit
+            iterPlotFlag =false;
+        }
+        else
+        {
+            // Manage the two loops with a switch
+            
+            // First loop: enter with plotH and plotF are true. But just do plot for F
+            if (plotF && plotH)
             {
+                plotH = false;
+            }
+            else
+            {
+                // Second loop: Just do plot for H. Next while condition will exit
+                plotF = false;
+                plotH = true;
+                iterPlotFlag = false;
+            }
+        }
+        
+        for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+        {
+            for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+            {
+                for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
+                {
                     if (! out.plotIsSelected(_selected_algos[i_algo]->get_id(), _selected_pbs[i_pb]->get_id(),i_pb_instance))
                         continue;
-                
+                    
                     double fxBest = INF;
                     if ( !_results[i_pb][i_algo][i_pb_instance].has_solution()  )
                     {
@@ -917,16 +952,25 @@ bool RUNNERPOST::Runner::output_history_profile_plain ( const Output & out ) con
                         else
                             miss_list.push_back( 0 );
                     }
-                    else
+                    
+                    if ( (_results[i_pb][i_algo][i_pb_instance].has_solution() && plotF) || plotH )
                     {
                         
                         std::string plainFileName = out.get_plain_file_name() + "."+_selected_algos[i_algo]->get_id()+"."+_selected_pbs[i_pb]->get_id()+".Inst"+std::to_string(i_pb_instance);
                         
-        
+                        if (plotFAndH && plotF)
+                        {
+                            plainFileName += ".F";
+                        }
+                        else if (plotFAndH && plotH)
+                        {
+                            plainFileName += ".H";
+                        }
+                        
                         std::ofstream fout (plainFileName);
                         if ( fout.fail() )
                         {
-                            std::cerr << "Warning: cannot create performance profile (MW) output file "
+                            std::cerr << "Warning: cannot create history profile output file "
                             << plainFileName << std::endl;
                             return false;
                         }
@@ -939,9 +983,25 @@ bool RUNNERPOST::Runner::output_history_profile_plain ( const Output & out ) con
                             max_bbe = _results[i_pb][i_algo][i_pb_instance].get_last_bbe();
                         }
                         
+                        
                         for ( size_t bbe = 1 ; bbe < max_bbe+1 ; ++bbe )
                         {
-                            double fx = _results[i_pb][i_algo][i_pb_instance].get_sol(bbe);
+                            double fx =INF;
+                            if (plotF)
+                            {
+                                fx = _results[i_pb][i_algo][i_pb_instance].get_sol(bbe);
+                            }
+                            else if (plotH)
+                            {
+                                fx = _results[i_pb][i_algo][i_pb_instance].get_best_infeas(bbe);
+                            }
+                            else
+                            {
+                                std::cerr << "Error: plotH and plotF cannot be both true or false." << std::endl;
+                                return false;
+                            }
+                            
+                            // Write bbe and value of fx or hx
                             if (fx < fxBest )
                             {
                                 fxBest = fx;
@@ -951,7 +1011,8 @@ bool RUNNERPOST::Runner::output_history_profile_plain ( const Output & out ) con
                         fout.close();
                         std::cout << "... done" << std::endl;
                     }
-    
+                    
+                }
             }
         }
     }
@@ -3134,7 +3195,7 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
         {
             out_tex << "       ylabel = {Objective function (feasible)}," <<std::endl;
         }
-        else if (RUNNERPOST::Output::Plot_Type::OnlyH == out.get_plot_type())
+        else if (RUNNERPOST::Output::Plot_Type::OnlyHInfeasible == out.get_plot_type())
         {
             out_tex << "       ylabel = {Infeasibility measure}," <<std::endl;
         }
@@ -3350,7 +3411,7 @@ bool RUNNERPOST::Runner::output_history_profile_pgfplots(const Output & out ) co
     {
         out_tex << "       ylabel = {Objective function (feasible)}," <<std::endl;
     }
-    else if (RUNNERPOST::Output::Plot_Type::OnlyH == out.get_plot_type())
+    else if (RUNNERPOST::Output::Plot_Type::OnlyHInfeasible == out.get_plot_type())
     {
         out_tex << "       ylabel = {Infeasibility measure}," <<std::endl;
     }
@@ -3368,9 +3429,6 @@ bool RUNNERPOST::Runner::output_history_profile_pgfplots(const Output & out ) co
     out_tex << "    at={(1,-0.2)}, " <<std::endl;
     out_tex << "   legend cell align=left, } ]" <<std::endl;
     
-        
-    
-    int y_index = 1;
     int color_index = 0;
     int symbol_index = 0;
     
@@ -3395,7 +3453,7 @@ bool RUNNERPOST::Runner::output_history_profile_pgfplots(const Output & out ) co
         std::string plain_file_name_step = plain_file_name + ".step";
 
         out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 20, color=" << COLORS[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
-        out_tex << "\\addlegendentry{\\verb+" << *itLeg << "+};" <<std::endl;
+        out_tex << "\\addlegendentry{" << *itLeg << "};" <<std::endl;
         nbPlotted++;
         itLeg++;
         if (nbPlotted >= maxPlots)
@@ -3406,6 +3464,223 @@ bool RUNNERPOST::Runner::output_history_profile_pgfplots(const Output & out ) co
     
     
     out_tex << " \\end{axis} " << std::endl;
+    out_tex << " \\end{tikzpicture}" << std::endl;
+    out_tex << " \\end{document}" <<std::endl;
+    
+    out_tex.close();
+    
+    std::cout << " done " << std::endl;
+    
+    return true;
+    
+}
+
+bool RUNNERPOST::Runner::output_combo_history_profile_pgfplots(const Output & out ) const
+{
+    RUNNERPOST::Output::Profile_Type profile_type = out.get_profile_type();
+    
+    if (profile_type != RUNNERPOST::Output::Profile_Type::HISTORY_PROFILE)
+    {
+        std::cerr << "\n Error: Use output_profile_pgfploats." << std::endl;
+        return false;
+    }
+    if ( out.get_plot_type() != RUNNERPOST::Output::Plot_Type::ComboHInfAndFFeas )
+    {
+        std::cerr << "\n Error: Only for Combo history plots." << std::endl;
+        return false;
+    }
+    
+    
+    size_t i_pb, i_algo, i_pb_instance;
+    const size_t n_pb = _selected_pbs.size();
+    const size_t n_algo = _selected_algos.size();
+    
+    std::vector<std::string> listFileNames;
+    std::vector<std::string> listLegends;
+    
+    for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+    {
+        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+        {
+            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
+            {
+                if (! out.plotIsSelected(_selected_algos[i_algo]->get_id(), _selected_pbs[i_pb]->get_id(),i_pb_instance))
+                    continue;
+                
+                auto extensionF = "."+_selected_algos[i_algo]->get_id()+"."+_selected_pbs[i_pb]->get_id()+".Inst"+std::to_string(i_pb_instance)+".F";
+                auto extensionH = "."+_selected_algos[i_algo]->get_id()+"."+_selected_pbs[i_pb]->get_id()+".Inst"+std::to_string(i_pb_instance)+".H";
+                
+                auto legendF = "Objective F for " + _selected_algos[i_algo]->get_id()+" Pb "+_selected_pbs[i_pb]->get_id()+" Inst. "+std::to_string(i_pb_instance);
+                auto legendH = "Infeasibility H for " + _selected_algos[i_algo]->get_id()+" Pb "+_selected_pbs[i_pb]->get_id()+" Inst. "+std::to_string(i_pb_instance);
+                
+                listFileNames.push_back(out.get_plain_file_name()+extensionF);
+                listFileNames.push_back(out.get_plain_file_name()+extensionH);
+                listLegends.push_back(legendF);
+                listLegends.push_back(legendH);
+            }
+        }
+    }
+    if (listFileNames.empty())
+    {
+        std::cerr << "\n Error in output_history_profile_pgfplots: No history file to plot in latex." << std::endl;
+        return false;
+    }
+    
+    size_t lastBbe = 0;
+    
+    std::string latexFileName = out.get_latex_file_name() ;
+    
+    std::cout<< "\t Writing of " ;
+    for (const auto& plain_file_name: listFileNames)
+    {
+        std::ifstream infile(plain_file_name);
+        if (! infile.good() )
+        {
+            std::cerr << "\n Error in output_selection: file " << plain_file_name << " does not exist for latex profile " << std::endl;
+            infile.close();
+            return false;
+        }
+        
+        // Modify plain file name to include the key "step"
+        std::string plain_file_name_step = plain_file_name + ".step";
+        
+        std::cout << plain_file_name_step << " ...";
+        
+        // Create data for plotting data profile with step
+        std::ofstream outfile_step(plain_file_name_step);
+        
+        // The loop for reading plain_file_name and writing to plain_file_name_step
+        std::string line, prevLine, prevLineToken, lineFirstToken;
+        while (std::getline(infile, line))
+        {
+            if (line.empty())
+            {
+                std::cout << std::endl;
+                std::cerr << "Cannot read line from " << plain_file_name << ". Empty lines are present." << std::endl;
+                return false;
+            }
+            if (!prevLine.empty())
+            {
+                // Read the first token of the line
+                std::istringstream iss(line);
+                
+                iss >> lineFirstToken;
+                
+                // Write the first token of the previous line to the new line
+                outfile_step << lineFirstToken << " ";
+                
+                // Write all tokens of prevLine, except the first one
+                std::istringstream issPrev(prevLine);
+                issPrev >> prevLineToken;
+                while (std::getline(issPrev, prevLineToken, ' '))
+                {
+                    if (prevLineToken.empty())
+                    {
+                        continue;
+                    }
+                    outfile_step << prevLineToken << " ";
+                }
+                outfile_step << std::endl;
+            }
+            prevLine = line;
+            outfile_step << line << std::endl;
+            
+        }
+        
+        // Get last bbe from the line
+        lastBbe = std::max<size_t>(lastBbe, std::stoul(prevLine.substr(0, prevLine.find(" "))));
+        
+        outfile_step.close();
+        infile.close();
+    }
+    std::cout << " done " << std::endl;
+    
+    // Graph title
+    std::string profileTitle = out.get_title();
+    
+    std::cout<< "\t Writing of " << latexFileName << " ......";
+    
+    // Output tex file from previous strings
+    std::ofstream out_tex ( latexFileName , std::ofstream::out | std::ofstream::trunc );
+    out_tex << "\\documentclass{standalone}" <<std::endl;
+    out_tex << "\\usepackage{pgfplots} " <<std::endl;
+    out_tex << "\\pgfplotsset{width=10cm,compat=1.16} " <<std::endl;
+    out_tex << "\\begin{document}" <<std::endl;
+    out_tex << "\\begin{tikzpicture} "<<std::endl;
+    out_tex << "\\begin{axis}[ " << std::endl;
+    out_tex << "       title = {" << profileTitle << "}," << std::endl;
+    out_tex << "       xmin=1, xmax=" << std::to_string(lastBbe) << "," << std::endl;
+    out_tex << "       xlabel = {Number of evaluations}," <<std::endl;
+    out_tex << "       ylabel = {Objective function}," <<std::endl;
+    out_tex << "       ylabel near ticks," << std::endl;
+    out_tex << "       axis y line*=right," << std::endl;
+    out_tex << " legend style={ " << std::endl;
+    out_tex << "    font=\\tiny, " <<std::endl;
+    out_tex << "    cells={anchor=southeast}, " << std::endl;
+    out_tex << "    at={(1,-0.2)}, " <<std::endl;
+    out_tex << " legend cell align=left, } ]" <<std::endl;
+    
+    int color_index = 0;
+    int symbol_index = 0;
+    
+    // Maximum number of algorithms that can be plotted
+    const size_t maxPlots = std::min(SYMBOLS.size(),COLORS.size());
+    if ( listFileNames.size() > maxPlots )
+    {
+        if (SYMBOLS.size() != COLORS.size())
+        {
+            std::cerr << "\n Warning:  number of colors and symbols do not match." << std::endl;
+        }
+        std::cerr << "\n Warning:  not enough symbols/colors for the number of algo. Let's plot only the first " << std::to_string(maxPlots) << " plots." << std::endl;
+    }
+    
+    size_t nbPlotted = 0;
+    std::string lineStyle = "solid";
+    
+    for (size_t i =0 ; i < listFileNames.size()-1 ; i+=2)
+    {
+        // Modify plain file name to include the key "step"
+        std::string plain_file_name_step = listFileNames[i] + ".step";
+
+        out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 20, color=" << COLORS[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
+        out_tex << "\\addlegendentry{" << listLegends[i] << "};" <<std::endl;
+        nbPlotted++;
+        if (nbPlotted >= maxPlots)
+        {
+            break;
+        }
+    }
+    out_tex << " \\end{axis} " << std::endl;
+
+    
+    out_tex << "\\begin{axis}[ " << std::endl;
+    out_tex << "       ylabel = {Infeasibility measure}," <<std::endl;
+    out_tex << "       xmin=1, xmax=" << std::to_string(lastBbe) << "," << std::endl;
+    out_tex << "       axis y line*=left,"  <<std::endl;
+    out_tex << "       xlabel near ticks," <<std::endl;
+    out_tex << "       hide x axis," << std::endl;
+    out_tex << " legend style={ " << std::endl;
+    out_tex << "    font=\\tiny, " <<std::endl;
+    out_tex << "    cells={anchor=southeast}, " << std::endl;
+    out_tex << "    at={(1,-0.3)}, " <<std::endl;
+    out_tex << " legend cell align=left, } ]" <<std::endl;
+    
+    for (size_t i = 1 ; i < listFileNames.size() ; i+=2)
+    {
+        // Modify plain file name to include the key "step"
+        std::string plain_file_name_step = listFileNames[i] + ".step";
+
+        out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 20, color=" << COLORS[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
+        out_tex << "\\addlegendentry{" << listLegends[i] << "};" <<std::endl;
+        nbPlotted++;
+        if (nbPlotted >= maxPlots)
+        {
+            break;
+        }
+    }
+    out_tex << " \\end{axis} " << std::endl;
+    
+        
     out_tex << " \\end{tikzpicture}" << std::endl;
     out_tex << " \\end{document}" <<std::endl;
     
@@ -3442,6 +3717,14 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
     std::list<std::string> listFileNames;
     if (out.get_profile_type() == RUNNERPOST::Output::Profile_Type::HISTORY_PROFILE)
     {
+        if (out.get_plot_type() == RUNNERPOST::Output::Plot_Type::ComboHInfAndFFeas)
+        {
+            return output_combo_history_profile_pgfplots(out);
+        }
+        else
+        {
+            return output_history_profile_pgfplots(out);
+        }
         return output_history_profile_pgfplots(out);
     }
     else

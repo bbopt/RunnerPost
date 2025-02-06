@@ -153,6 +153,7 @@ private:
     bool output_profile_pgfplots (const Output & out) const;
     bool output_dataperf_profile_pgfplots(const Output & out ) const;
     bool output_history_profile_pgfplots(const Output & out ) const;
+    bool output_combo_history_profile_pgfplots(const Output & out ) const;
     
     void output_problems_unsolved(const double& tau, const double& nbSimplexEval) const;
     

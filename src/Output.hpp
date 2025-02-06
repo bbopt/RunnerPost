@@ -40,8 +40,8 @@ public:
     {
         OnlyFFeasible,
         OnlyF,
-        OnlyH,
-        ComboHAndFFeasible,
+        OnlyHInfeasible,
+        ComboHInfAndFFeas,
         UNDEFINED_PLOT_TYPE
     };
     

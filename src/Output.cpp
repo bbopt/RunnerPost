@@ -67,7 +67,7 @@ RUNNERPOST::Output::Output (std::string s, std::string & error_msg)
         
         if ( !setSingleAttribute(p) )
         {
-            error_msg = "Error: Cannot read output bracket value in " + s;
+            error_msg = "Error: Cannot read output bracket value in " + p.first + " " + p.second[0];
             break;
         }
         
@@ -137,13 +137,13 @@ RUNNERPOST::Output::Plot_Type RUNNERPOST::Output::stringToPlotType(const std::st
     {
         pType = Plot_Type::OnlyF;
     }
-    else if (s == "ONLYH")
+    else if (s == "ONLYHINFEASIBLE")
     {
-        pType = Plot_Type::OnlyH;
+        pType = Plot_Type::OnlyHInfeasible;
     }
-    else if (s == "COMBOHANDFFEASIBLE")
+    else if (s == "COMBOHINFANDFFEAS")
     {
-        pType = Plot_Type::ComboHAndFFeasible;
+        pType = Plot_Type::ComboHInfAndFFeas;
     }
         
     return pType;
@@ -160,11 +160,11 @@ std::string RUNNERPOST::Output::plotTypeToString(const Output::Plot_Type & pType
         case Plot_Type::OnlyF:
             pTypeStr = "OnlyF";
             break;
-        case Plot_Type::OnlyH:
-            pTypeStr = "OnlyH";
+        case Plot_Type::OnlyHInfeasible:
+            pTypeStr = "OnlyHInfeasible";
             break;
-        case Plot_Type::ComboHAndFFeasible:
-            pTypeStr = "ComboHAndFFeasible";
+        case Plot_Type::ComboHInfAndFFeas:
+            pTypeStr = "ComboHInfAndFFeas";
             break;
         default:
             break;

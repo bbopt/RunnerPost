@@ -125,16 +125,20 @@ public:
     bool                       has_solution   ( void    ) const { return _has_sol;    }
     bool                       is_infeas      ( void    ) const { return _is_infeas;  }
     size_t                     get_sol_bbe    ( void    ) const { return _sol_bbe;    }
-    const double & get_sol_fx     ( void    ) const { return _sol_fx;     }
-    const double & get_first_fx   ( void    ) const { return _obj[0];     }
+    const double &             get_sol_fx     ( void    ) const { return _sol_fx;     }
+    const double &             get_first_fx   ( void    ) const { return _obj[0];     }
     
-    const double & get_sol_fxe    ( void    ) const { return _sol_fxe;    }
+    const double &             get_sol_fxe    ( void    ) const { return _sol_fxe;    }
+    
 //    size_t                     get_nb_pareto_points   ( void    ) const { return _nb_pareto_points; }
 //    size_t                     get_nb_dominating_ref_obj   ( void    ) const { return _nb_dominating_ref_obj.back(); }
 //    const ArrayOfDouble  & get_sol_xe     ( void    ) const { return _sol_xe;     }
+    
     double         get_sol        ( size_t bbe ) const;
+    double         get_best_infeas( size_t bbe ) const;
     double         get_time       (const size_t bbe = INF_SIZE_T) const;
     double         get_sol_by_time(size_t time) const;
+    double         get_best_infeas_by_time(size_t time) const;
     double         getTotalTime() const { return _totalTime; }
     
     // display:

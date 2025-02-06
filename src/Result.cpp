@@ -516,7 +516,15 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
                 _time.push_back(time);
                 obj_prev = obj;
             }
-            hasFeasEval = true; // Once we have the first feasible eval, we are not interested in infeasible evals
+            
+            if (!hasFeasEval)
+            {
+                hasFeasEval = true; // Once we have the first feasible eval, we are not interested in infeasible evals
+                _bbeForH.push_back( bbe );
+                _infH.push_back( 0.0 );
+                _timeForH.push_back(time);
+                h_prev = 0.0;
+            }
         }
         // and improving infeasible evaluations
         else
@@ -524,7 +532,7 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
             if ( !hasFeasEval && h < h_prev && bbe <= max_bbe )
             {
                 _bbeForH.push_back( bbe );
-                _infH.push_back( obj );
+                _infH.push_back( h );
                 _timeForH.push_back(time);
                 h_prev = h;
             }
@@ -1112,9 +1120,9 @@ bool RUNNERPOST::Result::compute_best_infeasible ( int n    ,
 
 
 
-/*------------------------------------------------------*/
-/*  get the solution for a given number of evaluations  */
-/*------------------------------------------------------*/
+/*-----------------------------------------------------------------*/
+/*  get the solution (feasible) for a given number of evaluations  */
+/*-----------------------------------------------------------------*/
 double RUNNERPOST::Result::get_sol ( const size_t bbe) const
 {
     double cur = INF;
@@ -1128,6 +1136,27 @@ double RUNNERPOST::Result::get_sol ( const size_t bbe) const
         if ( _bbe[k] > bbe )
             return cur;
         cur = _obj[k];
+    }
+    
+    return cur;
+}
+
+/*------------------------------------------------------*/
+/*  get the solution for a given number of evaluations  */
+/*------------------------------------------------------*/
+double RUNNERPOST::Result::get_best_infeas ( const size_t bbe) const
+{
+    double cur = INF;
+    int n = static_cast<int> ( _bbeForH.size() );
+    if (n > 0 && _bbeForH[n-1] <= bbe)
+    {
+        return _infH[n-1];
+    }
+    for ( int k = 0 ; k < n ; ++k )
+    {
+        if ( _bbeForH[k] > bbe )
+            return cur;
+        cur = _infH[k];
     }
     
     return cur;
