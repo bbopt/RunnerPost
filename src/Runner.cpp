@@ -3,6 +3,8 @@
 #include <ctime>
 #include <fstream>
 
+#include <filesystem>
+
 /*----------------------------------*/
 /*            constructor           */
 /*----------------------------------*/
@@ -498,6 +500,8 @@ bool RUNNERPOST::Runner::generate_outputs(std::string &error_msg)
     
     error_msg.clear();
     
+    bool success = true;
+    
     size_t n_output = static_cast<int>(_selected_outputs.size());
     if ( n_output == 0 )
     {
@@ -530,28 +534,43 @@ bool RUNNERPOST::Runner::generate_outputs(std::string &error_msg)
     {
         const auto& pt = out->get_profile_type();
         
+        if (!success)
+        {
+            error_msg = "Error in generating output.";
+            return false;
+        }
+        
         if (Output::Profile_Type::DATA_PROFILE == pt)
         {
             const auto& xSel = out->get_x_select();
             if (Output::X_Select::TIME == xSel)
             {
-                output_time_data_profile_plain(*out);
+                success = output_time_data_profile_plain(*out);
             }
             else
             {
-                output_data_profile_plain(*out);
+                success = output_data_profile_plain(*out);
             }
-            output_profile_pgfplots(*out);
+            if (success)
+            {
+                success = output_profile_pgfplots(*out);
+            }
         }
         else if (Output::Profile_Type::PERFORMANCE_PROFILE == pt)
         {
-            output_perf_profile_plain(*out);
-            output_profile_pgfplots(*out);
+            success = output_perf_profile_plain(*out);
+            if (success)
+            {
+                success = output_profile_pgfplots(*out);
+            }
         }
         else if (Output::Profile_Type::HISTORY_PROFILE == pt)
         {
-            output_history_profile_plain(*out);
-            output_profile_pgfplots(*out);
+            success = output_history_profile_plain(*out);
+            if (success)
+            {
+                success = output_profile_pgfplots(*out);
+            }
         }
         else
         {
@@ -741,6 +760,14 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
 
     // Get fx0s for all problems
     const ArrayOfDouble& fx0s = get_fx0s();
+    
+    // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
+    if ( fx0s.empty())
+    {
+        std::cerr << "Error: Undefined fx0. Failed to obtain data profile" << std::endl;
+        fout.close();
+        return false;
+    }
 
     // get the best solution for each problem:
     const ArrayOfDouble& fxe = get_best_fx();
@@ -1148,14 +1175,13 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     // Get fx0s for all problems
     const auto& fx0s = get_fx0s();
     
-    // TODO Failsafe for Fx0
-//    if ( fx0s.isComplete())
-//    {
-//        std::cerr << "Error: Undefined fx0" << std::endl;
-//        fout << "failed to obtain data profile" << std::endl;
-//        fout.close();
-//        return false;
-//    }
+    // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
+    if ( fx0s.empty())
+    {
+        std::cerr << "Error: Undefined fx0: failed to obtain data profile" << std::endl;
+        fout.close();
+        return false;
+    }
     for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
         if ( fx0s[i_pb]==INF )
@@ -1424,6 +1450,15 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     }
     // Get fx0s for all problems
     ArrayOfDouble fx0s = get_fx0s();
+    
+    // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
+    if ( fx0s.empty())
+    {
+        std::cerr << "Error: Undefined fx0. Failed to obtain data profile" << std::endl;
+        fout.close();
+        return false;
+    }
+    
     for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
         if ( fx0s[i_pb] == INF )
@@ -1622,7 +1657,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
         fx0s[i_pb] = fx0;
         for (size_t i_algo = 1 ; i_algo < n_algo ; ++i_algo )
         {
-            for (size_t i_pb_instance=1 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance)
+            for (size_t i_pb_instance=0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance)
             {
                 fx0 = _results[i_pb][i_algo][i_pb_instance].get_sol(1);
 
@@ -2069,50 +2104,63 @@ void RUNNERPOST::Runner::display_selected_algos ( void ) const
 
 
 
+/*---------------------------------------*/
+/*  construct a list of files            */
+/*  (static, private)                    */
+/*---------------------------------------*/
+bool RUNNERPOST::Runner::construct_list_of_files ( std::list<std::string> & list_of_files ,
+                                                    const std::string      & directory      ) const
+{
+
+    if ( ! list_of_files.empty() )
+        list_of_files.clear();
+    
+    try {
+        
+        // loop over all files in the directory
+        for (const auto& entry : std::filesystem::directory_iterator(directory))
+        {
+            if (entry.is_regular_file())
+            {
+                list_of_files.push_back(entry.path().string());
+            }
+        }
+    } catch (const std::filesystem::filesystem_error& err) {
+        std::cerr << "Filesystem error: " << err.what() << std::endl;
+        return false;
+    }
+
+    return true;
+}
 
 
-///*---------------------------------------*/
-///*  construct a list of sub-directories  */
-///*  (static, private)                    */
-///*---------------------------------------*/
-//bool Runner::construct_list_of_subdirs ( std::list<std::string> & list_of_dirs ,
-//                                        const std::string      & directory      )
-//{
-//
-//
-//    if ( ! list_of_dirs.empty() )
-//        list_of_dirs.clear();
-//
-//
-//
-//    std::string s , cmd = "ls " + directory + " > " + TMP_FILE;
-//
-//
-//    if (0 != system ( cmd.c_str() ))
-//    {
-//        std::cerr << "Error listing files in directory: " << directory << std::endl;
-//        return false;
-//    }
-//
-//    std::ifstream fin ( TMP_FILE.c_str() );
-//
-//    while ( !fin.eof() )
-//    {
-//        fin >> s >> std::ws;
-//        if ( !s.empty() )
-//            list_of_dirs.push_back ( s );
-//    }
-//
-//    fin.close();
-//    remove ( TMP_FILE.c_str() );
-//
-//    if ( fin.fail() )
-//    {
-//        list_of_dirs.clear();
-//        return false;
-//    }
-//    return true;
-//}
+/*---------------------------------------*/
+/*  construct a list of sub-directories  */
+/*  (static, private)                    */
+/*---------------------------------------*/
+bool RUNNERPOST::Runner::construct_list_of_subdirs ( std::list<std::string> & list_of_dirs ,
+                                                    const std::string      & directory      ) const
+{
+
+    if ( ! list_of_dirs.empty() )
+        list_of_dirs.clear();
+    
+    try {
+        
+        for (const auto& entry : std::filesystem::directory_iterator(directory))
+        {
+            if (entry.is_directory())
+            {
+                list_of_dirs.push_back(entry.path().string());
+            }
+        }
+    } catch (const std::filesystem::filesystem_error& err) {
+        std::cerr << "Filesystem error: " << err.what() << std::endl;
+        return false;
+    }
+
+    return true;
+}
 
 /*------------------------------------------------*/
 /*   Set a result obtained by an algo on a pb     */
@@ -2614,6 +2662,22 @@ bool RUNNERPOST::Runner::read_problem_selection_file ( const std::string  & pb_s
             continue;
         }
         
+        // Manage the case where the problem are defined by a directory
+        // The problem selection file contains only the symbol *.
+        // The problems are defined in the directories for the algos.
+        // Here the * is detected and the pb selection is delayed after
+        if (line.find("*") == 0)
+        {
+            in.close();
+            std::cerr << "Select pbs from the content of the algos directories.";
+            
+            return read_problem_selection_from_algo_dir(error_msg);
+        }
+        else
+        {
+            _selected_pbs.push_back(new Problem(line, error_msg));
+        }
+        
         _selected_pbs.push_back(new Problem(line, error_msg));
         if (!error_msg.empty())
         {
@@ -2635,43 +2699,167 @@ bool RUNNERPOST::Runner::read_problem_selection_file ( const std::string  & pb_s
     return true;
 }
 
-bool RUNNERPOST::Runner::read_problem_selection ( const std::string  & problem_selection_formatted ,
-                                                    std::string        & error_msg        )
+bool RUNNERPOST::Runner::read_problem_selection_from_algo_dir ( std::string        & error_msg        )
 {
     error_msg.clear();
-
-    if ( problem_selection_formatted.empty() )
+    
+    // Read the problems from the algo directories
+    // Check that some conditions are met
+    std::vector<std::string> algo_dirs;
+    for (const auto & algo: _selected_algos)
     {
-        error_msg = "Error(0). Cannot read formatted string. It is empty. " ;
-        return false;
-    }
-
-    // Read the algo selection from formatted string
-    std::stringstream in ( problem_selection_formatted.c_str(), std::ios::in );
-
-    while(!in.eof())
-    {
-        std::string line;
-        getline (in , line);
+        auto sotList = algo->get_stats_output_type_list();
         
-        if (line.empty())
+        // TODO: check if the case with FEAS, SOL and OBJ can be handled.
+        // TODO: what about multi objectives
+        
+        bool hasConst = (std::count(sotList.begin(),sotList.end(),StatOutputType::CST) > 0);
+        bool hasSol = (std::count(sotList.begin(),sotList.end(),StatOutputType::SOL) > 0);
+        size_t nbObj = std::count(sotList.begin(),sotList.end(),StatOutputType::OBJ);
+        
+        if (nbObj > 1)
         {
-            continue;
+            error_msg = "Error. Algo " + algo->get_id() + " has more than one objective in the output. Cannot select problems from algo directories.";
+            return false;
         }
         
-        _selected_pbs.push_back(new Problem(line, error_msg));
+        if (hasConst)
+        {
+            error_msg = "Error. Algo " + algo->get_id() + " has constraints in the output. Cannot deduce problems from algo directories.";
+            return false;
+        }
+        if (!hasSol)
+        {
+            error_msg = "Error. Algo " + algo->get_id() + " has no solutions in the output. Cannot select problems from algo directories.";
+            return false;
+        }
+        
+        algo_dirs.push_back( algo->get_id());
+    }
+    
+    // Use the first algo dir to read the problems directories
+    std::list<std::string> pb_dirs;
+    // Construct the pb directories from the first algo dir
+    if (!construct_list_of_subdirs(pb_dirs, algo_dirs[0]))
+    {
+        error_msg = "Error. Cannot read pb directories from algo dir " + algo_dirs[0];
+        return false;
+    }
+    
+    auto sotList = _selected_algos[0]->get_stats_output_type_list();
+    
+    // We suppose the instance name is "0"
+    const std::string defPbInst = "0";
+    
+    // Use a reference list of the selected problems created with the first algo.
+    // After that, make sure to compare what is obtained with the remaining algos.
+    
+    std::vector<Problem>         ref_selected_pbs;
+    
+    // Read the first line of each pb dir to get the pb id, the number of instances, the dimension (n), the number of objectives and constraints (m)
+    for (const auto & pb: pb_dirs)
+    {
+        // Get the list of all result files in a pb dir
+        std::list<std::string> res_files;
+        if (!construct_list_of_files(res_files, pb))
+        {
+            error_msg = "Error. Cannot read pb result files from pb dir " + pb;
+            return false;
+        }
+
+        if (res_files.size() > 1)
+        {
+            error_msg = "Error. More than one instances cannot be managed to read pb result files from pb dir " + pb;
+            return false;
+        }
+            
+        // Create a problem definition using the available information from the result file
+        Problem pbDef(res_files.front(), sotList, defPbInst, error_msg);
+        
         if (!error_msg.empty())
         {
             return false;
         }
-    }
+        
+        // Check if this is consistent with the algo stats file name
+        // We suppose the instance name is 0
+        auto statFileName = get_stats_file_name(*_selected_algos[0], pbDef /*Not used*/, defPbInst);
+        if (res_files.front().find(statFileName) == std::string::npos)
+        {
+            error_msg = "Error. The stats file name " + statFileName + " does not match the pb result file name " + res_files.front();
+            return false;
+        }
     
-    if (_selected_pbs.empty())
+        // Let's add the pb definition to the reference
+        ref_selected_pbs.push_back(pbDef);
+        
+    }
+        
+    // Check the consistency of pb dirs with the other algo dirs
+    for (size_t i =1 ; i < algo_dirs.size() ; i++)
     {
-        error_msg = "Error(1) in file " + problem_selection_formatted + ". Cannot read a single problem config. First line in string must contain a problem config." ;
-        return false;
+        std::list<std::string> pb_dirs;
+        if (!construct_list_of_subdirs(pb_dirs, algo_dirs[i] ))
+        {
+            error_msg = "Error. Cannot read pb directories from algo dir " + algo_dirs[i];
+            return false;
+        }
+        
+        // Read the first line of each pb dir to get the pb id, the number of instances, the dimension (n), the number of objectives and constraints (m)
+        for (const auto & pb: pb_dirs)
+        {
+            // Get the list of all result files in a pb dir
+            std::list<std::string> res_files;
+            if (!construct_list_of_files(res_files, pb))
+            {
+                error_msg = "Error. Cannot read pb result files from pb dir " + pb;
+                return false;
+            }
+            
+            if (res_files.size() > 1)
+            {
+                error_msg = "Error. More than one instances cannot be managed to read pb result files from pb dir " + pb;
+                return false;
+            }
+            
+            auto algoSotList = _selected_algos[i]->get_stats_output_type_list();
+            
+            // TODO check the same conditions as for algo 0
+            
+            // Create a pb from a problem result file
+            Problem algoPbDef(res_files.front(), algoSotList, defPbInst, error_msg);
+            
+            // Compare algoPbDef with the reference pb having the same id
+            bool pbMatch = false;
+            for (const auto & refPb: ref_selected_pbs)
+            {
+                if (refPb.get_id() == algoPbDef.get_id())
+                {
+                    pbMatch = (refPb.get_n() == algoPbDef.get_n()); // Just need to compare the pb dimension
+                    break;
+                }
+            }
+            if (!pbMatch)
+            {
+                error_msg = "Error. The pb " + algoPbDef.get_id() + " from algo dir " + algo_dirs[i] + " does not match the pb from the first algo dir " + algo_dirs[0];
+                return false;
+            }
+        }
     }
 
+    // Read the algo selection from formatted string
+    if (ref_selected_pbs.empty())
+    {
+        error_msg = "Error. Cannot read a single problem config from optimization results." ;
+        return false;
+    }
+    
+    // Copy the reference selected pbs to the selected pbs
+    for (const auto & pb: ref_selected_pbs)
+    {
+        _selected_pbs.push_back(new Problem(pb));
+    }
+    
     return true;
 
 }
@@ -2977,7 +3165,6 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
 //}
 
 
-
 /*-----------------------------------------*/
 /*        access to the date (private)     */
 /*        (CPU name is also added)         */
@@ -3013,6 +3200,7 @@ std::string RUNNERPOST::Runner::get_date ( void ) const
 
     return s;
 }
+
 
 
 void RUNNERPOST::Runner::add_pbinstance_to_file_name ( const std::string       &  pbInstance,
