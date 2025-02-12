@@ -1,1 +1,1 @@
-HISTORY_PROFILE (Convergence plots) [output_plain historyCombo.txt][output_latex historyCombo.tex] [x_max INF][plot_selection * 1][plot_type ComboHInfAndFFeas]
+CONVERGENCE_PROFILE (Convergence plots) [output_plain convergenceCombo.txt][output_latex convergenceCombo.tex] [x_max INF][plot_selection * 1][plot_type ComboHInfAndFFeas]

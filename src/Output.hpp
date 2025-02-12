@@ -18,7 +18,7 @@ public:
     {
         DATA_PROFILE,
         PERFORMANCE_PROFILE,
-        HISTORY_PROFILE,
+        CONVERGENCE_PROFILE,
         ACCURACY_PROFILE,
         UNDEFINED_PROFILE
     };
@@ -59,7 +59,7 @@ private:
     
     std::vector<std::string>           _profile_type_options;
     
-    std::vector<std::string>           _plotSelection = {"ALLALGO","ALLPB", "ALLINST"}; // Default value, only for history profile
+    std::vector<std::string>           _plotSelection = {"ALLALGO","ALLPB", "ALLINST"}; // Default value, only for convergence profile
     Plot_Type                          _plotType = Plot_Type::UNDEFINED_PLOT_TYPE;
     
     

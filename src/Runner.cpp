@@ -564,9 +564,9 @@ bool RUNNERPOST::Runner::generate_outputs(std::string &error_msg)
                 success = output_profile_pgfplots(*out);
             }
         }
-        else if (Output::Profile_Type::HISTORY_PROFILE == pt)
+        else if (Output::Profile_Type::CONVERGENCE_PROFILE == pt)
         {
-            success = output_history_profile_plain(*out);
+            success = output_convergence_profile_plain(*out);
             if (success)
             {
                 success = output_profile_pgfplots(*out);
@@ -897,9 +897,9 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
 }
 
 /*---------------------------------------*/
-/*       display history profiles    */
+/*       display convergence profiles    */
 /*---------------------------------------*/
-bool RUNNERPOST::Runner::output_history_profile_plain ( const Output & out ) const
+bool RUNNERPOST::Runner::output_convergence_profile_plain ( const Output & out ) const
 {
     
     const size_t n_pb = _selected_pbs.size();
@@ -907,12 +907,12 @@ bool RUNNERPOST::Runner::output_history_profile_plain ( const Output & out ) con
     
     if ( n_pb == 0 || n_algo == 0 )
     {
-        std::cerr << "Error: cannot compute history profile for n_pb ==0 or n_algo == 0" << std::endl;
+        std::cerr << "Error: cannot compute convergence profile for n_pb ==0 or n_algo == 0" << std::endl;
         return false;
     }
     if ( out.get_x_select() == Output::X_Select::NP1EVAL)
     {
-        std::cerr << "Error: cannot compute history profile for X_SEL NP1EVAL, N may vary for each problem. Use EVAL instead." << std::endl;
+        std::cerr << "Error: cannot compute convergence profile for X_SEL NP1EVAL, N may vary for each problem. Use EVAL instead." << std::endl;
         return false;
     }
 
@@ -997,7 +997,7 @@ bool RUNNERPOST::Runner::output_history_profile_plain ( const Output & out ) con
                         std::ofstream fout (plainFileName);
                         if ( fout.fail() )
                         {
-                            std::cerr << "Warning: cannot create history profile output file "
+                            std::cerr << "Warning: cannot create convergence profile output file "
                             << plainFileName << std::endl;
                             return false;
                         }
@@ -2999,6 +2999,9 @@ bool RUNNERPOST::Runner::read_output_selection ( const std::string  & output_sel
 
 void RUNNERPOST::Runner::display_selected_outputs   ( void ) const
 {
+    
+    // TODO check that output files do not have the same name.
+    
     size_t n = _selected_outputs.size();
 
     std::cout << std::endl;
@@ -3230,9 +3233,9 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
 {
     RUNNERPOST::Output::Profile_Type profile_type = out.get_profile_type();
     
-    if (profile_type == RUNNERPOST::Output::Profile_Type::HISTORY_PROFILE)
+    if (profile_type == RUNNERPOST::Output::Profile_Type::CONVERGENCE_PROFILE)
     {
-        std::cerr << "\n Error: Use output_history_profile_pgfploats." << std::endl;
+        std::cerr << "\n Error: Use output_convergence_profile_pgfploats." << std::endl;
         return false;
     }
     
@@ -3370,7 +3373,7 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
             return false;
         }
     }
-    else if (RUNNERPOST::Output::Profile_Type::HISTORY_PROFILE == profile_type)
+    else if (RUNNERPOST::Output::Profile_Type::CONVERGENCE_PROFILE == profile_type)
     {
         out_tex << "       xmin=1," << std::endl;
         out_tex << "       xlabel = {Number of evaluations}," <<std::endl;
@@ -3453,7 +3456,7 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
             }
         }
     }
-    else if (RUNNERPOST::Output::Profile_Type::HISTORY_PROFILE == profile_type)
+    else if (RUNNERPOST::Output::Profile_Type::CONVERGENCE_PROFILE == profile_type)
     {
         out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[0] << ", mark repeat = 20, color=" << COLORS[0] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
     }
@@ -3471,11 +3474,11 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
 }
 
 
-bool RUNNERPOST::Runner::output_history_profile_pgfplots(const Output & out ) const
+bool RUNNERPOST::Runner::output_convergence_profile_pgfplots(const Output & out ) const
 {
     RUNNERPOST::Output::Profile_Type profile_type = out.get_profile_type();
     
-    if (profile_type != RUNNERPOST::Output::Profile_Type::HISTORY_PROFILE)
+    if (profile_type != RUNNERPOST::Output::Profile_Type::CONVERGENCE_PROFILE)
     {
         std::cerr << "\n Error: Use output_profile_pgfploats." << std::endl;
         return false;
@@ -3507,7 +3510,7 @@ bool RUNNERPOST::Runner::output_history_profile_pgfplots(const Output & out ) co
     }
     if (listFileNames.empty())
     {
-        std::cerr << "\n Error in output_history_profile_pgfplots: No history file to plot in latex." << std::endl;
+        std::cerr << "\n Error in output_convergence_profile_pgfplots: No history file to plot in latex." << std::endl;
         return false;
     }
     
@@ -3663,18 +3666,18 @@ bool RUNNERPOST::Runner::output_history_profile_pgfplots(const Output & out ) co
     
 }
 
-bool RUNNERPOST::Runner::output_combo_history_profile_pgfplots(const Output & out ) const
+bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output & out ) const
 {
     RUNNERPOST::Output::Profile_Type profile_type = out.get_profile_type();
     
-    if (profile_type != RUNNERPOST::Output::Profile_Type::HISTORY_PROFILE)
+    if (profile_type != RUNNERPOST::Output::Profile_Type::CONVERGENCE_PROFILE)
     {
         std::cerr << "\n Error: Use output_profile_pgfploats." << std::endl;
         return false;
     }
     if ( out.get_plot_type() != RUNNERPOST::Output::Plot_Type::ComboHInfAndFFeas )
     {
-        std::cerr << "\n Error: Only for Combo history plots." << std::endl;
+        std::cerr << "\n Error: Only for Combo convergence plots." << std::endl;
         return false;
     }
     
@@ -3710,7 +3713,7 @@ bool RUNNERPOST::Runner::output_combo_history_profile_pgfplots(const Output & ou
     }
     if (listFileNames.empty())
     {
-        std::cerr << "\n Error in output_history_profile_pgfplots: No history file to plot in latex." << std::endl;
+        std::cerr << "\n Error in output_convergence_profile_pgfplots: No history file to plot in latex." << std::endl;
         return false;
     }
     
@@ -3903,17 +3906,17 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
 
     
     std::list<std::string> listFileNames;
-    if (out.get_profile_type() == RUNNERPOST::Output::Profile_Type::HISTORY_PROFILE)
+    if (out.get_profile_type() == RUNNERPOST::Output::Profile_Type::CONVERGENCE_PROFILE)
     {
         if (out.get_plot_type() == RUNNERPOST::Output::Plot_Type::ComboHInfAndFFeas)
         {
-            return output_combo_history_profile_pgfplots(out);
+            return output_combo_convergence_profile_pgfplots(out);
         }
         else
         {
-            return output_history_profile_pgfplots(out);
+            return output_convergence_profile_pgfplots(out);
         }
-        return output_history_profile_pgfplots(out);
+        return output_convergence_profile_pgfplots(out);
     }
     else
     {

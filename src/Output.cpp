@@ -85,11 +85,11 @@ RUNNERPOST::Output::Output (std::string s, std::string & error_msg)
     // TODO: check inconsistencies. Example: tau provided but default output file name are used. At least give a warning
     if ((_pType == DATA_PROFILE || _pType == PERFORMANCE_PROFILE) && _plotType != UNDEFINED_PLOT_TYPE)
     {
-        error_msg = "Error: Plot type cannot be defined for DATA_PROFILE or PERFORMANCE_PROFILE, only for HISTORY_PROFILE.";
+        error_msg = "Error: Plot type cannot be defined for DATA_PROFILE or PERFORMANCE_PROFILE, only for CONVERGENCE_PROFILE.";
     }
-    if (_pType == HISTORY_PROFILE && _tau != -1)
+    if (_pType == CONVERGENCE_PROFILE && _tau != -1)
     {
-        error_msg = "Error: Cannot set tau for HISTORY_PROFILE.";
+        error_msg = "Error: Cannot set tau for CONVERGENCE_PROFILE.";
     }
     
 }
@@ -110,9 +110,9 @@ RUNNERPOST::Output::Profile_Type RUNNERPOST::Output::stringToProfileType(const s
     {
         pType = Profile_Type::PERFORMANCE_PROFILE;
     }
-    else if (s == "HISTORY_PROFILE")
+    else if (s == "CONVERGENCE_PROFILE")
     {
-        pType = Profile_Type::HISTORY_PROFILE;
+        pType = Profile_Type::CONVERGENCE_PROFILE;
     }
     else if (s == "ACCURACY_PROFILE")
     {
@@ -237,8 +237,8 @@ std::string RUNNERPOST::Output::profileTypeToString(const Output::Profile_Type &
         case Profile_Type::PERFORMANCE_PROFILE:
             pTypeStr = "PERFORMANCE_PROFILE";
             break;
-        case Profile_Type::HISTORY_PROFILE:
-            pTypeStr = "HISTORY_PROFILE";
+        case Profile_Type::CONVERGENCE_PROFILE:
+            pTypeStr = "CONVERGENCE_PROFILE";
             break;
         case Profile_Type::ACCURACY_PROFILE:
             pTypeStr = "ACCURACY_PROFILE";
