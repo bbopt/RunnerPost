@@ -1,4 +1,6 @@
-dp*.txt
+**/dp*.*
+**/pp*.*
+**/conver*.*
 *.step
 *.tex
 *.aux

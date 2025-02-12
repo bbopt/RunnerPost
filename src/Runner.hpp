@@ -39,7 +39,7 @@ private:
     
     std::list<int>                 _algoRunSeeds; //The seeds for algo runs are stored as a list of int
 
-    
+    bool                           _pb_selection_from_dir; // Flag to indicate if the selection of problems is done from the content of the algo directories
     
     // Clear memory
     void clear_memory ( );
@@ -148,13 +148,23 @@ private:
     bool output_time_profile_plain(const Output & out) const;
     // Data profile in function of time
     bool output_time_data_profile_plain(const Output & out) const;
+    bool output_convergence_profile_plain(const Output & out) const;
     
     bool output_profile_pgfplots (const Output & out) const;
+    bool output_dataperf_profile_pgfplots(const Output & out ) const;
+    bool output_convergence_profile_pgfplots(const Output & out ) const;
+    bool output_combo_convergence_profile_pgfplots(const Output & out ) const;
     
     void output_problems_unsolved(const double& tau, const double& nbSimplexEval) const;
     
     StatOutputTypeList composeStatsFileFormat(const StatOutputTypeList & acSotList , const size_t & n, const size_t & m) const;
 
+    
+    bool construct_list_of_subdirs ( std::list<std::string> & list_of_dirs ,
+                                    const std::string      & directory      ) const ;
+    bool construct_list_of_files ( std::list<std::string> & list_of_files ,
+                                    const std::string      & directory      ) const ;
+    
     
 public:
     
@@ -236,11 +246,10 @@ public:
     bool read_problem_selection_file    ( const std::string & pb_selection_file_name ,
                                          std::string       & error_msg          );
 
-    bool read_problem_selection         ( const std::string & pb_selection_formatted ,
-                                         std::string       & error_msg          );
+    bool read_problem_selection_from_algo_dir(std::string       & error_msg          );
 
     void clear_selected_problems     ( void );
-    void  display_selected_problems   ( void ) const;
+    void display_selected_problems   ( void ) const;
 
     bool read_algo_selection_file    ( const std::string & algo_selection_file_name ,
                                    std::string       & error_msg          );

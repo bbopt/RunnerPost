@@ -13,11 +13,7 @@
 #include <vector>
 #include <algorithm>
 
-// All directories are relative to the run directory
-//const std::string PROBLEMS_DIR         = "./problems/";
-
-// The test directory for a problem is relative to the problem 
-//const std::string TESTS_DIR            = "tests/";
+#include "runnerpost_nsbegin.hpp"
 
 // Directory separator
 #ifdef WINDOWS
@@ -25,8 +21,6 @@ const char        DIR_SEP = '\\';           ///< Directory separator
 #else
 const char        DIR_SEP = '/';            ///< Directory separator
 #endif
-
-#include "runnerpost_nsbegin.hpp"
 
 const double INF = std::numeric_limits<double>::max(); ///< Infinity
 const double M_INF = std::numeric_limits<double>::lowest(); ///< -Infinity

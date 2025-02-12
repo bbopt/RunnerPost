@@ -10,15 +10,15 @@
 // This class is for the output options of the runner.
 // It is used to specify the output format of the runner.
 class Output {
-
-
+    
+    
 public:
     
     enum Profile_Type
     {
         DATA_PROFILE,
         PERFORMANCE_PROFILE,
-        HISTORY,
+        CONVERGENCE_PROFILE,
         ACCURACY_PROFILE,
         UNDEFINED_PROFILE
     };
@@ -36,55 +36,42 @@ public:
         UNDEFINED_X
     };
     
-
+    enum Plot_Type
+    {
+        OnlyFFeasible,
+        OnlyF,
+        OnlyHInfeasible,
+        ComboHInfAndFFeas,
+        UNDEFINED_PLOT_TYPE
+    };
+    
+    
 private:
-
+    
     Profile_Type                       _pType = Profile_Type::UNDEFINED_PROFILE;
-    Y_Select                           _ySel = Y_Select::UNDEFINED_Y;
-    X_Select                           _xSel = X_Select::UNDEFINED_X;
+    Y_Select                           _ySel = Y_Select::OBJ;
+    X_Select                           _xSel = X_Select::EVAL;
     int                                _xMax;
-    double                             _tau;
+    double                             _tau = -1.0; // Default value is not allowed. Must be set explicitly depending on profile type. This is tested.
     std::string                        _plainFileName;
     std::string                        _latexFileName;
     std::string                        _title="";
-
+    
+    std::vector<std::string>           _profile_type_options;
+    
+    std::vector<std::string>           _plotSelection = {"ALLALGO","ALLPB", "ALLINST"}; // Default value, only for convergence profile
+    Plot_Type                          _plotType = Plot_Type::UNDEFINED_PLOT_TYPE;
+    
     
 public:
     
     
     // Constructor #1
     Output (std::string single_output_description, std::string & error_msg);
-
-    // Maybe more constructors
-//    // constructor #3:
-//    Output (const Profile_Type & ptype )
-//    : _pType              ( ptype    ) ,
-//      _fileName           ( fileName ) ,
-//      _ySel               ( Y_Select::OBJ ) ,
-//      _xSel               ( X_Select::NP1EVAL ) ,
-//      _tau                ( tau     )
-//    {};
-//
-//    // constructor #3:
-//    Output (const Profile_Type & ptype, const double & tau, const Y_Select & ySel )
-//    : _pType              ( ptype    ) ,
-//      _fileName           ( fileName ) ,
-//      _ySel               ( ySel ) ,
-//      _xSel               ( X_Select::NP1EVAL ) ,
-//      _tau                ( tau     )
-//    {};
-//
-//    // constructor #4:
-//    Output (const Profile_Type & ptype, const double & tau, const Y_Select & ySel, const X_Select & xSel)
-//    : _pType              ( ptype    ) ,
-//      _ySel               ( ySel ) ,
-//      _xSel               ( xSel ) ,
-//      _tau                ( tau     )
-//    {};
     
     // destructor:
     virtual ~Output ( void ) {}
-
+    
     // SET methods:
     bool setSingleAttribute(const std::pair<std::string,std::vector<std::string>> & att);
     bool setProfileType(const std::string & s) { _pType = stringToProfileType(s); if (_pType == Profile_Type::UNDEFINED_PROFILE) return false; return true; }
@@ -97,6 +84,11 @@ public:
     void setXSelect(const Output::X_Select & xs) { _xSel = xs;}
     bool setXMax(const int & xMax) { if (xMax<=0) return false; _xMax = xMax ; return true; }
     bool setXMax(const std::string & s) {return setXMax(std::stoi(s));}
+    
+    bool setPlotSelection(const std::vector<std::string> & s);
+    
+    bool setPlotType(const std::string & s){ _plotType = stringToPlotType(s); if (_plotType == Plot_Type::UNDEFINED_PLOT_TYPE) return false; return true; }
+    void setPlotType(const Plot_Type & pt) { _plotType = pt;}
     
     bool setPlainFileName(const std::string & s) { if (s.empty()) return false; _plainFileName = s; return true; }
     bool setLatexFileName(const std::string & s) { if (s.empty()) return false; _latexFileName = s; return true; }
@@ -114,10 +106,19 @@ public:
     const std::string &         get_plain_file_name() const { return _plainFileName;}
     const std::string &         get_latex_file_name() const { return _latexFileName;}
     const std::string &         get_title() const { return _title;}
+
+    const std::vector<std::string> & get_plot_selection() const { return _plotSelection;}
+    const Plot_Type &           get_plot_type() const { return _plotType;}
     
+    bool plotIsSelected(const std::string & algoId, const std::string & pbId, size_t i_pbInstance) const ;
+    
+    const std::vector<std::string> & get_profile_type_options() const { return _profile_type_options;}
     
     static Profile_Type stringToProfileType(const std::string & s) ;
     static std::string profileTypeToString(const Profile_Type & pType) ;
+    
+    static Plot_Type stringToPlotType(const std::string & sConst);
+    static std::string plotTypeToString(const Plot_Type & pType);
     
 };
 

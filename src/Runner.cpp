@@ -3,6 +3,8 @@
 #include <ctime>
 #include <fstream>
 
+#include <filesystem>
+
 /*----------------------------------*/
 /*            constructor           */
 /*----------------------------------*/
@@ -11,7 +13,6 @@ _results    ( NULL ) ,
 _test_id    ( NULL ) ,
 _use_avg_fx_first_feas( false ) ,
 _use_evals_for_dataprofiles ( false ) ,
-_use_h_for_profiles ( false ),
 _use_hypervolume_for_profiles ( false ),
 _feasibilityThreshold (0.0)
 {
@@ -454,7 +455,7 @@ bool RUNNERPOST::Runner::run_post_processing ( std::string & error_msg )
             
             for (size_t i_pb_inst = 0 ; i_pb_inst < n_pb_inst ; i_pb_inst++)
             {
-                _results[i_pb][i_algo][i_pb_inst].reset( _use_hypervolume_for_profiles, _use_h_for_profiles );
+                _results[i_pb][i_algo][i_pb_inst].reset( _use_hypervolume_for_profiles );
             }
 
             if ( !RUNNERPOST::Runner::get_results ( _test_id              [i_pb][i_algo]  ,
@@ -499,6 +500,8 @@ bool RUNNERPOST::Runner::generate_outputs(std::string &error_msg)
     
     error_msg.clear();
     
+    bool success = true;
+    
     size_t n_output = static_cast<int>(_selected_outputs.size());
     if ( n_output == 0 )
     {
@@ -529,26 +532,45 @@ bool RUNNERPOST::Runner::generate_outputs(std::string &error_msg)
     // loop on outputs:
     for ( const auto & out: _selected_outputs )
     {
-        auto pt = out->get_profile_type();
+        const auto& pt = out->get_profile_type();
+        
+        if (!success)
+        {
+            error_msg = "Error in generating output.";
+            return false;
+        }
         
         if (Output::Profile_Type::DATA_PROFILE == pt)
         {
-            auto xSel = out->get_x_select();
-            auto ySel = out->get_y_select();
+            const auto& xSel = out->get_x_select();
             if (Output::X_Select::TIME == xSel)
             {
-                output_time_data_profile_plain(*out);
+                success = output_time_data_profile_plain(*out);
             }
             else
             {
-                output_data_profile_plain(*out);
+                success = output_data_profile_plain(*out);
             }
-            output_profile_pgfplots(*out);
+            if (success)
+            {
+                success = output_profile_pgfplots(*out);
+            }
         }
         else if (Output::Profile_Type::PERFORMANCE_PROFILE == pt)
         {
-            error_msg = "Performance profile. TODO.";
-            return false;
+            success = output_perf_profile_plain(*out);
+            if (success)
+            {
+                success = output_profile_pgfplots(*out);
+            }
+        }
+        else if (Output::Profile_Type::CONVERGENCE_PROFILE == pt)
+        {
+            success = output_convergence_profile_plain(*out);
+            if (success)
+            {
+                success = output_profile_pgfplots(*out);
+            }
         }
         else
         {
@@ -737,10 +759,18 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     }
 
     // Get fx0s for all problems
-    ArrayOfDouble fx0s = get_fx0s();
+    const ArrayOfDouble& fx0s = get_fx0s();
+    
+    // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
+    if ( fx0s.empty())
+    {
+        std::cerr << "Error: Undefined fx0. Failed to obtain data profile" << std::endl;
+        fout.close();
+        return false;
+    }
 
     // get the best solution for each problem:
-    ArrayOfDouble fxe = get_best_fx();
+    const ArrayOfDouble& fxe = get_best_fx();
 
 
     // compute tpsMin and alpha_max (Moré and Wild  2009, eq. 2.1)
@@ -776,7 +806,6 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
                             (tpsMinTmp!=bbe_max+1 && alpha_max < bbe/tpsMinTmp))
                         {
                             alpha_max=bbe/tpsMinTmp;
-
                         }
                     }
                 }
@@ -784,21 +813,64 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
         }
         tpsMin.push_back(tpsMinTmp);
     }
-
-
+    
+    if (tpsMin.size() != n_pb)
+    {
+        std::cerr << "Error: tpsMin not computed for all problems" << std::endl;
+        fout.close();
+        return false;
+    }
+    
+    
+    // Compute list of alphas
+    // -------------------------
+    std::vector<double> alphas;
+    for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+    {
+        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb)
+        {
+            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
+            {
+                if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
+                {
+                    size_t bbe = 1;
+                    for ( bbe = 1 ; bbe <= bbe_max ; ++bbe )
+                    {
+                        if (fx0s[i_pb]-_results[i_pb][i_algo][i_pb_instance].get_sol(bbe) >= (1-out.get_tau())*(fx0s[i_pb]-fxe[i_pb]) )
+                        {
+                            alphas.push_back(double(bbe)/tpsMin[i_pb]);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Sort alphas in ascending order
+    /// -------------------------
+    std::sort(alphas.begin(), alphas.end());
+    
+    /// Remove doublons in alphas
+    /// -------------------------
+    std::vector<double>::iterator it = std::unique(alphas.begin(), alphas.end());
+    alphas.resize(std::distance(alphas.begin(), it));
+    
+    
     size_t cnt;
     
-    const size_t PP_NB_LINES = 100; // TEMP for building
-    double dalpha = 20 / (PP_NB_LINES-1.0);
-    double alpha                = 0.0;
-
-    for (size_t i = 0 ; i < PP_NB_LINES ; ++i)
+    for (const auto& alpha: alphas)
     {
+        fout << alpha;
         for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
         {
             cnt = 0;
+            int cnt_pb_instance = 0;
             for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
-                for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances(); ++i_pb_instance )
+            {
+                auto n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
+                cnt_pb_instance += n_pb_instance;
+                for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance; ++i_pb_instance )
                     if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
                     {
                         for ( size_t bbe = 1 ; bbe <= bbe_max ; ++bbe )
@@ -811,19 +883,195 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
                             }
                         }
                     }
-
+            }
             fout << " ";
+            fout << 100.0*cnt/cnt_pb_instance;
         }
         fout << std::endl;
-        alpha += dalpha;
     }
-
 
     fout.close();
 
     std::cout << "... done" << std::endl;
     return true;
 }
+
+/*---------------------------------------*/
+/*       display convergence profiles    */
+/*---------------------------------------*/
+bool RUNNERPOST::Runner::output_convergence_profile_plain ( const Output & out ) const
+{
+    
+    const size_t n_pb = _selected_pbs.size();
+    const size_t n_algo = _selected_algos.size();
+    
+    if ( n_pb == 0 || n_algo == 0 )
+    {
+        std::cerr << "Error: cannot compute convergence profile for n_pb ==0 or n_algo == 0" << std::endl;
+        return false;
+    }
+    if ( out.get_x_select() == Output::X_Select::NP1EVAL)
+    {
+        std::cerr << "Error: cannot compute convergence profile for X_SEL NP1EVAL, N may vary for each problem. Use EVAL instead." << std::endl;
+        return false;
+    }
+
+    // F, H or both?
+    bool plotF = ( out.get_plot_type() == Output::Plot_Type::OnlyFFeasible || out.get_plot_type() == Output::Plot_Type::ComboHInfAndFFeas );
+    bool plotH = ( out.get_plot_type() == Output::Plot_Type::OnlyHInfeasible || out.get_plot_type() == Output::Plot_Type::ComboHInfAndFFeas );
+    bool plotFAndH = ( out.get_plot_type() == Output::Plot_Type::ComboHInfAndFFeas );
+
+    bool iterPlotFlag = true;
+    
+    size_t i_pb, i_algo, i_pb_instance;
+
+    // check that best solution and all results are available:
+    std::list<size_t> miss_list;
+
+    // For ComboHInfAndFFeas (plotFAndH=true), we need to loop twice
+    while (iterPlotFlag)
+    {
+        miss_list.clear();
+        
+        
+        if (!plotFAndH)
+        {
+            // Just one loop. Next while condition will exit
+            iterPlotFlag =false;
+        }
+        else
+        {
+            // Manage the two loops with a switch
+            
+            // First loop: enter with plotH and plotF are true. But just do plot for F
+            if (plotF && plotH)
+            {
+                plotH = false;
+            }
+            else
+            {
+                // Second loop: Just do plot for H. Next while condition will exit
+                plotF = false;
+                plotH = true;
+                iterPlotFlag = false;
+            }
+        }
+        
+        for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+        {
+            for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+            {
+                for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
+                {
+                    if (! out.plotIsSelected(_selected_algos[i_algo]->get_id(), _selected_pbs[i_pb]->get_id(),i_pb_instance))
+                        continue;
+                    
+                    double fxBest = INF;
+                    if ( !_results[i_pb][i_algo][i_pb_instance].has_solution()  )
+                    {
+                        miss_list.push_back ( i_pb   );
+                        miss_list.push_back ( i_algo );
+                        miss_list.push_back ( i_pb_instance );
+                        
+                        // An infeasible run has no solution -> special flag in miss_list is set
+                        if ( _results[i_pb][i_algo][i_pb_instance].is_infeas() )
+                            miss_list.push_back( 1 );
+                        else
+                            miss_list.push_back( 0 );
+                    }
+                    
+                    if ( (_results[i_pb][i_algo][i_pb_instance].has_solution() && plotF) || plotH )
+                    {
+                        
+                        std::string plainFileName = out.get_plain_file_name() + "."+_selected_algos[i_algo]->get_id()+"."+_selected_pbs[i_pb]->get_id()+".Inst"+std::to_string(i_pb_instance);
+                        
+                        if (plotFAndH && plotF)
+                        {
+                            plainFileName += ".F";
+                        }
+                        else if (plotFAndH && plotH)
+                        {
+                            plainFileName += ".H";
+                        }
+                        
+                        std::ofstream fout (plainFileName);
+                        if ( fout.fail() )
+                        {
+                            std::cerr << "Warning: cannot create convergence profile output file "
+                            << plainFileName << std::endl;
+                            return false;
+                        }
+                        
+                        std::cout << "\t writing of " << plainFileName << " ..." << std::flush;
+                        
+                        size_t max_bbe = out.get_x_max();
+                        if ( max_bbe == RUNNERPOST::P_INF_INT )
+                        {
+                            max_bbe = _results[i_pb][i_algo][i_pb_instance].get_last_bbe();
+                        }
+                        
+                        
+                        for ( size_t bbe = 1 ; bbe < max_bbe+1 ; ++bbe )
+                        {
+                            double fx =INF;
+                            if (plotF)
+                            {
+                                fx = _results[i_pb][i_algo][i_pb_instance].get_sol(bbe);
+                            }
+                            else if (plotH)
+                            {
+                                fx = _results[i_pb][i_algo][i_pb_instance].get_best_infeas(bbe);
+                            }
+                            else
+                            {
+                                std::cerr << "Error: plotH and plotF cannot be both true or false." << std::endl;
+                                return false;
+                            }
+                            
+                            // Write bbe and value of fx or hx
+                            if (fx < fxBest )
+                            {
+                                fxBest = fx;
+                                fout << bbe << " " << fxBest << std::endl;
+                            }
+                        }
+                        fout.close();
+                        std::cout << "... done" << std::endl;
+                    }
+                    
+                }
+            }
+        }
+    }
+
+    if ( !miss_list.empty() )
+    {
+        std::cout << "... the following results are missing" ;
+        std::list<size_t>::const_iterator it , end = miss_list.end();
+        bool need_for_fix = false;
+        for ( it = miss_list.begin() ; it != end ; ++it )
+        {
+            i_pb = *it;
+            ++it;
+            i_algo = *it;
+            display_instance_name ( *_selected_pbs[i_pb] , *_selected_algos[i_algo]);
+            ++it;
+            i_pb_instance = *it;
+            std::cout << " seed run#" << i_pb_instance ;
+            ++it;
+            if ( *it==1 )
+                std::cout << " --> no feasible point found " <<std::endl;
+            else
+            {
+                std::cout << " --> run failed, fix it to get data profile " <<std::endl;
+                need_for_fix = true;
+            }
+        }
+        std::cout << std::endl;
+    }
+    return true;
+}
+
 
 /*-------------------------------------------------*/
 /*              data profiles .........            */
@@ -925,16 +1173,15 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     }
 
     // Get fx0s for all problems
-    ArrayOfDouble fx0s = get_fx0s();
+    const auto& fx0s = get_fx0s();
     
-    // TODO Failsafe for Fx0
-//    if ( fx0s.isComplete())
-//    {
-//        std::cerr << "Error: Undefined fx0" << std::endl;
-//        fout << "failed to obtain data profile" << std::endl;
-//        fout.close();
-//        return false;
-//    }
+    // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
+    if ( fx0s.empty())
+    {
+        std::cerr << "Error: Undefined fx0: failed to obtain data profile" << std::endl;
+        fout.close();
+        return false;
+    }
     for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
         if ( fx0s[i_pb]==INF )
@@ -944,28 +1191,28 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     }
 
     // get the best solution for each problem:
-    ArrayOfDouble fxe = get_best_fx();
+    const auto& fxe = get_best_fx();
 
-    if ( _use_h_for_profiles )
-    {
-        bool flag_ok = false;
-        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
-        {
-            if ( !flag_ok && fxe[i_pb] == 0 )
-                flag_ok = true;
-            if ( fxe[i_pb] == INF )
-                std::cout << "pb #" << i_pb+1 << " ---> no run returned a feasible point!"<<std::endl;
-        }
-        if ( ! flag_ok )
-        {
-            std::cerr << "Error: at least one run should return a feasible point"<<std::endl;
-            return false;
-        }
-    }
+    // TODO
+//    if ( _use_h_for_profiles )
+//    {
+//        bool flag_ok = false;
+//        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+//        {
+//            if ( !flag_ok && fxe[i_pb] == 0 )
+//                flag_ok = true;
+//            if ( fxe[i_pb] == INF )
+//                std::cout << "pb #" << i_pb+1 << " ---> no run returned a feasible point!"<<std::endl;
+//        }
+//        if ( ! flag_ok )
+//        {
+//            std::cerr << "Error: at least one run should return a feasible point"<<std::endl;
+//            return false;
+//        }
+//    }
 
     // compute the data profile:
     // -------------------------
-    // int max_alpha = Problem::getNbSimplexEvals() ;
     int max_alpha = out.get_x_max();
 
     // Update the range for x axis according to all problems considered:
@@ -1203,6 +1450,15 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     }
     // Get fx0s for all problems
     ArrayOfDouble fx0s = get_fx0s();
+    
+    // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
+    if ( fx0s.empty())
+    {
+        std::cerr << "Error: Undefined fx0. Failed to obtain data profile" << std::endl;
+        fout.close();
+        return false;
+    }
+    
     for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
         if ( fx0s[i_pb] == INF )
@@ -1212,22 +1468,24 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     }
     // get the best solution for each problem:
     ArrayOfDouble fxe = get_best_fx();
-    if ( _use_h_for_profiles )
-    {
-        bool flag_ok = false;
-        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
-        {
-            if ( !flag_ok && fxe[i_pb] == 0 )
-                flag_ok = true;
-            if ( fxe[i_pb] == INF )
-                std::cout << "pb #" << i_pb+1 << " ---> no run returned a feasible point!"<<std::endl;
-        }
-        if ( ! flag_ok )
-        {
-            std::cerr << "Error: at least one run should return a feasible point"<<std::endl;
-            return false;
-        }
-    }
+
+    // TODO
+    //    if ( _use_h_for_profiles )
+//    {
+//        bool flag_ok = false;
+//        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+//        {
+//            if ( !flag_ok && fxe[i_pb] == 0 )
+//                flag_ok = true;
+//            if ( fxe[i_pb] == INF )
+//                std::cout << "pb #" << i_pb+1 << " ---> no run returned a feasible point!"<<std::endl;
+//        }
+//        if ( ! flag_ok )
+//        {
+//            std::cerr << "Error: at least one run should return a feasible point"<<std::endl;
+//            return false;
+//        }
+//    }
     // compute the time data profile:
     // -------------------------
     // Compute max time taken by all problems
@@ -1399,7 +1657,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
         fx0s[i_pb] = fx0;
         for (size_t i_algo = 1 ; i_algo < n_algo ; ++i_algo )
         {
-            for (size_t i_pb_instance=1 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance)
+            for (size_t i_pb_instance=0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance)
             {
                 fx0 = _results[i_pb][i_algo][i_pb_instance].get_sol(1);
 
@@ -1468,7 +1726,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx() const
     const size_t n_algo = _selected_algos.size();
     
     ArrayOfDouble fxe(n_pb, INF);
-    double fxe_tmp, fxe_bb;
+    double fxe_tmp;
     size_t nbDomRefObj; // not used here
     for (size_t i_pb = 0; i_pb < n_pb ; ++i_pb)
     {
@@ -1846,53 +2104,70 @@ void RUNNERPOST::Runner::display_selected_algos ( void ) const
 
 
 
+/*---------------------------------------*/
+/*  construct a list of files            */
+/*  (static, private)                    */
+/*---------------------------------------*/
+bool RUNNERPOST::Runner::construct_list_of_files ( std::list<std::string> & list_of_files ,
+                                                    const std::string      & directory      ) const
+{
+
+    if ( ! list_of_files.empty() )
+        list_of_files.clear();
+    
+    try {
+        
+        // loop over all files in the directory
+        for (const auto& entry : std::filesystem::directory_iterator(directory))
+        {
+            if (entry.is_regular_file())
+            {
+                list_of_files.push_back(entry.path().string());
+            }
+        }
+    } catch (const std::filesystem::filesystem_error& err) {
+        std::cerr << "Filesystem error: " << err.what() << std::endl;
+        return false;
+    }
+
+    return true;
+}
 
 
-///*---------------------------------------*/
-///*  construct a list of sub-directories  */
-///*  (static, private)                    */
-///*---------------------------------------*/
-//bool Runner::construct_list_of_subdirs ( std::list<std::string> & list_of_dirs ,
-//                                        const std::string      & directory      )
-//{
-//
-//
-//    if ( ! list_of_dirs.empty() )
-//        list_of_dirs.clear();
-//
-//
-//
-//    std::string s , cmd = "ls " + directory + " > " + TMP_FILE;
-//
-//
-//    if (0 != system ( cmd.c_str() ))
-//    {
-//        std::cerr << "Error listing files in directory: " << directory << std::endl;
-//        return false;
-//    }
-//
-//    std::ifstream fin ( TMP_FILE.c_str() );
-//
-//    while ( !fin.eof() )
-//    {
-//        fin >> s >> std::ws;
-//        if ( !s.empty() )
-//            list_of_dirs.push_back ( s );
-//    }
-//
-//    fin.close();
-//    remove ( TMP_FILE.c_str() );
-//
-//    if ( fin.fail() )
-//    {
-//        list_of_dirs.clear();
-//        return false;
-//    }
-//    return true;
-//}
+/*---------------------------------------*/
+/*  construct a list of sub-directories  */
+/*  (static, private)                    */
+/*---------------------------------------*/
+bool RUNNERPOST::Runner::construct_list_of_subdirs ( std::list<std::string> & list_of_dirs ,
+                                                    const std::string      & directory      ) const
+{
+
+    if ( ! list_of_dirs.empty() )
+        list_of_dirs.clear();
+    
+    try {
+        
+        for (const auto& entry : std::filesystem::directory_iterator(directory))
+        {
+            if (entry.is_directory())
+            {
+                list_of_dirs.push_back(entry.path().string());
+            }
+        }
+    } catch (const std::filesystem::filesystem_error& err) {
+        std::cerr << "Filesystem error: " << err.what() << std::endl;
+        return false;
+    }
+
+    return true;
+}
 
 /*------------------------------------------------*/
-/*              set a result (private)            */
+/*   Set a result obtained by an algo on a pb     */
+/*   for all instances                            */
+/*   Call compute_solution and displays brief     */
+/*   solution info.                               */
+/*   Single objective only                        */
 /*------------------------------------------------*/
 void RUNNERPOST::Runner::set_result (const std::string        & test_id /*not used*/ ,
                          Result                     result[],
@@ -1930,13 +2205,26 @@ void RUNNERPOST::Runner::set_result (const std::string        & test_id /*not us
             << " f="    << result[i_pb_instance].get_sol_fx  ()
             << " fx0=" << result[i_pb_instance].get_sol(1)
             << " ffx=" << result[i_pb_instance].get_first_fx();
-//            if ( pb.update_xe ( result[i_seed].get_sol_xe() , result[i_seed].get_sol_fxe() ) )
-//                std::cout << " (new best solution)";
+            std::cout << std::endl;
+        }
+        else if ( result[i_pb_instance].compute_best_infeasible( pb.get_n() ,
+                                                                 bbe        ))
+        {
+            auto time = result[i_pb_instance].get_time(result[i_pb_instance].get_sol_bbe());
+            std::string time_str = "";
+            if (time > 0)
+            {
+                time_str = " time=" + std::to_string(time);
+            }
+            std::cout << "bbe="   << result[i_pb_instance].get_sol_bbe ()
+            << time_str
+            << " h="    << result[i_pb_instance].get_sol_fx  ()
+            << " hx0=" << result[i_pb_instance].get_sol(1);
             std::cout << std::endl;
         }
         else
         {
-            std::cout << "no solution" << std::endl;
+            std::cout << "no solution (feas. or infeas)" << std::endl;
         }
     }
 }
@@ -2348,18 +2636,6 @@ bool RUNNERPOST::Runner::read_algo_selection ( const std::string  & algo_selecti
 
 
 
-//std::vector<std::string> RUNNERPOST::Runner::get_selected_algo_options ( void ) const
-//{
-//    std::vector<std::string> algosOptions;
-//
-//    for (const auto& algo: _selected_algos)
-//    {
-//        algosOptions.push_back(algo->get_output_options());
-//    }
-//    return algosOptions;
-//}
-
-
 /*-----------------------------------------------------------*/
 /*          read and add problems from selection file           */
 /*-----------------------------------------------------------*/
@@ -2386,6 +2662,22 @@ bool RUNNERPOST::Runner::read_problem_selection_file ( const std::string  & pb_s
             continue;
         }
         
+        // Manage the case where the problem are defined by a directory
+        // The problem selection file contains only the symbol *.
+        // The problems are defined in the directories for the algos.
+        // Here the * is detected and the pb selection is delayed after
+        if (line.find("*") == 0)
+        {
+            in.close();
+            std::cerr << "Select pbs from the content of the algos directories.";
+            
+            return read_problem_selection_from_algo_dir(error_msg);
+        }
+        else
+        {
+            _selected_pbs.push_back(new Problem(line, error_msg));
+        }
+        
         _selected_pbs.push_back(new Problem(line, error_msg));
         if (!error_msg.empty())
         {
@@ -2407,43 +2699,167 @@ bool RUNNERPOST::Runner::read_problem_selection_file ( const std::string  & pb_s
     return true;
 }
 
-bool RUNNERPOST::Runner::read_problem_selection ( const std::string  & problem_selection_formatted ,
-                                                    std::string        & error_msg        )
+bool RUNNERPOST::Runner::read_problem_selection_from_algo_dir ( std::string        & error_msg        )
 {
     error_msg.clear();
-
-    if ( problem_selection_formatted.empty() )
+    
+    // Read the problems from the algo directories
+    // Check that some conditions are met
+    std::vector<std::string> algo_dirs;
+    for (const auto & algo: _selected_algos)
     {
-        error_msg = "Error(0). Cannot read formatted string. It is empty. " ;
-        return false;
-    }
-
-    // Read the algo selection from formatted string
-    std::stringstream in ( problem_selection_formatted.c_str(), std::ios::in );
-
-    while(!in.eof())
-    {
-        std::string line;
-        getline (in , line);
+        auto sotList = algo->get_stats_output_type_list();
         
-        if (line.empty())
+        // TODO: check if the case with FEAS, SOL and OBJ can be handled.
+        // TODO: what about multi objectives
+        
+        bool hasConst = (std::count(sotList.begin(),sotList.end(),StatOutputType::CST) > 0);
+        bool hasSol = (std::count(sotList.begin(),sotList.end(),StatOutputType::SOL) > 0);
+        size_t nbObj = std::count(sotList.begin(),sotList.end(),StatOutputType::OBJ);
+        
+        if (nbObj > 1)
         {
-            continue;
+            error_msg = "Error. Algo " + algo->get_id() + " has more than one objective in the output. Cannot select problems from algo directories.";
+            return false;
         }
         
-        _selected_pbs.push_back(new Problem(line, error_msg));
+        if (hasConst)
+        {
+            error_msg = "Error. Algo " + algo->get_id() + " has constraints in the output. Cannot deduce problems from algo directories.";
+            return false;
+        }
+        if (!hasSol)
+        {
+            error_msg = "Error. Algo " + algo->get_id() + " has no solutions in the output. Cannot select problems from algo directories.";
+            return false;
+        }
+        
+        algo_dirs.push_back( algo->get_id());
+    }
+    
+    // Use the first algo dir to read the problems directories
+    std::list<std::string> pb_dirs;
+    // Construct the pb directories from the first algo dir
+    if (!construct_list_of_subdirs(pb_dirs, algo_dirs[0]))
+    {
+        error_msg = "Error. Cannot read pb directories from algo dir " + algo_dirs[0];
+        return false;
+    }
+    
+    auto sotList = _selected_algos[0]->get_stats_output_type_list();
+    
+    // We suppose the instance name is "0"
+    const std::string defPbInst = "0";
+    
+    // Use a reference list of the selected problems created with the first algo.
+    // After that, make sure to compare what is obtained with the remaining algos.
+    
+    std::vector<Problem>         ref_selected_pbs;
+    
+    // Read the first line of each pb dir to get the pb id, the number of instances, the dimension (n), the number of objectives and constraints (m)
+    for (const auto & pb: pb_dirs)
+    {
+        // Get the list of all result files in a pb dir
+        std::list<std::string> res_files;
+        if (!construct_list_of_files(res_files, pb))
+        {
+            error_msg = "Error. Cannot read pb result files from pb dir " + pb;
+            return false;
+        }
+
+        if (res_files.size() > 1)
+        {
+            error_msg = "Error. More than one instances cannot be managed to read pb result files from pb dir " + pb;
+            return false;
+        }
+            
+        // Create a problem definition using the available information from the result file
+        Problem pbDef(res_files.front(), sotList, defPbInst, error_msg);
+        
         if (!error_msg.empty())
         {
             return false;
         }
-    }
+        
+        // Check if this is consistent with the algo stats file name
+        // We suppose the instance name is 0
+        auto statFileName = get_stats_file_name(*_selected_algos[0], pbDef /*Not used*/, defPbInst);
+        if (res_files.front().find(statFileName) == std::string::npos)
+        {
+            error_msg = "Error. The stats file name " + statFileName + " does not match the pb result file name " + res_files.front();
+            return false;
+        }
     
-    if (_selected_pbs.empty())
+        // Let's add the pb definition to the reference
+        ref_selected_pbs.push_back(pbDef);
+        
+    }
+        
+    // Check the consistency of pb dirs with the other algo dirs
+    for (size_t i =1 ; i < algo_dirs.size() ; i++)
     {
-        error_msg = "Error(1) in file " + problem_selection_formatted + ". Cannot read a single problem config. First line in string must contain a problem config." ;
-        return false;
+        std::list<std::string> pb_dirs;
+        if (!construct_list_of_subdirs(pb_dirs, algo_dirs[i] ))
+        {
+            error_msg = "Error. Cannot read pb directories from algo dir " + algo_dirs[i];
+            return false;
+        }
+        
+        // Read the first line of each pb dir to get the pb id, the number of instances, the dimension (n), the number of objectives and constraints (m)
+        for (const auto & pb: pb_dirs)
+        {
+            // Get the list of all result files in a pb dir
+            std::list<std::string> res_files;
+            if (!construct_list_of_files(res_files, pb))
+            {
+                error_msg = "Error. Cannot read pb result files from pb dir " + pb;
+                return false;
+            }
+            
+            if (res_files.size() > 1)
+            {
+                error_msg = "Error. More than one instances cannot be managed to read pb result files from pb dir " + pb;
+                return false;
+            }
+            
+            auto algoSotList = _selected_algos[i]->get_stats_output_type_list();
+            
+            // TODO check the same conditions as for algo 0
+            
+            // Create a pb from a problem result file
+            Problem algoPbDef(res_files.front(), algoSotList, defPbInst, error_msg);
+            
+            // Compare algoPbDef with the reference pb having the same id
+            bool pbMatch = false;
+            for (const auto & refPb: ref_selected_pbs)
+            {
+                if (refPb.get_id() == algoPbDef.get_id())
+                {
+                    pbMatch = (refPb.get_n() == algoPbDef.get_n()); // Just need to compare the pb dimension
+                    break;
+                }
+            }
+            if (!pbMatch)
+            {
+                error_msg = "Error. The pb " + algoPbDef.get_id() + " from algo dir " + algo_dirs[i] + " does not match the pb from the first algo dir " + algo_dirs[0];
+                return false;
+            }
+        }
     }
 
+    // Read the algo selection from formatted string
+    if (ref_selected_pbs.empty())
+    {
+        error_msg = "Error. Cannot read a single problem config from optimization results." ;
+        return false;
+    }
+    
+    // Copy the reference selected pbs to the selected pbs
+    for (const auto & pb: ref_selected_pbs)
+    {
+        _selected_pbs.push_back(new Problem(pb));
+    }
+    
     return true;
 
 }
@@ -2505,7 +2921,7 @@ bool RUNNERPOST::Runner::read_problem_selection ( const std::string  & problem_s
 //}
 
 bool RUNNERPOST::Runner::read_output_selection_file( const std::string  & output_selection_file_name ,
-                                        std::string        & error_msg )
+                                                    std::string        & error_msg )
 {
     std::ifstream in(output_selection_file_name , std::ios::in);
     if ( in.fail() )
@@ -2531,204 +2947,15 @@ bool RUNNERPOST::Runner::read_output_selection_file( const std::string  & output
             in.close();
             return false;
         }
-            
-        
-        // TODO
-//        if ( "output_data_profile_plain" == select_command )
-//        {
-//            if ( args.size() != 2 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_data_profile_plain should be 2 (tau,dp_file_name)" << std::endl;
-//                return false;
-//            }
-//            double tau = stod(args[0]);
-//            if ( tau < 0 )
-//            {
-//                std::cerr << "\n Error in output_selection: output_data_profile_plain first argument (tau value) should be a positive real" << std::endl;
-//                return false;
-//            }
-//            if ( tau == 0 && ! runner.get_use_h_for_profiles() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for tau=0 will be executed only if set_use_h_for_profiles has been set in problem_selection file" << std::endl;
-//                return false;
-//            }
-//            if ( runner.get_use_h_for_profiles() && runner.get_use_hypervolume_for_profiles() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for hypervolume is only for pareto points for the objectives for feasible points. Cannot be use in combination with use_h_for_profiles" << std::endl;
-//                return false;
-//            }
-//
-//            if ( ! get_dp_file_name(tau).empty() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for tau=" << tau << " was already processed." << std::endl << std::endl;
-//                return false;
-//            }
-//
-//            bool success = runner.output_data_profile_plain( tau ,args[1] );
-//            if ( ! success )
-//                return false;
-//
-//            // Register the dp_file_name in the file for duplicate testing and other outputs (matlab, pgfplots)
-//            map_tau_to_dp_file_name[tau] = args[1];
-//
-//        }
-//        else if ( "output_time_profile_plain" == select_command )
-//        {
-//            if ( args.size() != 1 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_time_profile_plain should be 1 (time_profile_file_name)" << std::endl;
-//                return false;
-//            }
-//            bool success = runner.output_time_profile_plain(args[0]);
-//            if ( ! success )
-//            {
-//                return false;
-//            }
-//        }
-//        else if ( "output_time_data_profile_plain" == select_command )
-//        {
-//            if ( args.size() != 2 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_time_data_profile_plain should be 2 (tau,tdp_file_name)" << std::endl;
-//                return false;
-//            }
-//            double tau;
-//            if ( ! tau.atof(args[0]) || !tau.isDefined() || tau < 0 )
-//            {
-//                std::cerr << "\n Error in output_selection: output_time_data_profile_plain first argument (tau value) should be a positive real" << std::endl;
-//                return false;
-//            }
-//            if ( tau == 0 && ! runner.get_use_h_for_profiles() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for tau=0 will be executed only if set_use_h_for_profiles has been set in problem_selection file" << std::endl;
-//                return false;
-//            }
-//            if ( runner.get_use_h_for_profiles() && runner.get_use_hypervolume_for_profiles() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for hypervolume is only for pareto points for the objectives for feasible points. Cannot be use in combination with use_h_for_profiles" << std::endl;
-//                return false;
-//            }
-//
-//            if ( ! get_tdp_file_name(tau).empty() )
-//            {
-//                std::cerr << "\n Error in output_selection: data profile for tau=" << tau << " was already processed." << std::endl << std::endl;
-//                return false;
-//            }
-//
-//            bool success = runner.output_time_data_profile_plain( tau ,args[1] );
-//            if ( ! success )
-//                return false;
-//
-//            // Register the dp_file_name in the file for duplicate testing and other outputs (matlab, pgfplots)
-//            map_tau_to_tdp_file_name[tau] = args[1];
-//
-//        }
-//
-//        else if ("set_use_evals_for_dataprofiles" == select_command )
-//        {
-//            runner.set_use_evals_for_dataprofiles() ;
-//        }
-//
-//        else if ( "output_perf_prof_plain" == select_command )
-//        {
-//            std::cerr << "\n Error: output_perf_prof_plain not yet implemented" << std::endl;
-//            return false;
-//
-//// TODO
-////            std::map<double,string>::iterator it;
-////            it = map_tau_to_dp_file_name.find(tau);
-////            if (it != map_tau_to_dp_file_name.end())
-////            {
-////                std::cerr << "Error in output_selection: data profile for tau=" << tau << " was already processed." << std::endl;
-////                return false;
-////            }
-//
-//            // runner.output_perf_profile_plain( tau ,args[1] );
-//
-//            // Register the pp_file_name in the file for duplicate testing and other outputs (matlab, pgfplots)
-//            // map_tau_to_pp_file_name[tau] = args[1];
-//        }
-//
-//        if ("output_data_profile_pgfplots" == select_command)
-//        {
-//            if ( args.size() < 1 || args.size() > 6 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_data_profile_pgfplots should be greater than 1." <<std::endl;
-//                std::cerr << " Usage: output_data_profile_pgfplots (tau, pdflatex_cmd, tex_file_name,dp_plain_file_name, tex_file_name, dp_pdf_file_name); All parameters except tau are optional." << std::endl;
-//                return false;
-//            }
-//            bool success = output_profile_pgfplots(runner, "dataProfile", args);
-//            if (!success)
-//            {
-//                return false;
-//            }
-//        }
-//
-//        else if ("output_time_profile_pgfplots" == select_command)
-//        {
-//            if ( args.size() < 1 || args.size() > 6 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_time_profile_pgfplots should be greater than 1." <<std::endl;
-//                std::cerr << " Usage: output_time_profile_pgfplots(pdflatex_cmd, tex_file_name, time_profile_plain_file_name, tex_file_name, time_profile_pdf_file_name); All parameters are optional." << std::endl;
-//                return false;
-//            }
-//            bool success = output_profile_pgfplots(runner, "timeProfile", args);
-//            if (!success)
-//            {
-//                return false;
-//            }
-//        }
-//        if ("output_time_data_profile_pgfplots" == select_command)
-//        {
-//            if ( args.size() < 1 || args.size() > 6 )
-//            {
-//                std::cerr << "\n Error in output_selection: number of arguments in output_time_data_profile_pgfplots should be greater than 1." <<std::endl;
-//                std::cerr << " Usage: output_time_data_profile_pgfplots (tau, pdflatex_cmd, tex_file_name,tdp_plain_file_name, tex_file_name, tdp_pdf_file_name); All parameters except tau are optional." << std::endl;
-//                return false;
-//            }
-//            bool success = output_profile_pgfplots(runner, "timeDataProfile", args);
-//            if (!success)
-//            {
-//                return false;
-//            }
-//        }
-//
-//        else if ( "display_algo_diff" == select_command )
-//        {
-//            runner.display_algo_diff();
-//        }
-//        else if( "output_problems_unsolved" == select_command)
-//        {
-//            if ( args.size() != 2 )
-//            {
-//                std::cerr << "\n Error in output_problems_solved: number of arguments should be 2." <<std::endl;
-//                std::cerr << " Usage: output_problems_solved (tau, nbSimplexEval); All parameters are mandatory. If nbSimplexEval == -1, the last eval point is used." << std::endl;
-//                return false;
-//            }
-//            double tau;
-//            if ( ! tau.atof(args[0]) || !tau.isDefined() || tau < 0 )
-//            {
-//                std::cerr << "\n Error in output_selection: output_problems_unsolved first argument (tau value) should be a positive real" << std::endl;
-//                return false;
-//            }
-//            double nbSimplexEval;
-//            if ( ! nbSimplexEval.atof(args[1]) || !nbSimplexEval.isDefined() )
-//            {
-//                std::cerr << "\n Error in output_selection: output_problems_unsolved second argument (nbSimplex value) should be a real" << std::endl;
-//                return false;
-//            }
-//            runner.output_problems_unsolved(tau,nbSimplexEval);
-//
-//        }
+
     }
-    
-    
-    
+
     in.close();
     return true;
 }
 
-
+// Used by Python interface only
+// Similar to read_output_selection_file
 bool RUNNERPOST::Runner::read_output_selection ( const std::string  & output_selection_formatted ,
                                                 std::string        & error_msg        )
 {
@@ -2772,7 +2999,50 @@ bool RUNNERPOST::Runner::read_output_selection ( const std::string  & output_sel
 
 void RUNNERPOST::Runner::display_selected_outputs   ( void ) const
 {
-    // TODO: similar to algo and pbs.
+    
+    // TODO check that output files do not have the same name.
+    
+    size_t n = _selected_outputs.size();
+
+    std::cout << std::endl;
+
+    if ( n == 0 )
+        std::cout << "there is no output configuration" << std::endl;
+    else
+    {
+
+        std::ostringstream msg;
+        msg << "selected outputs";
+        if ( n > 1 )
+            msg << "s (" << n << ")";
+        msg << ":\n";
+
+        std::cout << msg.str();
+        for ( size_t k = 0 ; k < n ; ++k )
+        {
+            std::cout << "\t " << RUNNERPOST::Output::profileTypeToString(_selected_outputs[k]->get_profile_type());
+            const auto & options = _selected_outputs[k]->get_profile_type_options();
+            if (options.size() > 0)
+            {
+                std::cout << " [ ";
+                size_t count = 1;
+                
+                for (const auto & o: options )
+                {
+                    std::cout << o << "]";
+                    if (count < options.size())
+                    {
+                        std::cout << " [ ";
+                    }
+                    count++;
+                }
+            }
+            std::cout << std::endl;
+        }
+    }
+    std::cout << std::endl;
+
+    
 }
 
 
@@ -2809,7 +3079,7 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
         if ( fin.fail() )
         {
             fin.close();
-            result[i_pb_instance].reset(_use_hypervolume_for_profiles, _use_h_for_profiles);
+            result[i_pb_instance].reset(_use_hypervolume_for_profiles);
             return false;
         }
         
@@ -2820,7 +3090,7 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
         if ( !result[i_pb_instance].read ( fin , pb.getMaxBBEvals ( ) , statsFileFormat, _feasibilityThreshold )  )
         {
             fin.close();
-            result[i_pb_instance].reset( _use_hypervolume_for_profiles, _use_h_for_profiles);
+            result[i_pb_instance].reset( _use_hypervolume_for_profiles);
             return false;
         }
         fin.close();
@@ -2829,7 +3099,7 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
 
         if ( res_bbe <= 0 )
         {
-            result[i_pb_instance].reset( _use_hypervolume_for_profiles, _use_h_for_profiles);
+            result[i_pb_instance].reset( _use_hypervolume_for_profiles);
             return false;
         }
         i_pb_instance++;
@@ -2898,7 +3168,6 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
 //}
 
 
-
 /*-----------------------------------------*/
 /*        access to the date (private)     */
 /*        (CPU name is also added)         */
@@ -2936,6 +3205,7 @@ std::string RUNNERPOST::Runner::get_date ( void ) const
 }
 
 
+
 void RUNNERPOST::Runner::add_pbinstance_to_file_name ( const std::string       &  pbInstance,
                                                       std::string        &  file_name   )
 {
@@ -2959,23 +3229,18 @@ void RUNNERPOST::Runner::add_pbinstance_to_file_name ( const std::string       &
     file_name = fic + "." + pbInstance + ext;
 }
 
-
-
-bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
+bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) const
 {
-    if (out.get_latex_file_name().empty())
-    {
-        return true;
-    }
+    RUNNERPOST::Output::Profile_Type profile_type = out.get_profile_type();
     
-    std::string plain_file_name = out.get_plain_file_name();
-    std::string latex_file_name = out.get_latex_file_name();
-    
-    if (out.get_plain_file_name().empty())
+    if (profile_type == RUNNERPOST::Output::Profile_Type::CONVERGENCE_PROFILE)
     {
-        std::cerr << "\n Error in output_selection: To output in latex the output_plain is mandatory. " << std::endl;
+        std::cerr << "\n Error: Use output_convergence_profile_pgfploats." << std::endl;
         return false;
     }
+    
+    // Get the plain file name
+    std::string plain_file_name = out.get_plain_file_name();
 
     std::ifstream infile(plain_file_name);
     if (! infile.good() )
@@ -2987,6 +3252,9 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
     
     // Modify plain file name to include the key "step"
     std::string plain_file_name_step = plain_file_name + ".step";
+    
+    // Get the latex file name
+    std::string latex_file_name = out.get_latex_file_name();
     
     std::cout<< "\t Writing of " << latex_file_name << " and " << plain_file_name_step << " ......";
     
@@ -3032,15 +3300,8 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
     outfile_step.close();
     infile.close();
 
-    // To be generalized.
-    // Multiple inputs.
-    // Single output.
-
     // Graph title
     std::string profileTitle = out.get_title();
-    
-    
-    RUNNERPOST::Output::Profile_Type profile_type = out.get_profile_type();
 
 
     // Output tex file from previous strings
@@ -3053,17 +3314,17 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
     out_tex << "\\begin{axis}[ " << std::endl;
 
     out_tex << "       title = {" << profileTitle << "}," << std::endl;
-    out_tex << "       xmin=-10, ymin = -5, ymax= 105," << std::endl;
 
     if (RUNNERPOST::Output::Profile_Type::DATA_PROFILE == profile_type)
     {
+        out_tex << "       xmin=-10, ymin = -5, ymax= 105," << std::endl;
         if (RUNNERPOST::Output::X_Select::EVAL == out.get_x_select())
         {
-            out_tex << "       xlabel = Number of evaluations, " <<std::endl;
+            out_tex << "       xlabel = {Number of evaluations}, " <<std::endl;
         }
         else if (RUNNERPOST::Output::X_Select::NP1EVAL == out.get_x_select())
         {
-            out_tex << "       xlabel = Groups of ($n_p+1$) evaluations," <<std::endl;
+            out_tex << "       xlabel = {Groups of ($n_p+1$) evaluations}," <<std::endl;
         }
         else if (RUNNERPOST::Output::X_Select::TIME == out.get_x_select())
         {
@@ -3078,11 +3339,11 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
         
         if (RUNNERPOST::Output::Y_Select::OBJ == out.get_y_select())
         {
-            out_tex << "       ylabel = Portion of {$\tau$}-solved instances," <<std::endl;
+            out_tex << "       ylabel = {Portion of {$\\tau$}-solved instances}," <<std::endl;
         }
         else if (RUNNERPOST::Output::Y_Select::INFEAS == out.get_y_select())
         {
-            out_tex << "       ylabel = Portion of feasible instances," <<std::endl;
+            out_tex << "       ylabel = {Portion of feasible instances}," <<std::endl;
         }
         else
         {
@@ -3091,14 +3352,50 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
             return false;
         }
         
-        
-        
     }
-    else
+    else if (RUNNERPOST::Output::Profile_Type::PERFORMANCE_PROFILE == profile_type)
     {
-        std::cerr << "\n Error:  profile type " << RUNNERPOST::Output::profileTypeToString(out.get_profile_type()) << " is not yet available for latex profile " << std::endl;
-        out_tex.close();
-        return false;
+        out_tex << "       xmin=1, ymin = -5, ymax= 105," << std::endl;
+        out_tex << "       xlabel = {Performance ratio, $\\alpha$}," <<std::endl;
+        
+        if (RUNNERPOST::Output::Y_Select::OBJ == out.get_y_select())
+        {
+            out_tex << "       ylabel = {Portion of {$\\tau$}-solved instances}," <<std::endl;
+        }
+        else if (RUNNERPOST::Output::Y_Select::INFEAS == out.get_y_select())
+        {
+            out_tex << "       ylabel = {Portion of feasible instances}," <<std::endl;
+        }
+        else
+        {
+            std::cerr << "\n Error:  y_select type is not available for latex profile " << std::endl;
+            out_tex.close();
+            return false;
+        }
+    }
+    else if (RUNNERPOST::Output::Profile_Type::CONVERGENCE_PROFILE == profile_type)
+    {
+        out_tex << "       xmin=1," << std::endl;
+        out_tex << "       xlabel = {Number of evaluations}," <<std::endl;
+        
+        if (RUNNERPOST::Output::Plot_Type::OnlyF == out.get_plot_type())
+        {
+            out_tex << "       ylabel = {Objective function}," <<std::endl;
+        }
+        if (RUNNERPOST::Output::Plot_Type::OnlyFFeasible == out.get_plot_type())
+        {
+            out_tex << "       ylabel = {Objective function (feasible)}," <<std::endl;
+        }
+        else if (RUNNERPOST::Output::Plot_Type::OnlyHInfeasible == out.get_plot_type())
+        {
+            out_tex << "       ylabel = {Infeasibility measure}," <<std::endl;
+        }
+        else
+        {
+            std::cerr << "\n Error: History file plot type is not available for latex profile " << std::endl;
+            out_tex.close();
+            return false;
+        }
     }
 
 
@@ -3145,7 +3442,8 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
     // For some profile we may need to plot with only marks
     // lineStyle = "only marks";
 
-    if (RUNNERPOST::Output::Profile_Type::DATA_PROFILE == profile_type)
+    if (RUNNERPOST::Output::Profile_Type::DATA_PROFILE == profile_type ||
+        RUNNERPOST::Output::Profile_Type::PERFORMANCE_PROFILE == profile_type)
     {
         for (const auto & leg : legends )
         {
@@ -3158,19 +3456,11 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
             }
         }
     }
+    else if (RUNNERPOST::Output::Profile_Type::CONVERGENCE_PROFILE == profile_type)
+    {
+        out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[0] << ", mark repeat = 20, color=" << COLORS[0] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
+    }
 
-//    else if ("timeProfile" == profileName)
-//    {
-//        for (size_t i_algo = 0; i_algo < legends.size(); i_algo++)
-//        {
-//            std::string algoFileName = NOMAD_BASE::dirname(args[0]);
-//            algoFileName += profile_plain_noExt_noPath;
-//            algoFileName += NOMAD_BASE::itos(i_algo) + NOMAD_BASE::extension(args[0]);
-//            // VRM TODO
-//            out << "  \\addplot [" << lineStyle << ", mark="<< symbols[symbol_index++] << ", color=" << colors[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << algoFileName << "}; " << std::endl ;
-//            out << "\\addlegendentry{" << legends[i_algo] << "};" <<std::endl;
-//        }
-//    }
     out_tex << " \\end{axis} " << std::endl;
     out_tex << " \\end{tikzpicture}" << std::endl;
     out_tex << " \\end{document}" <<std::endl;
@@ -3180,6 +3470,460 @@ bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
     std::cout << " done " << std::endl;
 
     return true;
+
+}
+
+
+bool RUNNERPOST::Runner::output_convergence_profile_pgfplots(const Output & out ) const
+{
+    RUNNERPOST::Output::Profile_Type profile_type = out.get_profile_type();
+    
+    if (profile_type != RUNNERPOST::Output::Profile_Type::CONVERGENCE_PROFILE)
+    {
+        std::cerr << "\n Error: Use output_profile_pgfploats." << std::endl;
+        return false;
+    }
+    
+    size_t i_pb, i_algo, i_pb_instance;
+    const size_t n_pb = _selected_pbs.size();
+    const size_t n_algo = _selected_algos.size();
+    
+    std::vector<std::string> listFileNames;
+    std::vector<std::string> listLegends;
+    
+    for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+    {
+        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+        {
+            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
+            {
+                if (! out.plotIsSelected(_selected_algos[i_algo]->get_id(), _selected_pbs[i_pb]->get_id(),i_pb_instance))
+                    continue;
+                
+                auto extension = "."+_selected_algos[i_algo]->get_id()+"."+_selected_pbs[i_pb]->get_id()+".Inst"+std::to_string(i_pb_instance);
+                auto legend = "Algo: " + _selected_algos[i_algo]->get_id()+" Pb: "+_selected_pbs[i_pb]->get_id()+" Instance: "+std::to_string(i_pb_instance);
+                
+                listFileNames.push_back(out.get_plain_file_name()+extension);
+                listLegends.push_back(legend);
+            }
+        }
+    }
+    if (listFileNames.empty())
+    {
+        std::cerr << "\n Error in output_convergence_profile_pgfplots: No history file to plot in latex." << std::endl;
+        return false;
+    }
+    
+    std::string latexFileName = out.get_latex_file_name() ;
+    
+    std::cout<< "\t Writing of " ;
+    for (const auto& plain_file_name: listFileNames)
+    {
+        std::ifstream infile(plain_file_name);
+        if (! infile.good() )
+        {
+            std::cerr << "\n Error in output_selection: file " << plain_file_name << " does not exist for latex profile " << std::endl;
+            infile.close();
+            return false;
+        }
+        
+        // Modify plain file name to include the key "step"
+        std::string plain_file_name_step = plain_file_name + ".step";
+        
+        std::cout << plain_file_name_step << " ...";
+        
+        // Create data for plotting data profile with step
+        std::ofstream outfile_step(plain_file_name_step);
+        
+        // The loop for reading plain_file_name and writing to plain_file_name_step
+        std::string line, prevLine, prevLineToken, lineFirstToken;
+        while (std::getline(infile, line))
+        {
+            if (line.empty())
+            {
+                std::cout << std::endl;
+                std::cerr << "Cannot read line from " << plain_file_name << ". Empty lines are present." << std::endl;
+                return false;
+            }
+            if (!prevLine.empty())
+            {
+                // Read the first token of the line
+                std::istringstream iss(line);
+                
+                iss >> lineFirstToken;
+                
+                // Write the first token of the previous line to the new line
+                outfile_step << lineFirstToken << " ";
+                
+                // Write all tokens of prevLine, except the first one
+                std::istringstream issPrev(prevLine);
+                issPrev >> prevLineToken;
+                while (std::getline(issPrev, prevLineToken, ' '))
+                {
+                    if (prevLineToken.empty())
+                    {
+                        continue;
+                    }
+                    outfile_step << prevLineToken << " ";
+                }
+                outfile_step << std::endl;
+            }
+            prevLine = line;
+            outfile_step << line << std::endl;
+            
+        }
+        outfile_step.close();
+        infile.close();
+    }
+    std::cout << " done " << std::endl;
+    
+    // Graph title
+    std::string profileTitle = out.get_title();
+    
+    std::cout<< "\t Writing of " << latexFileName << " ......";
+    
+    // Output tex file from previous strings
+    std::ofstream out_tex ( latexFileName , std::ofstream::out | std::ofstream::trunc );
+    out_tex << "\\documentclass{standalone}" <<std::endl;
+    out_tex << "\\usepackage{pgfplots} " <<std::endl;
+    out_tex << "\\pgfplotsset{width=10cm,compat=1.16} " <<std::endl;
+    out_tex << "\\begin{document}" <<std::endl;
+    out_tex << "\\begin{tikzpicture} "<<std::endl;
+    out_tex << "\\begin{axis}[ " << std::endl;
+    out_tex << "       title = {" << profileTitle << "}," << std::endl;
+    out_tex << "       xmin=1," << std::endl;
+    out_tex << "       xlabel = {Number of evaluations}," <<std::endl;
+    
+    if (RUNNERPOST::Output::Plot_Type::OnlyF == out.get_plot_type())
+    {
+        out_tex << "       ylabel = {Objective function}," <<std::endl;
+    }
+    if (RUNNERPOST::Output::Plot_Type::OnlyFFeasible == out.get_plot_type())
+    {
+        out_tex << "       ylabel = {Objective function (feasible)}," <<std::endl;
+    }
+    else if (RUNNERPOST::Output::Plot_Type::OnlyHInfeasible == out.get_plot_type())
+    {
+        out_tex << "       ylabel = {Infeasibility measure}," <<std::endl;
+    }
+    else
+    {
+        std::cerr << "\n Error: plot type is not available for latex History profile " << std::endl;
+        out_tex.close();
+        return false;
+    }
+    
+    
+    out_tex << " legend style={ " << std::endl;
+    out_tex << "    font=\\tiny, " <<std::endl;
+    out_tex << "    cells={anchor=southeast}, " << std::endl;
+    out_tex << "    at={(1,-0.2)}, " <<std::endl;
+    out_tex << "   legend cell align=left, } ]" <<std::endl;
+    
+    int color_index = 0;
+    int symbol_index = 0;
+    
+    // Maximum number of algorithms that can be plotted
+    const size_t maxPlots = std::min(SYMBOLS.size(),COLORS.size());
+    if ( listFileNames.size() > maxPlots )
+    {
+        if (SYMBOLS.size() != COLORS.size())
+        {
+            std::cerr << "\n Warning:  number of colors and symbols do not match." << std::endl;
+        }
+        std::cerr << "\n Warning:  not enough symbols/colors for the number of algo. Let's plot only the first " << std::to_string(maxPlots) << " plots." << std::endl;
+    }
+    
+    size_t nbPlotted = 0;
+    std::string lineStyle = "solid";
+    
+    std::vector<std::string>::iterator itLeg = listLegends.begin();
+    for (const auto & plain_file_name : listFileNames )
+    {
+        // Modify plain file name to include the key "step"
+        std::string plain_file_name_step = plain_file_name + ".step";
+
+        out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 20, color=" << COLORS[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
+        out_tex << "\\addlegendentry{" << *itLeg << "};" <<std::endl;
+        nbPlotted++;
+        itLeg++;
+        if (nbPlotted >= maxPlots)
+        {
+            break;
+        }
+    }
+    
+    
+    out_tex << " \\end{axis} " << std::endl;
+    out_tex << " \\end{tikzpicture}" << std::endl;
+    out_tex << " \\end{document}" <<std::endl;
+    
+    out_tex.close();
+    
+    std::cout << " done " << std::endl;
+    
+    return true;
+    
+}
+
+bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output & out ) const
+{
+    RUNNERPOST::Output::Profile_Type profile_type = out.get_profile_type();
+    
+    if (profile_type != RUNNERPOST::Output::Profile_Type::CONVERGENCE_PROFILE)
+    {
+        std::cerr << "\n Error: Use output_profile_pgfploats." << std::endl;
+        return false;
+    }
+    if ( out.get_plot_type() != RUNNERPOST::Output::Plot_Type::ComboHInfAndFFeas )
+    {
+        std::cerr << "\n Error: Only for Combo convergence plots." << std::endl;
+        return false;
+    }
+    
+    
+    size_t i_pb, i_algo, i_pb_instance;
+    const size_t n_pb = _selected_pbs.size();
+    const size_t n_algo = _selected_algos.size();
+    
+    std::vector<std::string> listFileNames;
+    std::vector<std::string> listLegends;
+    
+    for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+    {
+        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+        {
+            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
+            {
+                if (! out.plotIsSelected(_selected_algos[i_algo]->get_id(), _selected_pbs[i_pb]->get_id(),i_pb_instance))
+                    continue;
+                
+                auto extensionF = "."+_selected_algos[i_algo]->get_id()+"."+_selected_pbs[i_pb]->get_id()+".Inst"+std::to_string(i_pb_instance)+".F";
+                auto extensionH = "."+_selected_algos[i_algo]->get_id()+"."+_selected_pbs[i_pb]->get_id()+".Inst"+std::to_string(i_pb_instance)+".H";
+                
+                auto legendF = "Objective F for " + _selected_algos[i_algo]->get_id()+" Pb "+_selected_pbs[i_pb]->get_id()+" Inst. "+std::to_string(i_pb_instance);
+                auto legendH = "Infeasibility H for " + _selected_algos[i_algo]->get_id()+" Pb "+_selected_pbs[i_pb]->get_id()+" Inst. "+std::to_string(i_pb_instance);
+                
+                listFileNames.push_back(out.get_plain_file_name()+extensionF);
+                listFileNames.push_back(out.get_plain_file_name()+extensionH);
+                listLegends.push_back(legendF);
+                listLegends.push_back(legendH);
+            }
+        }
+    }
+    if (listFileNames.empty())
+    {
+        std::cerr << "\n Error in output_convergence_profile_pgfplots: No history file to plot in latex." << std::endl;
+        return false;
+    }
+    
+    size_t lastBbe = 0;
+    
+    std::string latexFileName = out.get_latex_file_name() ;
+    
+    std::cout<< "\t Writing of " ;
+    for (const auto& plain_file_name: listFileNames)
+    {
+        std::ifstream infile(plain_file_name);
+        if (! infile.good() )
+        {
+            std::cerr << "\n Error in output_selection: file " << plain_file_name << " does not exist for latex profile " << std::endl;
+            infile.close();
+            return false;
+        }
+        
+        // Modify plain file name to include the key "step"
+        std::string plain_file_name_step = plain_file_name + ".step";
+        
+        std::cout << plain_file_name_step << " ...";
+        
+        // Create data for plotting data profile with step
+        std::ofstream outfile_step(plain_file_name_step);
+        
+        // The loop for reading plain_file_name and writing to plain_file_name_step
+        std::string line, prevLine, prevLineToken, lineFirstToken;
+        while (std::getline(infile, line))
+        {
+            if (line.empty())
+            {
+                std::cout << std::endl;
+                std::cerr << "Cannot read line from " << plain_file_name << ". Empty lines are present." << std::endl;
+                return false;
+            }
+            if (!prevLine.empty())
+            {
+                // Read the first token of the line
+                std::istringstream iss(line);
+                
+                iss >> lineFirstToken;
+                
+                // Write the first token of the previous line to the new line
+                outfile_step << lineFirstToken << " ";
+                
+                // Write all tokens of prevLine, except the first one
+                std::istringstream issPrev(prevLine);
+                issPrev >> prevLineToken;
+                while (std::getline(issPrev, prevLineToken, ' '))
+                {
+                    if (prevLineToken.empty())
+                    {
+                        continue;
+                    }
+                    outfile_step << prevLineToken << " ";
+                }
+                outfile_step << std::endl;
+            }
+            prevLine = line;
+            outfile_step << line << std::endl;
+            
+        }
+        
+        // Get last bbe from the line
+        lastBbe = std::max<size_t>(lastBbe, std::stoul(prevLine.substr(0, prevLine.find(" "))));
+        
+        outfile_step.close();
+        infile.close();
+    }
+    std::cout << " done " << std::endl;
+    
+    // Graph title
+    std::string profileTitle = out.get_title();
+    
+    std::cout<< "\t Writing of " << latexFileName << " ......";
+    
+    // Output tex file from previous strings
+    std::ofstream out_tex ( latexFileName , std::ofstream::out | std::ofstream::trunc );
+    out_tex << "\\documentclass{standalone}" <<std::endl;
+    out_tex << "\\usepackage{pgfplots} " <<std::endl;
+    out_tex << "\\pgfplotsset{width=10cm,compat=1.16} " <<std::endl;
+    out_tex << "\\begin{document}" <<std::endl;
+    out_tex << "\\begin{tikzpicture} "<<std::endl;
+    out_tex << "\\begin{axis}[ " << std::endl;
+    out_tex << "       title = {" << profileTitle << "}," << std::endl;
+    out_tex << "       xmin=1, xmax=" << std::to_string(lastBbe) << "," << std::endl;
+    out_tex << "       xlabel = {Number of evaluations}," <<std::endl;
+    out_tex << "       ylabel = {Objective function}," <<std::endl;
+    out_tex << "       ylabel near ticks," << std::endl;
+    out_tex << "       axis y line*=right," << std::endl;
+    out_tex << " legend style={ " << std::endl;
+    out_tex << "    font=\\tiny, " <<std::endl;
+    out_tex << "    cells={anchor=southeast}, " << std::endl;
+    out_tex << "    at={(1,-0.2)}, " <<std::endl;
+    out_tex << " legend cell align=left, } ]" <<std::endl;
+    
+    int color_index = 0;
+    int symbol_index = 0;
+    
+    // Maximum number of algorithms that can be plotted
+    const size_t maxPlots = std::min(SYMBOLS.size(),COLORS.size());
+    if ( listFileNames.size() > maxPlots )
+    {
+        if (SYMBOLS.size() != COLORS.size())
+        {
+            std::cerr << "\n Warning:  number of colors and symbols do not match." << std::endl;
+        }
+        std::cerr << "\n Warning:  not enough symbols/colors for the number of algo. Let's plot only the first " << std::to_string(maxPlots) << " plots." << std::endl;
+    }
+    
+    size_t nbPlotted = 0;
+    std::string lineStyle = "solid";
+    
+    for (size_t i =0 ; i < listFileNames.size()-1 ; i+=2)
+    {
+        // Modify plain file name to include the key "step"
+        std::string plain_file_name_step = listFileNames[i] + ".step";
+
+        out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 20, color=" << COLORS[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
+        out_tex << "\\addlegendentry{" << listLegends[i] << "};" <<std::endl;
+        nbPlotted++;
+        if (nbPlotted >= maxPlots)
+        {
+            break;
+        }
+    }
+    out_tex << " \\end{axis} " << std::endl;
+
+    
+    out_tex << "\\begin{axis}[ " << std::endl;
+    out_tex << "       ylabel = {Infeasibility measure}," <<std::endl;
+    out_tex << "       xmin=1, xmax=" << std::to_string(lastBbe) << "," << std::endl;
+    out_tex << "       axis y line*=left,"  <<std::endl;
+    out_tex << "       xlabel near ticks," <<std::endl;
+    out_tex << "       hide x axis," << std::endl;
+    out_tex << " legend style={ " << std::endl;
+    out_tex << "    font=\\tiny, " <<std::endl;
+    out_tex << "    cells={anchor=southeast}, " << std::endl;
+    out_tex << "    at={(1,-0.3)}, " <<std::endl;
+    out_tex << " legend cell align=left, } ]" <<std::endl;
+    
+    for (size_t i = 1 ; i < listFileNames.size() ; i+=2)
+    {
+        // Modify plain file name to include the key "step"
+        std::string plain_file_name_step = listFileNames[i] + ".step";
+
+        out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 20, color=" << COLORS[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
+        out_tex << "\\addlegendentry{" << listLegends[i] << "};" <<std::endl;
+        nbPlotted++;
+        if (nbPlotted >= maxPlots)
+        {
+            break;
+        }
+    }
+    out_tex << " \\end{axis} " << std::endl;
+    
+        
+    out_tex << " \\end{tikzpicture}" << std::endl;
+    out_tex << " \\end{document}" <<std::endl;
+    
+    out_tex.close();
+    
+    std::cout << " done " << std::endl;
+    
+    return true;
+    
+}
+
+bool RUNNERPOST::Runner::output_profile_pgfplots(const Output & out) const
+{
+    if (out.get_latex_file_name().empty())
+    {
+        return true;
+    }
+    
+    std::string plain_file_name = out.get_plain_file_name();
+    
+    if (out.get_plain_file_name().empty())
+    {
+        std::cerr << "\n Error in output_selection: To output in latex the output_plain is mandatory. " << std::endl;
+        return false;
+    }
+    
+    if (_selected_algos.empty())
+    {
+        std::cerr << "\n Error:  no algos available." << std::endl;
+        return false;
+    }
+
+    
+    std::list<std::string> listFileNames;
+    if (out.get_profile_type() == RUNNERPOST::Output::Profile_Type::CONVERGENCE_PROFILE)
+    {
+        if (out.get_plot_type() == RUNNERPOST::Output::Plot_Type::ComboHInfAndFFeas)
+        {
+            return output_combo_convergence_profile_pgfplots(out);
+        }
+        else
+        {
+            return output_convergence_profile_pgfplots(out);
+        }
+        return output_convergence_profile_pgfplots(out);
+    }
+    else
+    {
+        return output_dataperf_profile_pgfplots(out);
+    }
+    
+
 }
 
 

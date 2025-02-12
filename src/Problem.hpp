@@ -2,6 +2,7 @@
 #define __PROBLEM__
 
 #include "runner_defines.hpp"
+#include "Algorithm.hpp"
 #include <set>
 
 #include "runnerpost_nsbegin.hpp"
@@ -12,8 +13,8 @@ private:
 
     std::string                        _id="";
     std::string                        _name="";
-    int                                _n =-1;
-    int                                _m =-1;
+    int                                _n =-1;  // Pb dimension. Must be set.
+    int                                _m =-1;  // Number of output. Must be set.
     
     std::vector<std::string>           _pbInstance; // Can be undefined (single instance, no id -> not used in history name)
     size_t                             _nbPbInstances;
@@ -58,6 +59,9 @@ public:
     
     // Constructor #4
     Problem (std::string single_pb_description, std::string & error_msg);
+    
+    // Constructor #5: From a result file
+    Problem(const std::string&  result_file, RUNNERPOST::StatOutputTypeList & sotList, const std::string & pbInst, std::string & error_msg);
 
     
     // destructor:

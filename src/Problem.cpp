@@ -3,6 +3,10 @@
 
 #include <cctype>
 
+#include <fstream>
+
+#include <filesystem>
+
 
 // Default values. Can be set.
 // TODO: this is available from Algo
@@ -28,6 +32,20 @@ RUNNERPOST::Problem::Problem(std::string  s, std::string & error_msg)
         s.erase(i,s.length());
     }
     
+    // Remove commented lines
+    i = s.find("//");
+    if ( i != std::string::npos)
+    {
+        s.erase(i,s.length());
+    }
+    
+    // Case where the line is empty
+    if (s.empty())
+    {
+        error_msg = "Found an empty line in problem selection file";
+        return;
+    }
+
     // Get pb id as the first word on the line
     i = s.find_first_not_of(" ");
     if (i > 0)
@@ -92,6 +110,75 @@ RUNNERPOST::Problem::Problem(std::string  s, std::string & error_msg)
     // TODO: check inconsistencies. Example: tau provided but default output file name are used. At least give a warning
     
 }
+
+RUNNERPOST::Problem::Problem(const std::string&  result_file, RUNNERPOST::StatOutputTypeList & sotList, const std::string & pbInst, std::string & error_msg)
+{
+    bool hasConst = (std::count(sotList.begin(),sotList.end(),StatOutputType::CST) > 0);
+    bool hasSol = (std::count(sotList.begin(),sotList.end(),StatOutputType::SOL) > 0);
+    size_t nbObj = std::count(sotList.begin(),sotList.end(),StatOutputType::OBJ);
+    
+    if (hasConst && hasSol)
+    {
+        error_msg = "Error. Cannot pb result file. Constraints and solution are in " + result_file;
+        return;
+    }
+    if (nbObj > 1)
+    {
+        error_msg = "Error. Cannot pb result file. More than one objective in " + result_file;
+        return;
+    }
+    
+    
+    std::ifstream in ( result_file, std::ios::in );
+    if ( in.fail() )
+    {
+        in.close();
+        error_msg = "Error. Cannot read pb result file " + result_file;
+        return;
+    }
+    
+    std::string line;
+    getline (in , line);
+    
+    if (line.empty())
+    {
+        error_msg = "Error. Cannot read pb file. First line is empty. " + result_file;
+        in.close();
+        return;
+    }
+    
+    //Count the number of words in the line
+    size_t nbWords = RUNNERPOST::extract_words(line).size();
+    
+    // Deduce the dimension of pb
+    size_t dimPb = nbWords - 1; // Single objective, no constraints. The rest of the words can be the solution.
+    if (std::count(sotList.begin(),sotList.end(),StatOutputType::CNT_EVAL) > 0)
+    {
+        dimPb = int(nbWords) - 2; // Single objective, no constraints and eval counter. The rest of the words can be the solution.
+    }
+    if (dimPb < 1)
+    {
+        error_msg = "Error. Cannot read pb result file. Cannot deduce the number of variables in " + result_file;
+        in.close();
+        return;
+    }
+    
+    _n = int(dimPb);
+    _m = 1;
+    
+    // Extract the name of the pb from the path in pb_dirs
+    std::string pbId = RUNNERPOST::split(result_file, RUNNERPOST::DIR_SEP)[1];
+    set_id(pbId);
+    set_name("Pb"+pbId);
+    
+    set_pbInstance(pbInst);
+    _nbPbInstances = _pbInstance.size();
+    
+    in.close();
+}
+    
+
+
 
 bool RUNNERPOST::Problem::setSingleAttribute(const std::pair<std::string,std::vector<std::string>> & att)
 {
@@ -223,37 +310,6 @@ int RUNNERPOST::Problem::getMaxBBEvals() const
 //    return true;
 //}
 
-///*----------------------------------------------*/
-///*          set blackbox output types           */
-///*----------------------------------------------*/
-//bool Problem::set_bbot ( int i , NOMAD_BASE::BBOutputType t )
-//{
-//
-//    if ( i < 0 || i >= _m )
-//        throw NOMAD_BASE::Exception ( "RUNNER: Problem.cpp" , __LINE__ ,
-//        "Problem::set_bbot, index not in [0;m-1]." );
-//
-//    if ( _bbot.size() < (size_t)_m )
-//        _bbot.resize(_m);
-//
-//    _bbot[i] = t;
-//
-//    if ( t == NOMAD_BASE::BBOutputType::PB || t == NOMAD_BASE::BBOutputType::EB )
-//    {
-//        if ( ! _has_constraints )
-//        {
-//            _has_constraints = true;
-//            add_keyword ( "constrained" );
-//        }
-//    }
-//
-//    // Append from NOMAD_BASE::BBOutputType to string
-//    std::ostringstream s;
-//    s << " " << _bbot[i];
-//    _bbotS.append( s.str() );
-//
-//    return true;
-//}
 
 
 ///*----------------------------------------------*/
@@ -324,12 +380,7 @@ void RUNNERPOST::Problem::display ( void ) const
         std::cout << " ]";
     }
     
-//    << "] [bnds=" << has_bounds()
 //    << "] [cstr=" << _has_constraints
-//    << "] [trend=" << _has_trend_matrix
-//    << "] [int=" << _has_integers
-//    << "] [bin=" << _has_binaries << "] ["
-//    << ( is_batch() ? "batch" : "lib" )
 //    << "] [f*=" << _fxe << "]";
 }
 
