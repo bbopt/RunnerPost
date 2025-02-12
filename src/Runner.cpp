@@ -2673,12 +2673,9 @@ bool RUNNERPOST::Runner::read_problem_selection_file ( const std::string  & pb_s
             
             return read_problem_selection_from_algo_dir(error_msg);
         }
-        else
-        {
-            _selected_pbs.push_back(new Problem(line, error_msg));
-        }
         
         _selected_pbs.push_back(new Problem(line, error_msg));
+        
         if (!error_msg.empty())
         {
             in.close();
@@ -3696,18 +3693,16 @@ bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output 
             for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
                 if (! out.plotIsSelected(_selected_algos[i_algo]->get_id(), _selected_pbs[i_pb]->get_id(),i_pb_instance))
-                    continue;
+                    break;
                 
                 auto extensionF = "."+_selected_algos[i_algo]->get_id()+"."+_selected_pbs[i_pb]->get_id()+".Inst"+std::to_string(i_pb_instance)+".F";
                 auto extensionH = "."+_selected_algos[i_algo]->get_id()+"."+_selected_pbs[i_pb]->get_id()+".Inst"+std::to_string(i_pb_instance)+".H";
                 
-                auto legendF = "Objective F for " + _selected_algos[i_algo]->get_id()+" Pb "+_selected_pbs[i_pb]->get_id()+" Inst. "+std::to_string(i_pb_instance);
-                auto legendH = "Infeasibility H for " + _selected_algos[i_algo]->get_id()+" Pb "+_selected_pbs[i_pb]->get_id()+" Inst. "+std::to_string(i_pb_instance);
+                auto legend = "Algo. " + _selected_algos[i_algo]->get_id()+" Pb. "+_selected_pbs[i_pb]->get_id()+" Inst. "+std::to_string(i_pb_instance);
                 
                 listFileNames.push_back(out.get_plain_file_name()+extensionF);
                 listFileNames.push_back(out.get_plain_file_name()+extensionH);
-                listLegends.push_back(legendF);
-                listLegends.push_back(legendH);
+                listLegends.push_back(legend);
             }
         }
     }
@@ -3801,8 +3796,8 @@ bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output 
     out_tex << "\\begin{axis}[ " << std::endl;
     out_tex << "       title = {" << profileTitle << "}," << std::endl;
     out_tex << "       xmin=1, xmax=" << std::to_string(lastBbe) << "," << std::endl;
-    out_tex << "       xlabel = {Number of evaluations}," <<std::endl;
-    out_tex << "       ylabel = {Objective function}," <<std::endl;
+    out_tex << "       xlabel = {Number of function evaluations}," <<std::endl;
+    out_tex << "       ylabel = {Best objective function value}," <<std::endl;
     out_tex << "       ylabel near ticks," << std::endl;
     out_tex << "       axis y line*=right," << std::endl;
     out_tex << " legend style={ " << std::endl;
@@ -3827,14 +3822,14 @@ bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output 
     
     size_t nbPlotted = 0;
     std::string lineStyle = "solid";
-    
+    size_t j = 0;
     for (size_t i =0 ; i < listFileNames.size()-1 ; i+=2)
     {
         // Modify plain file name to include the key "step"
         std::string plain_file_name_step = listFileNames[i] + ".step";
 
         out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 20, color=" << COLORS[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
-        out_tex << "\\addlegendentry{" << listLegends[i] << "};" <<std::endl;
+        out_tex << "\\addlegendentry{" << listLegends[j++] << "};" <<std::endl;
         nbPlotted++;
         if (nbPlotted >= maxPlots)
         {
@@ -3843,18 +3838,15 @@ bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output 
     }
     out_tex << " \\end{axis} " << std::endl;
 
-    
+    symbol_index = 0;
+    color_index = 0;
+    nbPlotted = 0;
     out_tex << "\\begin{axis}[ " << std::endl;
-    out_tex << "       ylabel = {Infeasibility measure}," <<std::endl;
+    out_tex << "       ylabel = {Best infeasibility function value}," <<std::endl;
     out_tex << "       xmin=1, xmax=" << std::to_string(lastBbe) << "," << std::endl;
     out_tex << "       axis y line*=left,"  <<std::endl;
     out_tex << "       xlabel near ticks," <<std::endl;
-    out_tex << "       hide x axis," << std::endl;
-    out_tex << " legend style={ " << std::endl;
-    out_tex << "    font=\\tiny, " <<std::endl;
-    out_tex << "    cells={anchor=southeast}, " << std::endl;
-    out_tex << "    at={(1,-0.3)}, " <<std::endl;
-    out_tex << " legend cell align=left, } ]" <<std::endl;
+    out_tex << "       hide x axis, ]" <<std::endl;
     
     for (size_t i = 1 ; i < listFileNames.size() ; i+=2)
     {
@@ -3862,7 +3854,6 @@ bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output 
         std::string plain_file_name_step = listFileNames[i] + ".step";
 
         out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 20, color=" << COLORS[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
-        out_tex << "\\addlegendentry{" << listLegends[i] << "};" <<std::endl;
         nbPlotted++;
         if (nbPlotted >= maxPlots)
         {
@@ -3870,8 +3861,6 @@ bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output 
         }
     }
     out_tex << " \\end{axis} " << std::endl;
-    
-        
     out_tex << " \\end{tikzpicture}" << std::endl;
     out_tex << " \\end{document}" <<std::endl;
     
