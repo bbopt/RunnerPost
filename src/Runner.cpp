@@ -724,7 +724,7 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
 
     if ( !miss_list.empty() )
     {
-        std::cout << "... the following results are missing" ;
+        std::cout << "... the following results are missing" << std::endl;
         std::list<size_t>::const_iterator it , end = miss_list.end();
         bool need_for_fix = false;
         for ( it = miss_list.begin() ; it != end ; ++it )
@@ -980,7 +980,7 @@ bool RUNNERPOST::Runner::output_convergence_profile_plain ( const Output & out )
                             miss_list.push_back( 0 );
                     }
                     
-                    if ( (_results[i_pb][i_algo][i_pb_instance].has_solution() && plotF) || plotH )
+                    if ( plotF || plotH )
                     {
                         
                         std::string plainFileName = out.get_plain_file_name() + "."+_selected_algos[i_algo]->get_id()+"."+_selected_pbs[i_pb]->get_id()+".Inst"+std::to_string(i_pb_instance);
@@ -1046,7 +1046,7 @@ bool RUNNERPOST::Runner::output_convergence_profile_plain ( const Output & out )
 
     if ( !miss_list.empty() )
     {
-        std::cout << "... the following results are missing" ;
+        std::cout << "... the following results are missing" << std::endl;
         std::list<size_t>::const_iterator it , end = miss_list.end();
         bool need_for_fix = false;
         for ( it = miss_list.begin() ; it != end ; ++it )
@@ -1313,7 +1313,7 @@ bool RUNNERPOST::Runner::output_time_profile_plain(const Output& out) const
     }
     if ( !miss_list.empty() )
     {
-        std::cout << "... the following results are missing" ;
+        std::cout << "... the following results are missing" << std::endl ;
         std::list<size_t>::const_iterator it;
         bool need_for_fix = false;
         for (it = miss_list.begin(); it != miss_list.end(); ++it)
@@ -1637,6 +1637,10 @@ void RUNNERPOST::Runner::output_problems_unsolved ( const double & tau , const d
 /*-------------------------------------------------------*/
 /* get the value of f at x0 for all problems (private)   */
 /*-------------------------------------------------------*/
+/* If x0 is infeasible, get the value of fs at the first */
+/* feasible point for all problems : max (default)       */
+/* value of first feasible eval of all algo/instances    */
+/*-------------------------------------------------------*/
 RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
 {
     const size_t n_pb = _selected_pbs.size();
@@ -1648,20 +1652,19 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
     // Get fx0 for all problems
     for (size_t i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
-        fx0 = _results[i_pb][0][0].get_sol(1);
-        if ( fx0 == INF)
-        {
-            std::cout << "... problem with starting point of problem #" << i_pb+1 << std::endl;
-            return fx0s;
-        }
-        fx0s[i_pb] = fx0;
+        fx0s[i_pb] = _results[i_pb][0][0].get_sol(1);
         for (size_t i_algo = 1 ; i_algo < n_algo ; ++i_algo )
         {
             for (size_t i_pb_instance=0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance)
             {
                 fx0 = _results[i_pb][i_algo][i_pb_instance].get_sol(1);
-
-                if ( fx0 == INF || std::fabs(fx0 - fx0s[i_pb]) > 1e-10 )
+                if ( (fx0s[i_pb] == INF && fx0 != INF) || (fx0s[i_pb] != INF && fx0 == INF) )
+                {
+                    std::cout << "... inconsistent starting points (feas/infeas) between instance runs for problem " << _selected_pbs[i_pb]->get_id() << " and algo " << _selected_algos[i_algo]->get_id() << " fx0=" << fx0 << " fx0s[ipb]=" << fx0s[i_pb] << std::endl;
+                    fx0s.clear();
+                    return fx0s;
+                }
+                else if ( fx0s[i_pb] != INF && fx0 != INF && std::fabs(fx0 - fx0s[i_pb]) > 1e-10 )
                 {
                     std::cout << "... inconsistent starting points between instance runs for problem " << _selected_pbs[i_pb]->get_id() << " and algo " << _selected_algos[i_algo]->get_id() << " fx0=" << fx0 << " fx0s[ipb]=" << fx0s[i_pb] << std::endl;
                     fx0s.clear();
@@ -1670,7 +1673,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
             }
         }
 
-        // fx0 for problems with constraints may not be available (case infeasible initial point -- > NINF)
+        // fx0 for problems with constraints may not be available (case infeasible initial point -- > INF)
         // fx0--> average of first feasible point obj
         //     or max first feasible point obj
         if ( fx0s[i_pb]==INF )
@@ -1682,9 +1685,9 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
             {
                 for (size_t i_pb_instance=0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance)
                 {
-                    first_fx = _results[i_pb][i_algo][i_pb_instance].get_first_fx();
-                    if ( first_fx != INF )
+                    if ( !_results[i_pb][i_algo][i_pb_instance].is_infeas() )
                     {
+                        first_fx = _results[i_pb][i_algo][i_pb_instance].get_first_fx();
                         if ( ! _use_avg_fx_first_feas )
                         {
                             if ( nb_first_fx == 0 )
@@ -3774,8 +3777,14 @@ bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output 
         }
         
         // Get last bbe from the line
-        lastBbe = std::max<size_t>(lastBbe, std::stoul(prevLine.substr(0, prevLine.find(" "))));
-        
+        if (!prevLine.empty())
+        {
+            lastBbe = std::max<size_t>(lastBbe, std::stoul(prevLine.substr(0, prevLine.find(" "))));
+        }
+        else
+        {
+            std::cerr << "Cannot read last line from " << plain_file_name << ". Empty lines are present. Let's continue." << std::endl;
+        }
         outfile_step.close();
         infile.close();
     }
