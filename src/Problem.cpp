@@ -111,7 +111,7 @@ RUNNERPOST::Problem::Problem(std::string  s, std::string & error_msg)
     
 }
 
-RUNNERPOST::Problem::Problem(const std::string&  result_file, RUNNERPOST::StatOutputTypeList & sotList, const std::string & pbInst, std::string & error_msg)
+RUNNERPOST::Problem::Problem(const std::string&  result_file, RUNNERPOST::StatOutputTypeList & sotList, const std::string & pbInst, bool pbFromParse, std::string & error_msg)
 {
     bool hasConst = (std::count(sotList.begin(),sotList.end(),StatOutputType::CST) > 0);
     bool hasSol = (std::count(sotList.begin(),sotList.end(),StatOutputType::SOL) > 0);
@@ -119,12 +119,12 @@ RUNNERPOST::Problem::Problem(const std::string&  result_file, RUNNERPOST::StatOu
     
     if (hasConst && hasSol)
     {
-        error_msg = "Error. Cannot pb result file. Constraints and solution are in " + result_file;
+        error_msg = "Error. Cannot create pb. Constraints and solution are in " + result_file;
         return;
     }
     if (nbObj > 1)
     {
-        error_msg = "Error. Cannot pb result file. More than one objective in " + result_file;
+        error_msg = "Error. Cannot create pb. More than one objective in " + result_file;
         return;
     }
     
@@ -147,14 +147,32 @@ RUNNERPOST::Problem::Problem(const std::string&  result_file, RUNNERPOST::StatOu
         return;
     }
     
-    //Count the number of words in the line
-    size_t nbWords = RUNNERPOST::extract_words(line).size();
-    
-    // Deduce the dimension of pb
-    size_t dimPb = nbWords - 1; // Single objective, no constraints. The rest of the words can be the solution.
-    if (std::count(sotList.begin(),sotList.end(),StatOutputType::CNT_EVAL) > 0)
+    // Let's try to read the pb dimension provided in the first line of the result file
+    size_t dimPb = 0;
+    if (!hasSol)
     {
-        dimPb = int(nbWords) - 2; // Single objective, no constraints and eval counter. The rest of the words can be the solution.
+        auto first_line_words = RUNNERPOST::extract_words(line, true /*to upper case*/);
+        if (first_line_words[0] !="DIM" && first_line_words[1] != "=")
+        {
+            error_msg = "Error. Cannot read pb from result file " + result_file + ". First line does not start with DIM = xx, where xx is the number of variables.";
+            in.close();
+            return;
+        }
+        dimPb = std::stoi(first_line_words[2]);
+        
+    }
+    else
+    {
+        
+        //Count the number of words in the line
+        size_t nbWords = RUNNERPOST::extract_words(line).size();
+        
+        // Deduce the dimension of pb
+        size_t dimPb = nbWords - 1; // Single objective, no constraints. The rest of the words can be the solution.
+        if (std::count(sotList.begin(),sotList.end(),StatOutputType::CNT_EVAL) > 0)
+        {
+            dimPb = int(nbWords) - 2; // Single objective, no constraints and eval counter. The rest of the words can be the solution.
+        }
     }
     if (dimPb < 1)
     {
@@ -165,6 +183,8 @@ RUNNERPOST::Problem::Problem(const std::string&  result_file, RUNNERPOST::StatOu
     
     _n = int(dimPb);
     _m = 1;
+    
+    _pbFromParse = pbFromParse;
     
     // Extract the name of the pb from the path in pb_dirs
     std::string pbId = RUNNERPOST::split(result_file, RUNNERPOST::DIR_SEP)[1];

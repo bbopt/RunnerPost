@@ -8,12 +8,14 @@
     
 std::pair<std::string,std::vector<std::string>> extract_from_bracket(std::string &s, const char * keyValSep =" ");
 
-std::vector<std::string> extract_words(std::string &s);
+std::vector<std::string> extract_words(std::string &s, bool toUpperCase = false);
 
 std::vector<std::string> split(const std::string& str, char delimiter);
 
 
 void toUpperCase(std::string& str);
+void toUpperCase(std::vector<std::string>& str);
+std::string toUpperCase(const std::string& str);
 
 
 struct StatOutputType

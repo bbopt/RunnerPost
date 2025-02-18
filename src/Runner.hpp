@@ -109,7 +109,13 @@ private:
         }
         if (DIR_ORDER_IS_ALGO_PB)
         {
-            s += ac.get_id() + DIR_SEP + pb.get_id() + DIR_SEP ;
+            s += ac.get_id() + DIR_SEP + pb.get_id()  ;
+            
+            // When the pb was obtained from parse, the pb id is the stats file name.
+            if (!pb.get_pbFromParse())
+            {
+                s += DIR_SEP ;
+            }
         }
         else
         {

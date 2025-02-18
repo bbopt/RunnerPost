@@ -2714,7 +2714,7 @@ bool RUNNERPOST::Runner::read_problem_selection_from_algo_dir ( std::string     
         // TODO: what about multi objectives
         
         bool hasConst = (std::count(sotList.begin(),sotList.end(),StatOutputType::CST) > 0);
-        bool hasSol = (std::count(sotList.begin(),sotList.end(),StatOutputType::SOL) > 0);
+        // bool hasSol = (std::count(sotList.begin(),sotList.end(),StatOutputType::SOL) > 0); // Let's try to use some info (like DIM = xx or SOL) in stats file to figure out the pb dimension
         size_t nbObj = std::count(sotList.begin(),sotList.end(),StatOutputType::OBJ);
         
         if (nbObj > 1)
@@ -2728,11 +2728,11 @@ bool RUNNERPOST::Runner::read_problem_selection_from_algo_dir ( std::string     
             error_msg = "Error. Algo " + algo->get_id() + " has constraints in the output. Cannot deduce problems from algo directories.";
             return false;
         }
-        if (!hasSol)
-        {
-            error_msg = "Error. Algo " + algo->get_id() + " has no solutions in the output. Cannot select problems from algo directories.";
-            return false;
-        }
+//        if (!hasSol)
+//        {
+//            error_msg = "Error. Algo " + algo->get_id() + " has no solutions in the output. Cannot select problems from algo directories.";
+//            return false;
+//        }
         
         algo_dirs.push_back( algo->get_id());
     }
@@ -2744,6 +2744,16 @@ bool RUNNERPOST::Runner::read_problem_selection_from_algo_dir ( std::string     
     {
         error_msg = "Error. Cannot read pb directories from algo dir " + algo_dirs[0];
         return false;
+    }
+    
+    // Case no pb dir found.
+    // Let's try to read the pb files directly from the algo dir
+    // Get the list of all result files in a pb dir
+    bool pbFromParse = false;
+    if (pb_dirs.empty())
+    {
+        pbFromParse = true;
+        pb_dirs.push_back(algo_dirs[0]);
     }
     
     auto sotList = _selected_algos[0]->get_stats_output_type_list();
@@ -2767,32 +2777,34 @@ bool RUNNERPOST::Runner::read_problem_selection_from_algo_dir ( std::string     
             return false;
         }
 
-        if (res_files.size() > 1)
+        if (res_files.size() > 1 && pb_dirs.size() > 1)
         {
-            error_msg = "Error. More than one instances cannot be managed to read pb result files from pb dir " + pb;
+            error_msg = "Error. More than one instances cannot be managed to read pb result files from several pb dirs " + pb;
             return false;
         }
+          
+        for (const auto & res_file: res_files)
+        {
+            // Create a problem definition using the available information from the result file
+            Problem pbDef(res_file, sotList, defPbInst, pbFromParse, error_msg);
             
-        // Create a problem definition using the available information from the result file
-        Problem pbDef(res_files.front(), sotList, defPbInst, error_msg);
-        
-        if (!error_msg.empty())
-        {
-            return false;
+            if (!error_msg.empty())
+            {
+                return false;
+            }
+                        
+            // Check if this is consistent with the algo stats file name
+            // We suppose the instance name is 0
+            auto statFileName = get_stats_file_name(*_selected_algos[0], pbDef /*Not used*/, defPbInst);
+            if (!pbFromParse && res_files.front().find(statFileName) == std::string::npos)
+            {
+                error_msg = "Error. The stats file name " + statFileName + " does not match the pb result file name " + res_files.front();
+                return false;
+            }
+            
+            // Let's add the pb definition to the reference
+            ref_selected_pbs.push_back(pbDef);
         }
-        
-        // Check if this is consistent with the algo stats file name
-        // We suppose the instance name is 0
-        auto statFileName = get_stats_file_name(*_selected_algos[0], pbDef /*Not used*/, defPbInst);
-        if (res_files.front().find(statFileName) == std::string::npos)
-        {
-            error_msg = "Error. The stats file name " + statFileName + " does not match the pb result file name " + res_files.front();
-            return false;
-        }
-    
-        // Let's add the pb definition to the reference
-        ref_selected_pbs.push_back(pbDef);
-        
     }
         
     // Check the consistency of pb dirs with the other algo dirs
@@ -2803,6 +2815,16 @@ bool RUNNERPOST::Runner::read_problem_selection_from_algo_dir ( std::string     
         {
             error_msg = "Error. Cannot read pb directories from algo dir " + algo_dirs[i];
             return false;
+        }
+        
+        // Case no pb dir found.
+        // Let's try to read the pb files directly from the algo dir
+        // Get the list of all result files in a pb dir
+        bool pbFromParse = false;
+        if (pb_dirs.empty())
+        {
+            pbFromParse = true;
+            pb_dirs.push_back(algo_dirs[i]);
         }
         
         // Read the first line of each pb dir to get the pb id, the number of instances, the dimension (n), the number of objectives and constraints (m)
@@ -2816,9 +2838,9 @@ bool RUNNERPOST::Runner::read_problem_selection_from_algo_dir ( std::string     
                 return false;
             }
             
-            if (res_files.size() > 1)
+            if (res_files.size() > 1 && pb_dirs.size() > 1)
             {
-                error_msg = "Error. More than one instances cannot be managed to read pb result files from pb dir " + pb;
+                error_msg = "Error. More than one instances cannot be managed to read pb result files from several pb dirs " + pb;
                 return false;
             }
             
@@ -2826,23 +2848,26 @@ bool RUNNERPOST::Runner::read_problem_selection_from_algo_dir ( std::string     
             
             // TODO check the same conditions as for algo 0
             
-            // Create a pb from a problem result file
-            Problem algoPbDef(res_files.front(), algoSotList, defPbInst, error_msg);
-            
-            // Compare algoPbDef with the reference pb having the same id
-            bool pbMatch = false;
-            for (const auto & refPb: ref_selected_pbs)
+            for (const auto & res_file: res_files)
             {
-                if (refPb.get_id() == algoPbDef.get_id())
+                // Create a pb from a problem result file
+                Problem algoPbDef(res_file, algoSotList, defPbInst, pbFromParse, error_msg);
+                
+                // Compare algoPbDef with the reference pb having the same id
+                bool pbMatch = false;
+                for (const auto & refPb: ref_selected_pbs)
                 {
-                    pbMatch = (refPb.get_n() == algoPbDef.get_n()); // Just need to compare the pb dimension
-                    break;
+                    if (refPb.get_id() == algoPbDef.get_id())
+                    {
+                        pbMatch = (refPb.get_n() == algoPbDef.get_n()); // Just need to compare the pb dimension
+                        break;
+                    }
                 }
-            }
-            if (!pbMatch)
-            {
-                error_msg = "Error. The pb " + algoPbDef.get_id() + " from algo dir " + algo_dirs[i] + " does not match the pb from the first algo dir " + algo_dirs[0];
-                return false;
+                if (!pbMatch)
+                {
+                    error_msg = "Error. The pb " + algoPbDef.get_id() + " from algo dir " + algo_dirs[i] + " does not match the pb from the first algo dir " + algo_dirs[0];
+                    return false;
+                }
             }
         }
     }
@@ -3930,7 +3955,11 @@ std::string RUNNERPOST::Runner::get_stats_file_name (const Algorithm    & ac    
                                                      const Problem      & pb      ,
                                                      const std::string  & pb_inst    )
 {
-    
+    // When the pb has been obtained by parsing Algo directory, the stats file name is obtained from the pb id.
+    if (pb.get_pbFromParse())
+    {
+        return "";
+    }
     
     std::string statsFileName = Algorithm::DEFAULT_STATS_FILE_NAME;
     bool flag_add_pbinstance_to_stats_file = Algorithm::DEFAULT_ADD_PBINSTANCE_TO_STATS_FILE;

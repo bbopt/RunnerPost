@@ -9,6 +9,19 @@ void RUNNERPOST::toUpperCase(std::string& str)
     for_each(str.begin(), str.end(), [](char& in){ in = std::toupper(in); });
 }
 
+void RUNNERPOST::toUpperCase(std::vector<std::string>& vstr)
+{
+    for_each(vstr.begin(), vstr.end(), [](std::string & in){ toUpperCase(in); });
+}
+
+std::string RUNNERPOST::toUpperCase(const std::string& str)
+{
+    std::string s = str;
+    for_each(s.begin(), s.end(), [](char& in){ in = std::toupper(in); });
+    return s;
+}
+
+
 std::pair<std::string,std::vector<std::string>> RUNNERPOST::extract_from_bracket(std::string &s, const char  *keyValSep)
 {
     
@@ -56,7 +69,7 @@ std::pair<std::string,std::vector<std::string>> RUNNERPOST::extract_from_bracket
 }
 
 
-std::vector<std::string> RUNNERPOST::extract_words(std::string &s)
+std::vector<std::string> RUNNERPOST::extract_words(std::string &s, bool toUpperCase)
 {
     std::vector<std::string> words;
     
@@ -97,7 +110,10 @@ std::vector<std::string> RUNNERPOST::extract_words(std::string &s)
                 s.erase(0,pos2);
             }
         }
-        
+        if (toUpperCase)
+        {
+            RUNNERPOST::toUpperCase(w);
+        }
         words.push_back(w);
     }
     return words;

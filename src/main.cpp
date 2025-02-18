@@ -498,7 +498,7 @@ int main ( int argc , char ** argv )
         
         if ( !runner.read_problem_selection_file ( argv[2] , error_msg ) )
         {
-            std::cerr << "Cannot read pbs config file \"" << argv[2] << "\"" << std::endl;
+            std::cerr << std::endl << "Cannot read pbs config file \"" << argv[2] << "\"" << std::endl;
             std::cerr << "Stop prematurely with error \"" << error_msg << "\"" << std::endl;
             return 1;
         }

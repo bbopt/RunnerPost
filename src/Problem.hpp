@@ -18,6 +18,7 @@ private:
     
     std::vector<std::string>           _pbInstance; // Can be undefined (single instance, no id -> not used in history name)
     size_t                             _nbPbInstances;
+    bool                               _pbFromParse = false;  // if true, the pb is deduced from the result files not from the problem definition file.
     
     
     // The max_bb_eval termination criterion is min( _overallMaxBBEvals, (n+1)*_nbSimplexEvals
@@ -61,7 +62,7 @@ public:
     Problem (std::string single_pb_description, std::string & error_msg);
     
     // Constructor #5: From a result file
-    Problem(const std::string&  result_file, RUNNERPOST::StatOutputTypeList & sotList, const std::string & pbInst, std::string & error_msg);
+    Problem(const std::string&  result_file, RUNNERPOST::StatOutputTypeList & sotList, const std::string & pbInst, bool pbFromParse, std::string & error_msg);
 
     
     // destructor:
@@ -101,6 +102,8 @@ public:
     int                 get_m         ( void ) const { return _m;                }
     const std::vector<std::string> & get_pbInstance( void) const { return _pbInstance; }
     const size_t get_nbPbInstances( void) const { return _nbPbInstances; }
+    
+    bool get_pbFromParse( void ) const { return _pbFromParse; }
     
 //    const NOMAD_BASE::Point  & get_x0          ( void ) const { return _x0;               }
 //    bool hasX0FeasInfo( void ) const { return _x0_feas_info ; }

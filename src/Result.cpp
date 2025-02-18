@@ -395,6 +395,15 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
             size_t pos = 0;
             nb_fields = 0;
             
+            // Detect some decoration in the first line of the result file
+            // We can have a comment line starting with # or %
+            // We can have some extra information : DIM = 10, for example
+            RUNNERPOST::toUpperCase(line);
+            if (line.find("DIM") != std::string::npos || line.find("#") != std::string::npos || line.find("%") != std::string::npos)
+            {
+                continue;
+            }
+            
             // At least we have single field
             if (line.find(" ") == std::string::npos && !line.empty())
             {
