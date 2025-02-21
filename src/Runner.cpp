@@ -773,15 +773,18 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     const ArrayOfDouble& fxe = get_best_fx();
 
 
-    // compute tpsMin and alpha_max (Moré and Wild  2009, eq. 2.1)
+    // compute tpsMin (Moré and Wild  2009, eq. 2.1)
     // -------------------------
     std::vector<size_t> tpsMin;
     size_t tpsMinTmp;
-    double alpha_max = INF;
-    size_t bbe_max=get_bbe_max();
+    size_t bbe_max = RUNNERPOST::INF_SIZE_T; // TODO Check if we need the bbe_max. --> Maybe for constrained pb with infeasible run.
+    
+    std::vector<size_t> algoHasSolvedFirst(n_pb,0);
+    const auto & tau = out.get_tau();
     for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
-        tpsMinTmp=bbe_max+1;
+        // tpsMinTmp=bbe_max+1; // TODO Check if we need the bbe_max.
+        tpsMinTmp = RUNNERPOST::INF_SIZE_T;
         if ( fx0s[i_pb] < INF )
         {
             for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
@@ -790,22 +793,22 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
                 {
                     if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
                     {
-                        size_t bbe = 1;
-                        for ( bbe = 1 ; bbe <= bbe_max ; ++bbe )
+                        
+                        // Get the improving objs and the corresponding bbes
+                        const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_objs();
+                        const auto & bbes = _results[i_pb][i_algo][i_pb_instance].get_bbes();
+                        
+                        for ( size_t i = 0 ; i < objs.size() ; i++ )
                         {
-                            if (fx0s[i_pb]-_results[i_pb][i_algo][i_pb_instance].get_sol(bbe) >= (1-out.get_tau())*(fx0s[i_pb]-fxe[i_pb]) )
+                            if (objs[i] <= fxe[i_pb] + tau *(fx0s[i_pb]-fxe[i_pb]) )
                             {
-                                if (bbe<tpsMinTmp)
+                                if (bbes[i]<tpsMinTmp)
                                 {
-                                    tpsMinTmp=bbe;
+                                    tpsMinTmp=bbes[i];
+                                    algoHasSolvedFirst[i_pb] = i_algo;
                                 }
                                 break;
                             }
-                        }
-                        if ( alpha_max == INF ||
-                            (tpsMinTmp!=bbe_max+1 && alpha_max < bbe/tpsMinTmp))
-                        {
-                            alpha_max=bbe/tpsMinTmp;
                         }
                     }
                 }
@@ -813,6 +816,16 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
         }
         tpsMin.push_back(tpsMinTmp);
     }
+    
+//    // TMP for testing. Display the number of problems solved first by each algorithm
+//    std::cout << "Number of problems solved first by each algorithm: " << std::endl;
+//    for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
+//    {
+//        // Get the number of problems solved first by each algorithm
+//        size_t nb_pb_solved_first = std::count(algoHasSolvedFirst.begin(), algoHasSolvedFirst.end(), i_algo);
+//        std::cout << "Algorithm " << i_algo << " solved " << double(nb_pb_solved_first)/n_pb << " % problems first." << std::endl;
+//    }
+    
     
     if (tpsMin.size() != n_pb)
     {
@@ -833,12 +846,15 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
             {
                 if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
                 {
-                    size_t bbe = 1;
-                    for ( bbe = 1 ; bbe <= bbe_max ; ++bbe )
+                    // Get the improving objs and the corresponding bbes
+                    const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_objs();
+                    const auto & bbes = _results[i_pb][i_algo][i_pb_instance].get_bbes();
+                    
+                    for ( size_t i = 0 ; i < objs.size() ; i++ )
                     {
-                        if (fx0s[i_pb]-_results[i_pb][i_algo][i_pb_instance].get_sol(bbe) >= (1-out.get_tau())*(fx0s[i_pb]-fxe[i_pb]) )
+                        if (objs[i] <= fxe[i_pb] + tau *(fx0s[i_pb]-fxe[i_pb]) )
                         {
-                            alphas.push_back(double(bbe)/tpsMin[i_pb]);
+                            alphas.push_back(double(bbes[i])/tpsMin[i_pb]);
                             break;
                         }
                     }
@@ -851,10 +867,13 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     /// -------------------------
     std::sort(alphas.begin(), alphas.end());
     
-    /// Remove doublons in alphas
+    
+    // Remove the duplicates
     /// -------------------------
-    std::vector<double>::iterator it = std::unique(alphas.begin(), alphas.end());
-    alphas.resize(std::distance(alphas.begin(), it));
+    auto last = std::unique(alphas.begin(), alphas.end());
+
+    // Erase the remaining elements after the unique elements
+    alphas.erase(last, alphas.end());
     
     
     size_t cnt;
@@ -873,11 +892,15 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
                 for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance; ++i_pb_instance )
                     if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
                     {
-                        for ( size_t bbe = 1 ; bbe <= bbe_max ; ++bbe )
+                        // Get the improving objs and the corresponding bbes
+                        const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_objs();
+                        const auto & bbes = _results[i_pb][i_algo][i_pb_instance].get_bbes();
+                        
+                        for ( size_t i = 0 ; i < objs.size() ; i++ )
                         {
-                            if (fx0s[i_pb]-_results[i_pb][i_algo][i_pb_instance].get_sol(bbe) >= (1-out.get_tau())*(fx0s[i_pb]-fxe[i_pb]) )
+                            if (objs[i] <= fxe[i_pb] + tau *(fx0s[i_pb]-fxe[i_pb]) )
                             {
-                                if (bbe/tpsMin[i_pb]<=alpha)
+                                if (double(bbes[i])/tpsMin[i_pb]<=alpha)
                                     cnt++;
                                 break;
                             }
@@ -1869,7 +1892,7 @@ size_t RUNNERPOST::Runner::get_bbe_max() const
         {
             for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
-                tmp = _results[i_pb][i_algo][i_pb_instance].get_sol_bbe();
+                tmp = _results[i_pb][i_algo][i_pb_instance].get_last_bbe();
                 if ( tmp > bbe_max )
                 {
                     bbe_max = tmp;

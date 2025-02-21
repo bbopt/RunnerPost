@@ -14,8 +14,8 @@ set(RUNNERPOST_VERSION ${RUNNERPOST_VERSION_MAJOR}.${RUNNERPOST_VERSION_MINOR})
 # Need to update when version changes
 project (RunnerPost VERSION ${RUNNERPOST_VERSION_MAJOR}.${RUNNERPOST_VERSION_MINOR})
 
-# use standard compilers parameters for c++14
-SET(CMAKE_CXX_STANDARD 14 )
+# use standard compilers parameters for c++17
+SET(CMAKE_CXX_STANDARD 17 )
 SET(CMAKE_CXX_STANDARD_REQUIRED ON )
 
 

@@ -1,3 +1,4 @@
+PERFORMANCE_PROFILE (Performance profile on 159 pbs with  $\tau\; 1.10^{-1}$)[ y_select  OBJ] [tau 0.1   ] [output_plain pp1.txt][output_latex pp1.tex] [x_max INF]
 PERFORMANCE_PROFILE (Performance profile on 159 pbs with  $\tau\; 5.10^{-2}$)[ y_select  OBJ] [tau 0.05   ] [output_plain pp25.txt][output_latex pp25.tex] [x_max INF]
 PERFORMANCE_PROFILE (Performance profile on 159 pbs with  $\tau\; 10^{-2}$)[ y_select  OBJ] [tau 0.01   ] [output_plain pp2.txt][output_latex pp2.tex] [x_max INF]
 DATA_PROFILE (Data profile on 159 pbs with $\tau\; 5.10^{-2}$) [x_select NP1Eval] [ y_select  OBJ] [tau 0.05   ] [output_plain dp25.txt][output_latex dp25.tex] [x_max INF]

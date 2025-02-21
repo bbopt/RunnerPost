@@ -130,6 +130,11 @@ public:
     
     const double &             get_sol_fxe    ( void    ) const { return _sol_fxe;    }
     
+    
+    // Getter for the improving objs and the corresponding bbe.
+    const std::vector<size_t> & get_bbes ( void ) const { return _bbe; }
+    const std::vector<double> & get_objs ( void ) const { return _obj; }
+    
 //    size_t                     get_nb_pareto_points   ( void    ) const { return _nb_pareto_points; }
 //    size_t                     get_nb_dominating_ref_obj   ( void    ) const { return _nb_dominating_ref_obj.back(); }
 //    const ArrayOfDouble  & get_sol_xe     ( void    ) const { return _sol_xe;     }

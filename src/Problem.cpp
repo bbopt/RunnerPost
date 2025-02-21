@@ -168,7 +168,7 @@ RUNNERPOST::Problem::Problem(const std::string&  result_file, RUNNERPOST::StatOu
         size_t nbWords = RUNNERPOST::extract_words(line).size();
         
         // Deduce the dimension of pb
-        size_t dimPb = nbWords - 1; // Single objective, no constraints. The rest of the words can be the solution.
+        dimPb = nbWords - 1; // Single objective, no constraints. The rest of the words can be the solution.
         if (std::count(sotList.begin(),sotList.end(),StatOutputType::CNT_EVAL) > 0)
         {
             dimPb = int(nbWords) - 2; // Single objective, no constraints and eval counter. The rest of the words can be the solution.
