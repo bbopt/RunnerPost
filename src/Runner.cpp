@@ -777,13 +777,10 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     // -------------------------
     std::vector<size_t> tpsMin;
     size_t tpsMinTmp;
-    size_t bbe_max = RUNNERPOST::INF_SIZE_T; // TODO Check if we need the bbe_max. --> Maybe for constrained pb with infeasible run.
-    
     std::vector<size_t> algoHasSolvedFirst(n_pb,0);
     const auto & tau = out.get_tau();
     for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
-        // tpsMinTmp=bbe_max+1; // TODO Check if we need the bbe_max.
         tpsMinTmp = RUNNERPOST::INF_SIZE_T;
         if ( fx0s[i_pb] < INF )
         {
@@ -877,7 +874,6 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     
     
     size_t cnt;
-    
     for (const auto& alpha: alphas)
     {
         fout << alpha;
@@ -1216,24 +1212,6 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     // get the best solution for each problem:
     const auto& fxe = get_best_fx();
 
-    // TODO
-//    if ( _use_h_for_profiles )
-//    {
-//        bool flag_ok = false;
-//        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
-//        {
-//            if ( !flag_ok && fxe[i_pb] == 0 )
-//                flag_ok = true;
-//            if ( fxe[i_pb] == INF )
-//                std::cout << "pb #" << i_pb+1 << " ---> no run returned a feasible point!"<<std::endl;
-//        }
-//        if ( ! flag_ok )
-//        {
-//            std::cerr << "Error: at least one run should return a feasible point"<<std::endl;
-//            return false;
-//        }
-//    }
-
     // compute the data profile:
     // -------------------------
     int max_alpha = out.get_x_max();
@@ -1492,23 +1470,6 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     // get the best solution for each problem:
     ArrayOfDouble fxe = get_best_fx();
 
-    // TODO
-    //    if ( _use_h_for_profiles )
-//    {
-//        bool flag_ok = false;
-//        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
-//        {
-//            if ( !flag_ok && fxe[i_pb] == 0 )
-//                flag_ok = true;
-//            if ( fxe[i_pb] == INF )
-//                std::cout << "pb #" << i_pb+1 << " ---> no run returned a feasible point!"<<std::endl;
-//        }
-//        if ( ! flag_ok )
-//        {
-//            std::cerr << "Error: at least one run should return a feasible point"<<std::endl;
-//            return false;
-//        }
-//    }
     // compute the time data profile:
     // -------------------------
     // Compute max time taken by all problems
@@ -1520,7 +1481,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
         {
             for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
-                int beta = std::round(_results[i_pb][i_algo][i_pb_instance].get_time()) / dimPb;
+                int beta = std::round(_results[i_pb][i_algo][i_pb_instance].get_time()) / double(dimPb);
                 if (beta > max_beta)
                 {
                     max_beta = beta;
