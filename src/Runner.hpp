@@ -155,6 +155,7 @@ private:
     // Data profile in function of time
     bool output_time_data_profile_plain(const Output & out) const;
     bool output_convergence_profile_plain(const Output & out) const;
+    bool output_accuracy_profile_plain(const Output & out) const;
     
     bool output_profile_pgfplots (const Output & out) const;
     bool output_dataperf_profile_pgfplots(const Output & out ) const;

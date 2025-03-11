@@ -186,7 +186,7 @@ RUNNERPOST::Problem::Problem(const std::string&  result_file, RUNNERPOST::StatOu
     
     _pbFromParse = pbFromParse;
     
-    // Extract the name of the pb from the path in pb_dirs
+    // Extract the id of the pb from the path in pb_dirs
     std::string pbId = RUNNERPOST::split(result_file, RUNNERPOST::DIR_SEP)[1];
     set_id(pbId);
     set_name("Pb"+pbId);
@@ -366,20 +366,20 @@ int RUNNERPOST::Problem::getMaxBBEvals() const
 //        add_keyword ( "bounded" );
 //}
 
-/*-----------------------*/
-/*  get the problem id   */
-/*-----------------------*/
-std::string RUNNERPOST::Problem::get_id ( ) const
-{
-    std::string s;
-    size_t n = _id.size() , k;
-    for ( k = 0 ; k < n ; ++k ) {
-        if ( _id[k] == '_' )
-            s.push_back ( '\\' );
-        s.push_back ( _id[k] );
-    }
-    return s;
-}
+///*-----------------------*/
+///*  get the problem id   */
+///*-----------------------*/
+//std::string RUNNERPOST::Problem::get_id ( ) const
+//{
+//    std::string s;
+//    size_t n = _id.size() , k;
+//    for ( k = 0 ; k < n ; ++k ) {
+//        if ( _id[k] == '_' )
+//            s.push_back ( '\\' );
+//        s.push_back ( _id[k] );
+//    }
+//    return s;
+//}
 
 /*----------------------------------------------*/
 /*                    display                   */

@@ -95,7 +95,7 @@ public:
 //    }
     
     // GET methods:
-    std::string         get_id        ( ) const;
+    std::string         get_id        ( ) const {return _id;}
     const std::string & get_name    ( void ) const { return _name;           }
     // std::string         get_tests_dir ( void ) const { return _pb_dir+TESTS_DIR; }
     int                 get_n         ( void ) const { return _n;                }

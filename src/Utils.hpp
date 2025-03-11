@@ -30,7 +30,8 @@ struct StatOutputType
         TIME,        ///< Time elapsed since start
         CNT_EVAL,   ///< Evaluation count
         FEAS,        ///< Feasibility flag: 0 is infeas, 1 is feas
-        UNDEFINED ///< Output ignored
+        EXTRA_O,     ///< Extra outputs (ignored for pb)
+        UNDEFINED ///< Default for error
     };
 
     Type _type;

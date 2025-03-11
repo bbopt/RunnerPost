@@ -556,6 +556,14 @@ bool RUNNERPOST::Runner::generate_outputs(std::string &error_msg)
                 success = output_profile_pgfplots(*out);
             }
         }
+        else if (Output::Profile_Type::ACCURACY_PROFILE == pt)
+        {
+            success = output_accuracy_profile_plain(*out);
+            if (success)
+            {
+                success = output_profile_pgfplots(*out);
+            }
+        }
         else if (Output::Profile_Type::PERFORMANCE_PROFILE == pt)
         {
             success = output_perf_profile_plain(*out);
@@ -1519,6 +1527,220 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     }
     fout.close();
     std::cout << "... done" << std::endl << std::endl;
+    return true;
+}
+
+
+/*-------------------------------------------------*/
+/*              accuracy profiles .........        */
+/* Use Audet, Hare and Tribes, Def. 3.1           */
+/*-------------------------------------------------*/
+bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) const
+{
+    const size_t n_algo = _selected_algos.size();
+    const size_t n_pb = _selected_pbs.size();
+    
+    if ( n_pb == 0 || n_algo == 0 )
+    {
+        std::cerr << "Error: cannot compute data profile for n_pb ==0 or n_algo == 0. Make sure to select pbs and algos in definition files." << std::endl;
+        return false;
+    }
+
+    if ( out.get_plain_file_name().empty() )
+    {
+        std::cerr << "Error: output_plain must be specified in the output_definition file." << std::endl;
+        return false;
+        
+    }
+    
+    std::ofstream fout ( out.get_plain_file_name() );
+    if ( fout.fail() ) {
+        std::cerr << "Error: cannot create data profile output file "
+        << out.get_plain_file_name() << std::endl;
+        return false;
+    }
+    
+    if (out.get_x_select() != Output::X_Select::EVAL)
+    {
+        std::cerr << "Error: Option X_SELECT EVAL must be selected in output_definition file." << std::endl;
+        fout.close();
+        return false;
+    }
+
+    std::cout << "\t writing of " << out.get_plain_file_name() << " ..." << std::flush;
+
+    size_t i_pb, i_algo, i_pb_instance;
+
+    // check that best solution and all results are available:
+    std::list<size_t> miss_list;
+    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+    {
+        for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+        {
+            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
+            {
+                if ( !_results[i_pb][i_algo][i_pb_instance].has_solution()  )
+                {
+                    miss_list.push_back ( i_pb   );
+                    miss_list.push_back ( i_algo );
+                    miss_list.push_back ( i_pb_instance );
+
+                    // An infeasible run has no solution -> special flag in miss_list is set
+                    if ( _results[i_pb][i_algo][i_pb_instance].is_infeas() )
+                        miss_list.push_back( 1 );
+                    else
+                        miss_list.push_back( 0 );
+
+
+                }
+            }
+        }
+    }
+
+    if ( !miss_list.empty() )
+    {
+        std::cout << "... the following results are missing" << std::endl ;
+        std::list<size_t>::const_iterator it , end = miss_list.end();
+        bool need_for_fix = false;
+        for ( it = miss_list.begin() ; it != end ; ++it )
+        {
+            i_pb = *it;
+            ++it;
+            i_algo = *it;
+            display_instance_name (*_selected_pbs[i_pb] , *_selected_algos[i_algo] );
+            ++it;
+            i_pb_instance = *it;
+            std::cout << " pb run instance#" << i_pb_instance +1 ;
+            ++it;
+            if ( *it==1 )
+                std::cout << " --> no feasible point found " <<std::endl;
+            else
+            {
+                std::cerr <<std::endl << "Failed run: fix it to get accuracy profile " <<std::endl;
+                need_for_fix = true;
+                break;
+            }
+        }
+
+        if ( need_for_fix )
+        {
+            fout << "failed to obtain accuracy profile" << std::endl;
+            fout.close();
+            return false;
+        }
+    }
+
+    // Get fx0s for all problems
+    const auto& fx0s = get_fx0s();
+    
+    // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
+    if ( fx0s.empty())
+    {
+        std::cerr << "Error: Undefined fx0: failed to obtain accuracy profile" << std::endl;
+        fout.close();
+        return false;
+    }
+    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+    {
+        if ( fx0s[i_pb]==INF )
+        {
+            std::cout << "pb #" << i_pb+1 << " ---> fx0=Inf --> un-resolved"<<std::endl;
+        }
+    }
+
+    // get the best solution for each problem:
+    const auto& fxe = get_best_fx();
+
+    // Compute list of ds = - log10(1-(fx(nmax)-fx0)/(fx* - fx0))
+    // -------------------------
+    std::vector<double> ds;
+    for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+    {
+        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb)
+        {
+            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
+            {
+                if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
+                {
+                    // Get the improving objs and the corresponding bbes
+                    const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_objs();
+                    if (objs.empty())
+                    {
+                        continue;
+                    }
+                    if (objs.back() == fxe[i_pb])
+                    {
+                        ds.push_back(INF);
+                    }
+                    else
+                    {
+                        // Relative accuracy greater than 16 are not considered
+                        double accuracy = -log10(1.0-(objs.back()-fx0s[i_pb])/(fxe[i_pb]-fx0s[i_pb]));
+                        if (accuracy < 16)
+                        {
+                            ds.push_back(accuracy);
+                        }
+                        else
+                        {
+                            ds.push_back(INF);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Sort accuraciess in ascending order
+    /// -------------------------
+    std::sort(ds.begin(), ds.end());
+    
+    // Remove the duplicates
+    /// -------------------------
+    auto last = std::unique(ds.begin(), ds.end());
+    // Erase the remaining elements after the unique elements
+    ds.erase(last, ds.end());
+    
+    // Replace the last element which should be INF by a large value: the value before the last + 10%
+    ds[ds.size()-1] = ds[ds.size()-2]*1.10;
+    
+    // Count the number of problems with accuracy >= d
+    size_t cnt;
+    for (const auto& d: ds)
+    {
+        fout << d;
+        for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
+        {
+            cnt = 0;
+            int cnt_pb_instance = 0;
+            for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+            {
+                auto n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
+                cnt_pb_instance += n_pb_instance;
+                for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance; ++i_pb_instance )
+                    if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
+                    {
+                        // Get the improving objs and the corresponding bbes
+                        const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_objs();
+                        if (objs.empty())
+                        {
+                            continue;
+                        }
+                        if (objs.back() == fxe[i_pb] || -log10(1.0-(objs.back()-fx0s[i_pb])/(fxe[i_pb]-fx0s[i_pb])) >= d)
+                        {
+                                cnt++;
+                        }
+                    }
+            }
+            fout << " ";
+            fout << 100.0*cnt/cnt_pb_instance;
+        }
+        fout << std::endl;
+    }
+
+    fout.close();
+
+    std::cout << "... done" << std::endl;
+
     return true;
 }
 
@@ -3270,8 +3492,13 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
     // Create data for plotting data profile with step
     std::ofstream outfile_step(plain_file_name_step);
     
+    // Need a flag to reverse the step orientation: forward or backward
+    bool forwardAdd = (out.get_profile_type()!=RUNNERPOST::Output::Profile_Type::ACCURACY_PROFILE);
+    // For backward adding, the first value added is at zero (accuracy profiles for instance)
+
     // The loop for reading plain_file_name and writing to plain_file_name_step
-    std::string line, prevLine, prevLineToken, lineFirstToken;
+    std::string line, prevLine, prevLineToken, lineFirstToken, nextLine, lineToken;
+    bool firstLine = true; // Only for backward adding
     while (std::getline(infile, line))
     {
         if (line.empty())
@@ -3279,32 +3506,64 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
             std::cerr << "Cannot read line from " << plain_file_name << ". Empty lines are present." << std::endl;
             return false;
         }
-        if (!prevLine.empty())
+        // Add forward step
+        if (forwardAdd)
         {
-            // Read the first token of the line
+            if (!prevLine.empty())
+            {
+                // Read the first token of the line
+                std::istringstream iss(line);
+                
+                iss >> lineFirstToken;
+                
+                // Write the first token of the previous line to the new line
+                outfile_step << lineFirstToken << " ";
+                
+                // Write all tokens of prevLine, except the first one
+                std::istringstream issPrev(prevLine);
+                issPrev >> prevLineToken;
+                while (std::getline(issPrev, prevLineToken, ' '))
+                {
+                    if (prevLineToken.empty())
+                    {
+                        continue;
+                    }
+                    outfile_step << prevLineToken << " ";
+                }
+                outfile_step << std::endl;
+            }
+            prevLine = line;
+            outfile_step << line << std::endl;
+        }
+        // Add backward step
+        else
+        {
+            if (!lineFirstToken.empty())
+            {
+                outfile_step << lineFirstToken << " ";
+
+            }
+            else
+            {
+                outfile_step << "0 ";
+            }
+            // Read the line token by token
             std::istringstream iss(line);
 
             iss >> lineFirstToken;
-        
-            // Write the first token of the previous line to the new line
-            outfile_step << lineFirstToken << " ";
-            
-            // Write all tokens of prevLine, except the first one
-            std::istringstream issPrev(prevLine);
-            issPrev >> prevLineToken;
-            while (std::getline(issPrev, prevLineToken, ' '))
+
+            // Write all tokens of line, except the first one (already done)
+            while (std::getline(iss, lineToken, ' '))
             {
-                if (prevLineToken.empty())
+                if (lineToken.empty())
                 {
                     continue;
                 }
-                outfile_step << prevLineToken << " ";
+                outfile_step << lineToken << " ";
             }
             outfile_step << std::endl;
+            outfile_step << line << std::endl;
         }
-        prevLine = line;
-        outfile_step << line << std::endl;
-
     }
     outfile_step.close();
     infile.close();
@@ -3406,6 +3665,12 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
             return false;
         }
     }
+    else if (RUNNERPOST::Output::Profile_Type::ACCURACY_PROFILE == profile_type)
+    {
+        out_tex << "       xmin=0," << std::endl;
+        out_tex << "       xlabel = {Relative accuracy $d$}," <<std::endl;
+        out_tex << "       ylabel = {Portion of instances solved $r_a(d)$}," <<std::endl;
+    }
 
 
     out_tex << " legend style={ " << std::endl;
@@ -3452,7 +3717,8 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
     // lineStyle = "only marks";
 
     if (RUNNERPOST::Output::Profile_Type::DATA_PROFILE == profile_type ||
-        RUNNERPOST::Output::Profile_Type::PERFORMANCE_PROFILE == profile_type)
+        RUNNERPOST::Output::Profile_Type::PERFORMANCE_PROFILE == profile_type ||
+        RUNNERPOST::Output::Profile_Type::ACCURACY_PROFILE == profile_type)
     {
         for (const auto & leg : legends )
         {

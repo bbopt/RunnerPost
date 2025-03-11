@@ -153,6 +153,10 @@ RUNNERPOST::StatOutputType::StatOutputType(const std::string &sConst)
     {
         _type = RUNNERPOST::StatOutputType::Type::SOL;
     }
+    else if (s == "EXTRA_O")
+    {
+        _type = RUNNERPOST::StatOutputType::Type::EXTRA_O;
+    }
     else if (s == "UNDEFINED")
     {
         std::cerr << "Unrecognized string for RUNNERPOST::StatOutputType: "  << s << std::endl;
@@ -281,6 +285,9 @@ std::string RUNNERPOST::StatOutputType::display() const
             break;
         case StatOutputType::Type::SOL:
             s = "SOL";
+            break;
+        case StatOutputType::Type::EXTRA_O:
+            s = "EXTRA_O";
             break;
         case StatOutputType::Type::UNDEFINED:
         default:

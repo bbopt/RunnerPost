@@ -316,6 +316,7 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
     std::string   s, line;
     size_t        bbe =0;
     double time = 0 , obj, obj_prev = INF, h, h_prev = INF ;
+    size_t nbExtra = 0;
     
     bool first_line = true;
     
@@ -328,6 +329,15 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
     if (m == 0)
     {
         std::cerr << "Result::read. Output format has no objective and no constraint." << std::endl;
+        return false;
+    }
+    
+    const bool hasExtraO = (std::count(sotList.begin(),sotList.end(),StatOutputType::EXTRA_O) > 0);
+    
+    // Test the last element of sotList for EXTRA_O
+    if (hasExtraO && !sotList.back().isOfType(StatOutputType::Type::EXTRA_O))
+    {
+        std::cerr << "Result::read. Output EXTRA_O should the last element." << std::endl;
         return false;
     }
     
@@ -433,11 +443,18 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
             }
             if (nb_fields != sotList.size())
             {
-                std::cout << "(1) Result file does not comply with stats_file_output type: " << std::endl;
-                std::cout << "     + Line read is \"" << lineTmp << "\"" << std::endl;
-                std::cout << "     + Expected stats output is \"" << sotList << "\"" <<std::endl;
-                delete [] bbo;
-                return false;
+                if (hasExtraO)
+                {
+                    nbExtra = nb_fields - m;
+                }
+                else
+                {
+                    std::cout << "(1) Result file does not comply with stats_file_output type: " << std::endl;
+                    std::cout << "     + Line read is \"" << lineTmp << "\"" << std::endl;
+                    std::cout << "     + Expected stats output is \"" << sotList << "\"" <<std::endl;
+                    delete [] bbo;
+                    return false;
+                }
             }
         }
         
@@ -495,6 +512,10 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
                     bbo[i] = INF;
                     h = INF;
                 }
+            }
+            else if (sot.isOfType(StatOutputType::Type::EXTRA_O)) // the extra outputs are ignored. They must be the last info in the line. Just skip the remaining.
+            {
+                break;
             }
             else
             {
