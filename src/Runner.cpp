@@ -593,31 +593,31 @@ bool RUNNERPOST::Runner::generate_outputs(std::string &error_msg)
 }
 
 
-/*-----------------------------------------------------*/
-/*  check if fx is at alpha % relatively close to fxe  */
-/*  (static, private)                                  */
-/*-----------------------------------------------------*/
-bool RUNNERPOST::Runner::is_within ( const double & fx    ,
-                        const double & fxe   ,
-                        const double & alpha   )
-{
-    if ( fxe != 0.0 )
-        return ( std::fabs( (fx - fxe) / fxe ) <= alpha / 100.0 );
-
-    return ( fabs(fx) <= alpha / 100.0 );
-}
-
-/*---------------------------------------------*/
-/*  compute relative error between fx and fxe  */
-/*  (static, private)                          */
-/*---------------------------------------------*/
-double RUNNERPOST::Runner::compute_alpha ( const double & fx  ,
-                                          const double & fxe   )
-{
-    if ( fxe != 0.0 )
-        return std::fabs(100.0 * ( (fx - fxe) / fxe ));
-    return std::fabs(fx) * 100.0;
-}
+///*-----------------------------------------------------*/
+///*  check if fx is at alpha % relatively close to fxe  */
+///*  (static, private)                                  */
+///*-----------------------------------------------------*/
+//bool RUNNERPOST::Runner::is_within ( const double & fx    ,
+//                        const double & fxe   ,
+//                        const double & alpha   )
+//{
+//    if ( fxe != 0.0 )
+//        return ( std::fabs( (fx - fxe) / fxe ) <= alpha / 100.0 );
+//
+//    return ( fabs(fx) <= alpha / 100.0 );
+//}
+//
+///*---------------------------------------------*/
+///*  compute relative error between fx and fxe  */
+///*  (static, private)                          */
+///*---------------------------------------------*/
+//double RUNNERPOST::Runner::compute_alpha ( const double & fx  ,
+//                                          const double & fxe   )
+//{
+//    if ( fxe != 0.0 )
+//        return std::fabs(100.0 * ( (fx - fxe) / fxe ));
+//    return std::fabs(fx) * 100.0;
+//}
 
 /*---------------------------------------*/
 /*      display algorithm differences    */
@@ -912,7 +912,7 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
                     }
             }
             fout << " ";
-            fout << 100.0*cnt/cnt_pb_instance;
+            fout << 1.0*cnt/cnt_pb_instance;
         }
         fout << std::endl;
     }
@@ -1270,7 +1270,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
                     }
                 }
             }
-            fout << (100.0 * cnt ) / (cnt_pb_instance) << " " ;
+            fout << 1.0*cnt/cnt_pb_instance << " " ;
         }
         fout << std::endl;
 
@@ -1521,7 +1521,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
                     }
                 }
             }
-            fout << (100.0 * cnt ) / (n_pb*cnt_pb_instance) << " " ;
+            fout << (1.0 * cnt ) / (n_pb*cnt_pb_instance) << " " ;
         }
         fout << std::endl;
     }
@@ -1732,7 +1732,7 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
                     }
             }
             fout << " ";
-            fout << 100.0*cnt/cnt_pb_instance;
+            fout << 1.0*cnt/cnt_pb_instance;
         }
         fout << std::endl;
     }
@@ -3498,7 +3498,6 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
 
     // The loop for reading plain_file_name and writing to plain_file_name_step
     std::string line, prevLine, prevLineToken, lineFirstToken, nextLine, lineToken;
-    bool firstLine = true; // Only for backward adding
     while (std::getline(infile, line))
     {
         if (line.empty())
@@ -3585,14 +3584,14 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
 
     if (RUNNERPOST::Output::Profile_Type::DATA_PROFILE == profile_type)
     {
-        out_tex << "       xmin=-10, ymin = -5, ymax= 105," << std::endl;
+        out_tex << "       xmin=-10, ymin = -0.05, ymax= 1.05," << std::endl;
         if (RUNNERPOST::Output::X_Select::EVAL == out.get_x_select())
         {
             out_tex << "       xlabel = {Number of evaluations}, " <<std::endl;
         }
         else if (RUNNERPOST::Output::X_Select::NP1EVAL == out.get_x_select())
         {
-            out_tex << "       xlabel = {Groups of ($n_p+1$) evaluations}," <<std::endl;
+            out_tex << "       xlabel = {Groups of ($n_p+1$) evaluations $k$}," <<std::endl;
         }
         else if (RUNNERPOST::Output::X_Select::TIME == out.get_x_select())
         {
@@ -3607,7 +3606,7 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
         
         if (RUNNERPOST::Output::Y_Select::OBJ == out.get_y_select())
         {
-            out_tex << "       ylabel = {Portion of {$\\tau$}-solved instances}," <<std::endl;
+            out_tex << "       ylabel = {Portion of {$\\tau$}-solved instances $d_a(k)$}," <<std::endl;
         }
         else if (RUNNERPOST::Output::Y_Select::INFEAS == out.get_y_select())
         {
@@ -3623,12 +3622,12 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
     }
     else if (RUNNERPOST::Output::Profile_Type::PERFORMANCE_PROFILE == profile_type)
     {
-        out_tex << "       xmin=1, ymin = -5, ymax= 105," << std::endl;
-        out_tex << "       xlabel = {Performance ratio, $\\alpha$}," <<std::endl;
+        out_tex << "       xmin=1, ymin = -0.05, ymax= 1.05," << std::endl;
+        out_tex << "       xlabel = {Ratio of function evaluations $\\alpha$}," <<std::endl;
         
         if (RUNNERPOST::Output::Y_Select::OBJ == out.get_y_select())
         {
-            out_tex << "       ylabel = {Portion of {$\\tau$}-solved instances}," <<std::endl;
+            out_tex << "       ylabel = {Portion of {$\\tau$}-solved instances $\\rho_a(\\alpha)$}," <<std::endl;
         }
         else if (RUNNERPOST::Output::Y_Select::INFEAS == out.get_y_select())
         {
@@ -3644,19 +3643,19 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
     else if (RUNNERPOST::Output::Profile_Type::CONVERGENCE_PROFILE == profile_type)
     {
         out_tex << "       xmin=1," << std::endl;
-        out_tex << "       xlabel = {Number of evaluations}," <<std::endl;
+        out_tex << "       xlabel = {Number of function evaluations}," <<std::endl;
         
         if (RUNNERPOST::Output::Plot_Type::OnlyF == out.get_plot_type())
         {
-            out_tex << "       ylabel = {Objective function}," <<std::endl;
+            out_tex << "       ylabel = {Best objective function value}," <<std::endl;
         }
         if (RUNNERPOST::Output::Plot_Type::OnlyFFeasible == out.get_plot_type())
         {
-            out_tex << "       ylabel = {Objective function (feasible)}," <<std::endl;
+            out_tex << "       ylabel = {Best objective function value (feasible)}," <<std::endl;
         }
         else if (RUNNERPOST::Output::Plot_Type::OnlyHInfeasible == out.get_plot_type())
         {
-            out_tex << "       ylabel = {Infeasibility measure}," <<std::endl;
+            out_tex << "       ylabel = {Infeasibility function value}," <<std::endl;
         }
         else
         {
@@ -3676,7 +3675,7 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
     out_tex << " legend style={ " << std::endl;
     out_tex << "    font=\\tiny, " <<std::endl;
     out_tex << "    cells={anchor=southeast}, " << std::endl;
-    out_tex << "    at={(1,-0.2)}, " <<std::endl;
+    out_tex << "    at={(0.1,0.1)}, " <<std::endl;
     out_tex << "   legend cell align=left, } ]" <<std::endl;
     
     //Concatenate algo info to create legends:
@@ -4081,7 +4080,7 @@ bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output 
     out_tex << "       title = {" << profileTitle << "}," << std::endl;
     out_tex << "       xmin=1, xmax=" << std::to_string(lastBbe) << "," << std::endl;
     out_tex << "       xlabel = {Number of function evaluations}," <<std::endl;
-    out_tex << "       ylabel = {Best objective function value}," <<std::endl;
+    out_tex << "       ylabel = {Best objective function value $f$}," <<std::endl;
     out_tex << "       ylabel near ticks," << std::endl;
     out_tex << "       axis y line*=right," << std::endl;
     out_tex << " legend style={ " << std::endl;
@@ -4126,18 +4125,22 @@ bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output 
     color_index = 0;
     nbPlotted = 0;
     out_tex << "\\begin{axis}[ " << std::endl;
-    out_tex << "       ylabel = {Best infeasibility function value}," <<std::endl;
+    out_tex << "       ylabel = {Constraint violation value $h$ (dotted)}," <<std::endl;
     out_tex << "       xmin=1, xmax=" << std::to_string(lastBbe) << "," << std::endl;
     out_tex << "       axis y line*=left,"  <<std::endl;
     out_tex << "       xlabel near ticks," <<std::endl;
     out_tex << "       hide x axis, ]" <<std::endl;
-    
+    std::string lineStyleDotted = "dotted";
     for (size_t i = 1 ; i < listFileNames.size() ; i+=2)
     {
         // Modify plain file name to include the key "step"
         std::string plain_file_name_step = listFileNames[i] + ".step";
 
-        out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 20, color=" << COLORS[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
+        // Only dotted
+        out_tex << "  \\addplot [" << lineStyleDotted << ", color=" << COLORS[color_index] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
+        
+        // Only Marks
+        out_tex << "  \\addplot [only marks, mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 20, color=" << COLORS[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
         nbPlotted++;
         if (nbPlotted >= maxPlots)
         {

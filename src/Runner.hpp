@@ -68,14 +68,14 @@ private:
 //    // set a result:
 //    void set_hypervolume_result ( ) ;
     
-    // check if fx is at alpha % relatively close to fxe:
-    static bool is_within ( const double & fx    ,
-                           const double & fxe   ,
-                           const double & alpha   );
-    
-    // compute relative error between fx and fxe:
-    static double compute_alpha ( const double & fx  ,
-                                        const double & fxe   );
+//    // check if fx is at alpha % relatively close to fxe:
+//    static bool is_within ( const double & fx    ,
+//                           const double & fxe   ,
+//                           const double & alpha   );
+//    
+//    // compute relative error between fx and fxe:
+//    static double compute_alpha ( const double & fx  ,
+//                                        const double & fxe   );
     
     // get the results:
     bool get_results ( const std::string      & test_id  /*not used*/,
