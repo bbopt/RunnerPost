@@ -1,4 +1,3 @@
-The directories Algo_x contain history files for various unconstrained problems.
-Each line in a history file corresponds to a single evaluation. 
-All evaluations performed by an algorithm are included in the order of evaluation.
-Each line contains the coordinates of the variable x followed by the value f(x).  
+The directories Algo_x contain stats files for various unconstrained problems.
+Each line in a stats file corresponds to a single improving evaluation. The line contains the number of evaluation and the objective function value.
+The dimension of the problem is specified on the first line.
