@@ -130,6 +130,11 @@ public:
     
     const double &             get_sol_fxe    ( void    ) const { return _sol_fxe;    }
     
+//    // CHT TEMP FOR DATA MANIPULATION -- DO NOT KEEP -- DANGEROUS
+    void TMPtransform() ;
+    
+    void writeToStatsFile(size_t i_pb, size_t i_algo, size_t i_pb_inst, size_t pb_size) const;
+    
     
     // Getter for the improving objs and the corresponding bbe.
     const std::vector<size_t> & get_bbes ( void ) const { return _bbe; }

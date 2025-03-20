@@ -471,6 +471,20 @@ bool RUNNERPOST::Runner::run_post_processing ( std::string & error_msg )
                 return false;
             }
             
+//            // CHT TEMP for data manipulation (PAPER) --- DANGEROUS ---- DO NOT KEEP-
+//            if (i_algo == 0)
+//            {
+//                for (size_t i_pb_inst = 0 ; i_pb_inst < n_pb_inst ; i_pb_inst++)
+//                {
+//                    _results[i_pb][i_algo][i_pb_inst].TMPtransform();
+//                }
+//            }
+//            for (size_t i_pb_inst = 0 ; i_pb_inst < n_pb_inst ; i_pb_inst++)
+//            {
+//                _results[i_pb][i_algo][i_pb_inst].writeToStatsFile(i_pb,i_algo,i_pb_inst,_selected_pbs         [i_pb]->get_n() );
+//            }
+            
+            
             // set the result:
             set_result ( _test_id              [i_pb][i_algo] ,
                         _results               [i_pb][i_algo] ,
@@ -693,6 +707,7 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     }
 
     std::ofstream fout ( out.get_plain_file_name() );
+    fout << std::setprecision(10);
     if ( fout.fail() )
     {
         std::cerr << "Warning: cannot create performance profile (MW) output file "
@@ -1022,6 +1037,7 @@ bool RUNNERPOST::Runner::output_convergence_profile_plain ( const Output & out )
                         }
                         
                         std::ofstream fout (plainFileName);
+                        fout << std::setprecision(10);
                         if ( fout.fail() )
                         {
                             std::cerr << "Warning: cannot create convergence profile output file "
@@ -1123,6 +1139,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     }
     
     std::ofstream fout ( out.get_plain_file_name() );
+    fout << std::setprecision(10);
     if ( fout.fail() ) {
         std::cerr << "Error: cannot create data profile output file "
         << out.get_plain_file_name() << std::endl;
@@ -1245,11 +1262,13 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     }
     
     size_t cnt, cnt_pb_instance;
+    std::stringstream ftmp_alpha,ftmp_cnt,ftmp_cnt_prev;
+    ftmp_cnt << std::setprecision(10);
+    ftmp_cnt_prev << std::setprecision(10);
     for (int alpha = 0 ; alpha <= max_alpha ; ++alpha )
     {
-
-        fout << alpha << " ";
-
+        ftmp_alpha << alpha << " ";
+        
         for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
         {
             cnt = 0;
@@ -1266,14 +1285,23 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
                     for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance ; ++i_pb_instance )
                     {
                         if ( fx0s[i_pb]-_results[i_pb][i_algo] [i_pb_instance].get_sol(alpha*(dimPb+1)) >= (1.0-out.get_tau())*(fx0s[i_pb]-fxe[i_pb]) )
+                        {
                             ++cnt;
+                        }
                     }
                 }
             }
-            fout << 1.0*cnt/cnt_pb_instance << " " ;
+            ftmp_cnt << 1.0*cnt/cnt_pb_instance << " " ;
         }
-        fout << std::endl;
-
+        // This is used to avoid writing lines with no changes in the counts
+        if (ftmp_cnt_prev.str() != ftmp_cnt.str())
+        {
+            fout << ftmp_alpha.str() << ftmp_cnt.str() << std::endl;
+            ftmp_cnt_prev.str(ftmp_cnt.str());
+        }
+        // Clear fmtp
+        ftmp_alpha.str(std::string());
+        ftmp_cnt.str(std::string());
     }
     fout.close();
 
@@ -1359,6 +1387,7 @@ bool RUNNERPOST::Runner::output_time_profile_plain(const Output& out) const
         size_t lastPointIndex = out.get_plain_file_name().rfind(".");
         algoFileName.insert(lastPointIndex, std::to_string(i_algo));
         std::ofstream fout(algoFileName.c_str());
+        fout << std::setprecision(10);
         if (fout.fail())
         {
             std::cerr << "Error: cannot create " << profileName << " output file " << algoFileName << std::endl;
@@ -1397,6 +1426,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
         return false;
     }
     std::ofstream fout ( out.get_plain_file_name() );
+    fout << std::setprecision(10);
     if ( fout.fail() ) {
         std::cerr << "Error: cannot create time data profile output file "
         << out.get_plain_file_name() << std::endl;
@@ -1554,6 +1584,7 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
     }
     
     std::ofstream fout ( out.get_plain_file_name() );
+    fout << std::setprecision(10);
     if ( fout.fail() ) {
         std::cerr << "Error: cannot create data profile output file "
         << out.get_plain_file_name() << std::endl;

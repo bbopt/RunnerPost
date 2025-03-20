@@ -602,8 +602,47 @@ size_t RUNNERPOST::Result::get_last_bbe ( void ) const
         return _bbe[_bbe.size()-1];
 }
 
+void RUNNERPOST::Result::writeToStatsFile(size_t i_pb, size_t i_algo, size_t i_pb_inst, size_t pb_size) const
+{
+    std::string statsFileName = "stats."+std::to_string(i_pb)+"."+std::to_string(i_algo)+"."+std::to_string(i_pb_inst)+".txt";
+    std::ofstream out(statsFileName, std::ios::out);;
+    if (!out.is_open())
+    {
+        std::cerr << "Error opening stats file " << statsFileName << std::endl;
+        return;
+    }
+    out << " DIM = " << pb_size << std::endl;
+    for (size_t i=0; i<_bbe.size(); i++)
+    {
+        out << _bbe[i] << " " << _obj[i] << std::endl;
+    }
+    out.close();
+}
 
 
+// CHT TEMP FOR DATA MANIPULATION -- DO NOT KEEP -- DANGEROUS
+void RUNNERPOST::Result::TMPtransform()
+{
+
+//    // MANIPULATION OF BBE --> for PP in paper
+//    for (size_t i=0; i<_obj.size(); i++)
+//    {
+//        double fact = 0.004*_bbe[i];
+//        _bbe[i] = _bbe[i] * pow(2,fact);
+//    }
+
+    // MANUPULATION OF OBJ --> for DP in paper
+    for (size_t i=0; i<_obj.size(); i++)
+    {
+        double fact = 1.0*i/(_obj.size()-1);
+        double tmp = _obj[i] + 0.14*fact*_obj[i];
+        if (i>0 && tmp > _obj[i-1])
+        {
+            tmp = _obj[i-1]*0.9999999;
+        }
+        _obj[i] = tmp;
+    }
+}
 
 //bool RUNNERPOST::Result::update_pareto_single ( const NOMAD_BASE::EvalPoint & evalPoint ,
 //                                   std::vector<NOMAD_BASE::Point> & combinedPareto) const
