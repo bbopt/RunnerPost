@@ -162,7 +162,7 @@ private:
     bool output_convergence_profile_pgfplots(const Output & out ) const;
     bool output_combo_convergence_profile_pgfplots(const Output & out ) const;
     
-    void output_problems_unsolved(const double& tau, const double& nbSimplexEval) const;
+    // void output_problems_unsolved(const double& tau, const double& nbSimplexEval) const;
     
     StatOutputTypeList composeStatsFileFormat(const StatOutputTypeList & acSotList , const size_t & n, const size_t & m) const;
 

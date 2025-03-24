@@ -267,24 +267,24 @@ bool RUNNERPOST::Problem::set_pbInstance(const std::string &s)
 }
 
     
-int RUNNERPOST::Problem::getMaxBBEvals() const
-{
-    int maxBBEvals = -1;
-
-    if ( _overallMaxBBEvals > 0 )
-    {
-        if ( _nbSimplexEvals > 0 )
-        {
-            maxBBEvals = std::min( _overallMaxBBEvals , (_n+1) * _nbSimplexEvals );
-        }
-        else
-        {
-            maxBBEvals = _overallMaxBBEvals;
-        }
-    }
-
-    return maxBBEvals;
-}
+//int RUNNERPOST::Problem::getMaxBBEvals() const
+//{
+//    int maxBBEvals = -1;
+//
+//    if ( _overallMaxBBEvals > 0 )
+//    {
+//        if ( _nbSimplexEvals > 0 )
+//        {
+//            maxBBEvals = std::min( _overallMaxBBEvals , (_n+1) * _nbSimplexEvals );
+//        }
+//        else
+//        {
+//            maxBBEvals = _overallMaxBBEvals;
+//        }
+//    }
+//
+//    return maxBBEvals;
+//}
 
 ///*----------------------------------------------*/
 ///*           set blackbox input types           */

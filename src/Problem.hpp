@@ -129,12 +129,12 @@ public:
 //
 //    bool is_batch ( void ) const { return _batch_eval; }
     
-    int getMaxBBEvals() const;
+// int getMaxBBEvals() const;
     
-    static void setOverallMaxBBEvals ( int overallMaxBBEvals ) { _overallMaxBBEvals = overallMaxBBEvals; }
-    static void setNbSimplexEvals ( int nbSimplexEvals )  { _nbSimplexEvals = nbSimplexEvals; }
-    
-    static int getNbSimplexEvals ( void ) { return _nbSimplexEvals; }
+//    static void setOverallMaxBBEvals ( int overallMaxBBEvals ) { _overallMaxBBEvals = overallMaxBBEvals; }
+//    static void setNbSimplexEvals ( int nbSimplexEvals )  { _nbSimplexEvals = nbSimplexEvals; }
+//
+//    static int getNbSimplexEvals ( void ) { return _nbSimplexEvals; }
 
 private:
     

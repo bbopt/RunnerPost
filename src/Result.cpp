@@ -624,24 +624,28 @@ void RUNNERPOST::Result::writeToStatsFile(size_t i_pb, size_t i_algo, size_t i_p
 void RUNNERPOST::Result::TMPtransform()
 {
 
-//    // MANIPULATION OF BBE --> for PP in paper
+    // MANIPULATION OF BBE --> for PP in paper
+    for (size_t i=1; i<_obj.size(); i++)
+    {
+        double fact = 0.005*_bbe[i];
+        _bbe[i] = std::floor(_bbe[i] * pow(2.0,fact));
+        if (_bbe[i] < _bbe[i-1])
+        {
+            _bbe[i] = _bbe[i-1];
+        }
+    }
+
+//    // MANUPULATION OF OBJ --> for DP in paper
 //    for (size_t i=0; i<_obj.size(); i++)
 //    {
-//        double fact = 0.004*_bbe[i];
-//        _bbe[i] = _bbe[i] * pow(2,fact);
+//        double fact = 1.0*i/(_obj.size()-1);
+//        double tmp = _obj[i] + 0.14*fact*_obj[i];
+//        if (i>0 && tmp > _obj[i-1])
+//        {
+//            tmp = _obj[i-1]*0.9999999;
+//        }
+//        _obj[i] = tmp;
 //    }
-
-    // MANUPULATION OF OBJ --> for DP in paper
-    for (size_t i=0; i<_obj.size(); i++)
-    {
-        double fact = 1.0*i/(_obj.size()-1);
-        double tmp = _obj[i] + 0.14*fact*_obj[i];
-        if (i>0 && tmp > _obj[i-1])
-        {
-            tmp = _obj[i-1]*0.9999999;
-        }
-        _obj[i] = tmp;
-    }
 }
 
 //bool RUNNERPOST::Result::update_pareto_single ( const NOMAD_BASE::EvalPoint & evalPoint ,

@@ -472,17 +472,18 @@ bool RUNNERPOST::Runner::run_post_processing ( std::string & error_msg )
             }
             
 //            // CHT TEMP for data manipulation (PAPER) --- DANGEROUS ---- DO NOT KEEP-
-//            if (i_algo == 0)
-//            {
+//             if (i_algo == 0)
+            {
 //                for (size_t i_pb_inst = 0 ; i_pb_inst < n_pb_inst ; i_pb_inst++)
 //                {
 //                    _results[i_pb][i_algo][i_pb_inst].TMPtransform();
 //                }
-//            }
-//            for (size_t i_pb_inst = 0 ; i_pb_inst < n_pb_inst ; i_pb_inst++)
-//            {
-//                _results[i_pb][i_algo][i_pb_inst].writeToStatsFile(i_pb,i_algo,i_pb_inst,_selected_pbs         [i_pb]->get_n() );
-//            }
+//                for (size_t i_pb_inst = 0 ; i_pb_inst < n_pb_inst ; i_pb_inst++)
+//                {
+//                    _results[i_pb][i_algo][i_pb_inst].writeToStatsFile(i_pb,i_algo,i_pb_inst,_selected_pbs         [i_pb]->get_n() );
+//                }
+                
+            }
             
             
             // set the result:
@@ -1775,100 +1776,100 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
     return true;
 }
 
-void RUNNERPOST::Runner::output_problems_unsolved ( const double & tau , const double & nbSimplexEval ) const
-{
-    const size_t n_algo = _selected_algos.size();
-    const size_t n_pb = _selected_pbs.size();
-    
-    if ( tau < 0 || n_pb == 0 || n_algo == 0 )
-    {
-        std::cerr << "Error: cannot compute data profile for tau < 0 or n_pb ==0 or n_algo == 0" << std::endl;
-        return ;
-    }
-    
-    std::cout << "Detecting unsolved problems at precision tau=" << tau << " for " << ((nbSimplexEval<0) ? "max": std::to_string(nbSimplexEval)) << " nb simplex evals" << std::endl;
-    
-    size_t i_pb, i_algo, i_pb_instance;
-    
-    // check that best solution and all results are available:
-    std::list<size_t> miss_list;
-    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
-    {
-        for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
-        {
-            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances(); ++i_pb_instance )
-            {
-                if ( !_results[i_pb][i_algo][i_pb_instance].has_solution()  )
-                {
-                    miss_list.push_back ( i_pb   );
-                    miss_list.push_back ( i_algo );
-                    miss_list.push_back ( i_pb_instance );
-                    
-                    // An infeasible run has no solution -> special flag in miss_list is set
-                    if ( _results[i_pb][i_algo][i_pb_instance].is_infeas() )
-                        miss_list.push_back( 1 );
-                    else
-                        miss_list.push_back( 0 );
-                }
-            }
-        }
-    }
-    
-    // Get fx0s for all problems
-    ArrayOfDouble fx0s = get_fx0s();
-    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
-    {
-        if ( fx0s[i_pb]==INF )
-        {
-            std::cout << "pb #" << i_pb+1 << " ---> fx0=Inf --> un-resolved"<<std::endl;
-        }
-    }
-    
-    // get the best solution for each problem:
-    ArrayOfDouble fxe = get_best_fx();
-    
-    // Search for unsolved problems:
-    // -------------------------
-    int alpha = (nbSimplexEval < 0 ) ?  Problem::getNbSimplexEvals(): std::round(nbSimplexEval) ;
-    std::vector<size_t> nbUnsolved(n_algo,0);
-    for (i_pb = 0 ; i_pb < n_pb ; ++i_pb)
-    {
-        std::vector<size_t> nbUnsolvedByPb(n_algo,0);
-        if ( fx0s[i_pb] < INF && fxe[i_pb] < INF )
-        {
-            size_t dimPb= _selected_pbs[i_pb]->get_n();
-            size_t n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
-            for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
-            {
-                for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance ; ++i_pb_instance )
-                {
-                    if ( fx0s[i_pb]-_results[i_pb][i_algo] [i_pb_instance].get_sol(alpha*(dimPb+1)) < (1-tau)*(fx0s[i_pb]-fxe[i_pb]) )
-                    {
-                        display_instance_name ( *_selected_pbs[i_pb] , *_selected_algos[i_algo] );
-                        if ( n_pb_instance > 1)
-                        {
-                            std::cout << " pb run instance #" << i_pb_instance << std::endl;
-                        }
-                        nbUnsolved[i_algo]++;
-                        nbUnsolvedByPb[i_algo]++;
-                    }
-                }
-            }
-            for (size_t i_algo=0; i_algo < n_algo ; i_algo++  )
-            {
-                if (nbUnsolvedByPb[i_algo] > 0)
-                {
-                    std::cout << "     ->  Algo #" << i_algo+1 << " -> " << nbUnsolvedByPb[i_algo] << " unsolved instances for pb #" << i_pb+1 << std::endl;
-                }
-            }
-        }
-    }
-    for (size_t i_algo=0; i_algo < n_algo ; i_algo++  )
-    {
-        std::cout << "  Algo #" << i_algo+1 << " -> " << nbUnsolved[i_algo] << " overall unsolved instances" << std::endl;
-    }
-    std::cout << "... done" << std::endl << std::endl;
-}
+//void RUNNERPOST::Runner::output_problems_unsolved ( const double & tau , const double & nbSimplexEval ) const
+//{
+//    const size_t n_algo = _selected_algos.size();
+//    const size_t n_pb = _selected_pbs.size();
+//    
+//    if ( tau < 0 || n_pb == 0 || n_algo == 0 )
+//    {
+//        std::cerr << "Error: cannot compute data profile for tau < 0 or n_pb ==0 or n_algo == 0" << std::endl;
+//        return ;
+//    }
+//    
+//    std::cout << "Detecting unsolved problems at precision tau=" << tau << " for " << ((nbSimplexEval<0) ? "max": std::to_string(nbSimplexEval)) << " nb simplex evals" << std::endl;
+//    
+//    size_t i_pb, i_algo, i_pb_instance;
+//    
+//    // check that best solution and all results are available:
+//    std::list<size_t> miss_list;
+//    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+//    {
+//        for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+//        {
+//            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances(); ++i_pb_instance )
+//            {
+//                if ( !_results[i_pb][i_algo][i_pb_instance].has_solution()  )
+//                {
+//                    miss_list.push_back ( i_pb   );
+//                    miss_list.push_back ( i_algo );
+//                    miss_list.push_back ( i_pb_instance );
+//                    
+//                    // An infeasible run has no solution -> special flag in miss_list is set
+//                    if ( _results[i_pb][i_algo][i_pb_instance].is_infeas() )
+//                        miss_list.push_back( 1 );
+//                    else
+//                        miss_list.push_back( 0 );
+//                }
+//            }
+//        }
+//    }
+//    
+//    // Get fx0s for all problems
+//    ArrayOfDouble fx0s = get_fx0s();
+//    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+//    {
+//        if ( fx0s[i_pb]==INF )
+//        {
+//            std::cout << "pb #" << i_pb+1 << " ---> fx0=Inf --> un-resolved"<<std::endl;
+//        }
+//    }
+//    
+//    // get the best solution for each problem:
+//    ArrayOfDouble fxe = get_best_fx();
+//    
+//    // Search for unsolved problems:
+//    // -------------------------
+//    int alpha = (nbSimplexEval < 0 ) ?  Problem::getNbSimplexEvals(): std::round(nbSimplexEval) ;
+//    std::vector<size_t> nbUnsolved(n_algo,0);
+//    for (i_pb = 0 ; i_pb < n_pb ; ++i_pb)
+//    {
+//        std::vector<size_t> nbUnsolvedByPb(n_algo,0);
+//        if ( fx0s[i_pb] < INF && fxe[i_pb] < INF )
+//        {
+//            size_t dimPb= _selected_pbs[i_pb]->get_n();
+//            size_t n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
+//            for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
+//            {
+//                for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance ; ++i_pb_instance )
+//                {
+//                    if ( fx0s[i_pb]-_results[i_pb][i_algo] [i_pb_instance].get_sol(alpha*(dimPb+1)) < (1-tau)*(fx0s[i_pb]-fxe[i_pb]) )
+//                    {
+//                        display_instance_name ( *_selected_pbs[i_pb] , *_selected_algos[i_algo] );
+//                        if ( n_pb_instance > 1)
+//                        {
+//                            std::cout << " pb run instance #" << i_pb_instance << std::endl;
+//                        }
+//                        nbUnsolved[i_algo]++;
+//                        nbUnsolvedByPb[i_algo]++;
+//                    }
+//                }
+//            }
+//            for (size_t i_algo=0; i_algo < n_algo ; i_algo++  )
+//            {
+//                if (nbUnsolvedByPb[i_algo] > 0)
+//                {
+//                    std::cout << "     ->  Algo #" << i_algo+1 << " -> " << nbUnsolvedByPb[i_algo] << " unsolved instances for pb #" << i_pb+1 << std::endl;
+//                }
+//            }
+//        }
+//    }
+//    for (size_t i_algo=0; i_algo < n_algo ; i_algo++  )
+//    {
+//        std::cout << "  Algo #" << i_algo+1 << " -> " << nbUnsolved[i_algo] << " overall unsolved instances" << std::endl;
+//    }
+//    std::cout << "... done" << std::endl << std::endl;
+//}
 
 
 /*-------------------------------------------------------*/
@@ -1985,8 +1986,9 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx() const
             {
                 for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
                 {
-                    size_t max_bb_evals=_selected_pbs[i_pb]->getMaxBBEvals();
-                    fxe_tmp = _results[i_pb][i_algo][i_pb_instance].get_sol ( max_bb_evals );
+                    // size_t max_bb_evals=_selected_pbs[i_pb]->getMaxBBEvals();
+                    // For now we consider all evaluations available
+                    fxe_tmp = _results[i_pb][i_algo][i_pb_instance].get_sol ( INF_SIZE_T );
                     
                     if ( fxe_tmp < INF &&
                         ( fxe[i_pb] == INF || fxe_tmp < fxe[i_pb] ) )
@@ -2419,7 +2421,9 @@ void RUNNERPOST::Runner::set_result (const std::string        & test_id /*not us
     if ( _use_hypervolume_for_profiles )
         return;
     
-    size_t  bbe = pb.getMaxBBEvals();
+    // For now we consider all evaluations available
+    // size_t  bbe = pb.getMaxBBEvals();
+    size_t  bbe = INF_SIZE_T;
     
     // bbe corresponds to the desired max number of bb evaluations,
     //  and not necessarily to the last entry in the stats file, while
@@ -3349,7 +3353,7 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
         StatOutputTypeList statsFileFormat = composeStatsFileFormat(ac.get_stats_output_type_list(), pb.get_n(), pb.get_m());
         
         // Read the stats file into results
-        if ( !result[i_pb_instance].read ( fin , pb.getMaxBBEvals ( ) , statsFileFormat, _feasibilityThreshold )  )
+        if ( !result[i_pb_instance].read ( fin , INF_SIZE_T /*for now we consider all evaluations */ , statsFileFormat, _feasibilityThreshold )  )
         {
             fin.close();
             result[i_pb_instance].reset( _use_hypervolume_for_profiles);
