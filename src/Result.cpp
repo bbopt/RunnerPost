@@ -56,260 +56,6 @@ void RUNNERPOST::Result::clear_best_infeas ( void )
 /*----------------------------------*/
 /*          read results            */
 /*----------------------------------*/
-bool RUNNERPOST::Result::read_prev ( std::ifstream & in , size_t max_bbe , const RUNNERPOST::StatOutputTypeList & sotList , const double & feasibilityThreshold )
-{
-    if (_use_h_for_obj && _use_hypervolume_for_obj)
-    {
-        std::cout << "Cannot use both h AND hypervolume for obj" <<std::endl;
-        return false;
-    }
-    
-    
-    std::string   s, line;
-    size_t        bbe =0;
-    double time = 0 , obj = INF, obj_prev = INF ;
-    
-    bool first_line = true;
-    bool first_line_is_infeasible = false;
-    
-    // Number of objectives
-    _nb_obj = std::count(sotList.begin(),sotList.end(),StatOutputType::OBJ);
-    
-    const size_t m = _nb_obj + std::count(sotList.begin(),sotList.end(),StatOutputType::CST);
-    if (m == 0)
-    {
-        std::cerr << "Result::read. Output format has no objective and no constraint." << std::endl;
-        return false;
-    }
-    
-    const bool hasCntEval = (std::count(sotList.begin(),sotList.end(),StatOutputType::CNT_EVAL) > 0);
-    
-    // TODO
-    if (std::count(sotList.begin(),sotList.end(),StatOutputType::FEAS) > 0)
-    {
-        std::cout << "Result::read FEAS tag is not yet managed." <<std::endl;
-        return false;
-    }
-    if (_use_hypervolume_for_obj)
-    {
-        std::cerr << "Result::read for hypervolumem not yet implemented." << std::endl;
-        return false;
-    }
-    
-    if (_use_hypervolume_for_obj && _nb_obj < 2)
-    {
-        std::cout << "Result::read Cannot compute hypervolume when nb objective is not greater than 1" <<std::endl;
-        return false;
-    }
-    
-    // For multi objective, for now, we can only compute profiles with hypervolume
-    if (!_use_hypervolume_for_obj && _nb_obj > 1)
-    {
-        std::cout << "Nb objectives is greater than 1. Need to enable option to compute hypervolume of pareto fronts" <<std::endl;
-        return false;
-    }
-    
-    if ( _use_h_for_obj )
-    {
-        if ( !_use_std_h )
-        {
-            std::cout << "Other than standard h calculation not implemented" <<std::endl;
-            return false;
-        }
-        if (m-_nb_obj <= 0)
-        {
-            std::cout << "Option use h for objective is enabled but no constraint is available in output format." << sotList <<std::endl;
-            return false;
-        }
-    }
-    
-    int nb_fields=0; // Number of fields in the file. For history file we have nb_fields = n + m. For stats files nb_fields will be larger. This is determined from the first line.
-    
-    double *bbo = new double[m];
-    
-    while ( !in.eof() )
-    {
-        if (!std::getline(in, line))
-        {
-            if (first_line)
-            {
-                std::cout << "Result file is empty" <<std::endl;
-                delete [] bbo;
-                return false;
-            }
-        }
-        
-        // No more lines to read.
-        if (line.empty())
-        {
-            break;
-        }
-
-        // Put the line in a string stream for reading values.
-        std::istringstream iss(line);
-
-        // This is mostly for managing the case of a number of fields not compatible with format
-        if ( first_line )
-        {
-            const std::string lineTmp=line;
-            
-            // number of fields.
-            size_t pos = 0;
-            nb_fields = 0;
-            
-            // At least we have single field
-            if (line.find(" ") == std::string::npos && !line.empty())
-            {
-                nb_fields = 1;
-            }
-            
-            while ((pos = line.find(" ")) != std::string::npos)
-            {
-                
-                // Strip empty spaces before a field
-                pos = line.find_first_not_of(" ");
-                if (pos == std::string::npos)
-                {
-                    break;
-                }
-                line.erase(0, pos);
-                
-                // We have a field
-                nb_fields ++;
-                
-                // Strip a single field value
-                pos = line.find_first_of(" ");
-                if (pos != std::string::npos)
-                {
-                    line.erase(0, pos);
-                }
-            }
-            if (nb_fields != sotList.size())
-            {
-                std::cout << "(1) Result file does not comply with stats_file_output type: " << std::endl;
-                std::cout << "     + Line read is \"" << lineTmp << "\"" << std::endl;
-                std::cout << "     + Expected stats output is \"" << sotList << "\"" <<std::endl;
-                delete [] bbo;
-                return false;
-            }
-        }
-        
-        // Case without eval count. One line=one eval
-        if (!hasCntEval) // That is no CNT_EVAL output type
-        {
-            bbe++;
-        }
-        
-        size_t i= 0;
-        obj = 0;
-        time = 0.0;
-        bool isFeas = true;
-        // Read according to the format
-        for (const auto & sot: sotList)
-        {
-            if ( sot.isOfType(StatOutputType::Type::CNT_EVAL) )
-            {
-                iss >> bbe;
-            }
-            else if(sot.isOfType(StatOutputType::Type::SOL))
-            {
-                iss >> s;
-                _last_x.append(s+" ");
-            }
-            else if(sot.isOfType(StatOutputType::Type::TIME))
-            {
-                iss >> time;
-            }
-            else if(sot.isOfType(StatOutputType::Type::OBJ) || sot.isOfType(StatOutputType::Type::CST))
-            {
-                iss >> bbo[i];
-                if (iss.fail())
-                {
-                    bbo[i] = INF;
-                    obj = INF;
-                }
-                if (sot.isOfType(StatOutputType::Type::CST))
-                {
-                    if ( _use_h_for_obj )
-                    {
-                        obj += pow( std::max( bbo[i], feasibilityThreshold ),2);
-                    }
-                    else if (bbo[i] > feasibilityThreshold)
-                    {
-                        isFeas = false;
-                        if (first_line)
-                        {
-                            first_line_is_infeasible = true;
-                        }
-                        break;
-                    }
-                }
-                else
-                {
-                    obj = bbo[i];
-                }
-                i++;
-            }
-            else
-            {
-                std::cout << "(2) Result file does not comply with stats_file_output type: " << std::endl;
-                std::cout << "      + Line read is \"" << line << "\"" << std::endl;
-                std::cout << "      + Expected stats output is \"" << sotList << "\"" <<std::endl;
-                delete [] bbo;
-                return false;
-            }
-        }
-        if ( first_line && bbe!=1)
-        {
-            std::cout << "(3) Result file is expected to have a first line with evaluation counter equals 1. But bbe = " << bbe << "." << std::endl;
-            delete [] bbo;
-            return false;
-            
-        }
-        
-
-        // Keep only improving feasible values
-        if ( isFeas && ( first_line || obj < obj_prev ) && bbe <= max_bbe )
-        {
-            _bbe.push_back( bbe );
-            _obj.push_back( obj );
-            _time.push_back(time);
-            obj_prev = obj;
-        }
-        
-        // No need to parse for more eval than required
-        if (bbe > max_bbe)
-        {
-            break;
-        }
-
-         // Total time and total bbe - for time stats.
-        _totalBbe = bbe;
-        _totalTime = time; // When using history file, time stays 0
-
-        if ( first_line )
-        {
-            first_line = false;
-        }
-        
-    }
-
-    
-    // The first line displays an infeasible initial point and no feasible point was found.
-    if ( _bbe.empty() && first_line_is_infeasible )
-    {
-        _bbe.push_back (INF_SIZE_T);
-        _obj.push_back (INF);
-        _time.push_back(time);
-        _last_x.clear();
-    }
-    
-    delete [] bbo;
-    
-    return true;
-}
-
-
 bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNNERPOST::StatOutputTypeList & sotList , const double & feasibilityThreshold )
 {
 
@@ -530,10 +276,7 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
         // Consistency check
         if ( first_line && bbe!=1)
         {
-            std::cout << "(3) Result file is expected to have a first line with evaluation counter equals 1. But bbe = " << bbe << "." << std::endl;
-            delete [] bbo;
-            return false;
-            
+            std::cout << "Warning: Result file has a first line with evaluation counter bbe = " << bbe << ". This can affect post-processing." << std::endl;
         }
 
         // Keep improving feasible evaluations
@@ -600,6 +343,17 @@ size_t RUNNERPOST::Result::get_last_bbe ( void ) const
         return _bbeForH[_bbeForH.size()-1];
     else
         return _bbe[_bbe.size()-1];
+}
+
+/*-----------------------------------*/
+/*       get the last time entry      */
+/*-----------------------------------*/
+size_t RUNNERPOST::Result::get_last_time ( void ) const
+{
+    if ( _time.empty())
+        return 0 ;
+    else
+        return _time.size();
 }
 
 void RUNNERPOST::Result::writeToStatsFile(size_t i_pb, size_t i_algo, size_t i_pb_inst, size_t pb_size) const
@@ -1214,6 +968,27 @@ double RUNNERPOST::Result::get_sol ( const size_t bbe) const
     return cur;
 }
 
+/*-----------------------------------------------------------------*/
+/*  get the solution (feasible) for a given time                   */
+/*-----------------------------------------------------------------*/
+double RUNNERPOST::Result::get_sol_by_time ( const double &time) const
+{
+    double cur = INF;
+    int n = static_cast<int> ( _time.size() );
+    if (n > 0 && _time[n-1] <= time)
+    {
+        return _obj[n-1];
+    }
+    for ( int k = 0 ; k < n ; ++k )
+    {
+        if ( _time[k] > time )
+            return cur;
+        cur = _obj[k];
+    }
+    
+    return cur;
+}
+
 /*------------------------------------------------------*/
 /*  get the solution for a given number of evaluations  */
 /*------------------------------------------------------*/
@@ -1235,6 +1010,28 @@ double RUNNERPOST::Result::get_best_infeas ( const size_t bbe) const
     return cur;
 }
 
+/*------------------------------------------------------*/
+/*  get the solution for a time                         */
+/*------------------------------------------------------*/
+double RUNNERPOST::Result::get_best_infeas_by_time ( const double & time) const
+{
+    double cur = INF;
+    int n = static_cast<int> ( _timeForH.size() );
+    if (n > 0 && _timeForH[n-1] <= time)
+    {
+        return _infH[n-1];
+    }
+    for ( int k = 0 ; k < n ; ++k )
+    {
+        if ( _timeForH[k] > time )
+            return cur;
+        cur = _infH[k];
+    }
+    
+    return cur;
+}
+
+
 /*--------------------------------------------------------*/
 /*  get the time for a given number of evaluations (bbe)  */
 /*  if bbe = INF, get the maximum (i.e., total) time.      */
@@ -1253,22 +1050,6 @@ double RUNNERPOST::Result::get_time(const size_t bbe) const
         }
     }
 
-    return cur;
-}
-
-/*-----------------------------------*/
-/* get the solution for a given time */
-/*-----------------------------------*/
-double RUNNERPOST::Result::get_sol_by_time(const size_t time) const
-{
-    double cur = INF;
-    int n = static_cast<int> ( _bbe.size() );
-    for ( int k = 0 ; k < n ; ++k )
-    {
-        if ( _time[k] > time )
-            return cur;
-        cur = _obj[k];
-    }
     return cur;
 }
 

@@ -1,0 +1,2 @@
+CONVERGENCE_PROFILE (Convergence plots)[ y_select  OBJ] [x_select Eval] [output_plain cp.txt][output_latex cp.tex] [x_max 220][plot_selection * *][plot_type OnlyFFeasible]
+CONVERGENCE_PROFILE (Convergence plots)[ y_select  OBJ] [x_select Time] [output_plain cp_time.txt][output_latex cp_time.tex] [x_max INF][plot_selection * *][plot_type OnlyFFeasible]

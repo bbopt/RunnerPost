@@ -117,10 +117,10 @@ public:
     
     // read results:
     bool read ( std::ifstream & in , size_t max_bbe , const StatOutputTypeList & sotList, const double & feasibilityThreshold );
-    bool read_prev ( std::ifstream & in , size_t max_bbe , const StatOutputTypeList & sotList, const double & feasibilityThreshold );
     
     // GET methods:
     size_t                     get_last_bbe   ( void    ) const;
+    size_t                     get_last_time   ( void    ) const;
     size_t                     getTotalBbe() const { return _totalBbe; }
     bool                       has_solution   ( void    ) const { return _has_sol;    }
     bool                       is_infeas      ( void    ) const { return _is_infeas;  }
@@ -147,8 +147,8 @@ public:
     double         get_sol        ( size_t bbe ) const;
     double         get_best_infeas( size_t bbe ) const;
     double         get_time       (const size_t bbe = INF_SIZE_T) const;
-    double         get_sol_by_time(size_t time) const;
-    double         get_best_infeas_by_time(size_t time) const;
+    double         get_sol_by_time(const double& time) const;
+    double         get_best_infeas_by_time(const double&  time) const;
     double         getTotalTime() const { return _totalTime; }
     
     // display:

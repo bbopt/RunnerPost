@@ -963,6 +963,12 @@ bool RUNNERPOST::Runner::output_convergence_profile_plain ( const Output & out )
     bool plotF = ( out.get_plot_type() == Output::Plot_Type::OnlyFFeasible || out.get_plot_type() == Output::Plot_Type::ComboHInfAndFFeas );
     bool plotH = ( out.get_plot_type() == Output::Plot_Type::OnlyHInfeasible || out.get_plot_type() == Output::Plot_Type::ComboHInfAndFFeas );
     bool plotFAndH = ( out.get_plot_type() == Output::Plot_Type::ComboHInfAndFFeas );
+    
+    if (!plotF && !plotH && !plotFAndH)
+    {
+        std::cerr << "Error: cannot compute convergence profile. Plot type not handled." << std::endl;
+        return false;
+    }
 
     bool iterPlotFlag = true;
     
@@ -1055,11 +1061,14 @@ bool RUNNERPOST::Runner::output_convergence_profile_plain ( const Output & out )
                         }
                         
                         
+                        bool xSelectIsTime = (out.get_x_select() == RUNNERPOST::Output::TIME);
+                        
                         for ( size_t bbe = 1 ; bbe < max_bbe+1 ; ++bbe )
                         {
                             double fx =INF;
                             if (plotF)
                             {
+                                
                                 fx = _results[i_pb][i_algo][i_pb_instance].get_sol(bbe);
                             }
                             else if (plotH)
@@ -1076,7 +1085,7 @@ bool RUNNERPOST::Runner::output_convergence_profile_plain ( const Output & out )
                             if (fx < fxBest )
                             {
                                 fxBest = fx;
-                                fout << bbe << " " << fxBest << std::endl;
+                                fout << ((xSelectIsTime)? _results[i_pb][i_algo][i_pb_instance].get_time(bbe):bbe) << " " << fxBest << std::endl;
                             }
                         }
                         fout.close();
@@ -3708,9 +3717,9 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
 
 
     out_tex << " legend style={ " << std::endl;
-    out_tex << "    font=\\tiny, " <<std::endl;
+    out_tex << "    font=\\small, " <<std::endl;
     out_tex << "    cells={anchor=southeast}, " << std::endl;
-    out_tex << "    at={(0.1,0.1)}, " <<std::endl;
+    out_tex << "    at={(1,-0.2)}, " <<std::endl;
     out_tex << "   legend cell align=left, } ]" <<std::endl;
     
     //Concatenate algo info to create legends:
@@ -3812,8 +3821,9 @@ bool RUNNERPOST::Runner::output_convergence_profile_pgfplots(const Output & out 
                 auto extension = "."+_selected_algos[i_algo]->get_id()+"."+_selected_pbs[i_pb]->get_id()+".Inst"+std::to_string(i_pb_instance);
                 auto legend = "Algo: " + _selected_algos[i_algo]->get_id()+" Pb: "+_selected_pbs[i_pb]->get_id()+" Instance: "+std::to_string(i_pb_instance);
                 
+                
                 listFileNames.push_back(out.get_plain_file_name()+extension);
-                listLegends.push_back(legend);
+                listLegends.push_back(RUNNERPOST::removeChar(legend,'_'));
             }
         }
     }
@@ -3900,8 +3910,24 @@ bool RUNNERPOST::Runner::output_convergence_profile_pgfplots(const Output & out 
     out_tex << "\\begin{tikzpicture} "<<std::endl;
     out_tex << "\\begin{axis}[ " << std::endl;
     out_tex << "       title = {" << profileTitle << "}," << std::endl;
-    out_tex << "       xmin=1," << std::endl;
-    out_tex << "       xlabel = {Number of evaluations}," <<std::endl;
+    
+    if (RUNNERPOST::Output::X_Select::EVAL == out.get_x_select())
+    {
+        out_tex << "       xmin=1," << std::endl;
+        out_tex << "       xlabel = {Number of evaluations}, " <<std::endl;
+    }
+    else if (RUNNERPOST::Output::X_Select::TIME == out.get_x_select())
+    {
+        out_tex << "       xmin=0," << std::endl;
+        out_tex << "       xlabel = Time," <<std::endl;
+    }
+    else
+    {
+        std::cerr << "\n Error:  x_select type is not available for latex profile " << std::endl;
+        out_tex.close();
+        return false;
+    }
+    
     
     if (RUNNERPOST::Output::Plot_Type::OnlyF == out.get_plot_type())
     {
@@ -3924,7 +3950,7 @@ bool RUNNERPOST::Runner::output_convergence_profile_pgfplots(const Output & out 
     
     
     out_tex << " legend style={ " << std::endl;
-    out_tex << "    font=\\tiny, " <<std::endl;
+    out_tex << "    font=\\small, " <<std::endl;
     out_tex << "    cells={anchor=southeast}, " << std::endl;
     out_tex << "    at={(1,-0.2)}, " <<std::endl;
     out_tex << "   legend cell align=left, } ]" <<std::endl;
@@ -4119,7 +4145,7 @@ bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output 
     out_tex << "       ylabel near ticks," << std::endl;
     out_tex << "       axis y line*=right," << std::endl;
     out_tex << " legend style={ " << std::endl;
-    out_tex << "    font=\\tiny, " <<std::endl;
+    out_tex << "    font=\\small, " <<std::endl;
     out_tex << "    cells={anchor=southeast}, " << std::endl;
     out_tex << "    at={(1,-0.2)}, " <<std::endl;
     out_tex << " legend cell align=left, } ]" <<std::endl;
