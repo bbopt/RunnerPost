@@ -16,7 +16,7 @@ std::vector<std::string> split(const std::string& str, char delimiter);
 void toUpperCase(std::string& str);
 void toUpperCase(std::vector<std::string>& str);
 std::string toUpperCase(const std::string& str);
-
+std::string removeChar(const std::string& str, const char c);
 
 struct StatOutputType
 {

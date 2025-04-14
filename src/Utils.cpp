@@ -21,6 +21,13 @@ std::string RUNNERPOST::toUpperCase(const std::string& str)
     return s;
 }
 
+std::string RUNNERPOST::removeChar(const std::string& str, const char c)
+{
+    std::string s = str;
+    for_each(s.begin(), s.end(), [c](char& in){ if (in==c) in=' '; });
+    return s;
+}
+
 
 std::pair<std::string,std::vector<std::string>> RUNNERPOST::extract_from_bracket(std::string &s, const char  *keyValSep)
 {
