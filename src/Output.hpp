@@ -45,6 +45,14 @@ public:
         UNDEFINED_PLOT_TYPE
     };
     
+    enum Fx_First_Feas_Method
+    {
+        max,
+        min,
+        avg,
+        UNDEFINED_FFFM
+    };
+    
     
 private:
     
@@ -56,6 +64,7 @@ private:
     std::string                        _plainFileName;
     std::string                        _latexFileName;
     std::string                        _title="";
+    Fx_First_Feas_Method               _FFFeasM = Fx_First_Feas_Method::max;
     
     std::vector<std::string>           _profile_type_options;
     
@@ -84,6 +93,7 @@ public:
     void setXSelect(const Output::X_Select & xs) { _xSel = xs;}
     bool setXMax(const int & xMax) { if (xMax<=0) return false; _xMax = xMax ; return true; }
     bool setXMax(const std::string & s) {return setXMax(std::stoi(s));}
+    bool setFFFeasMeth(const std::string & s) { _FFFeasM = stringToFFFeasMeth(s); if (_FFFeasM == Fx_First_Feas_Method::UNDEFINED_FFFM) return false; return true; }
     
     bool setPlotSelection(const std::vector<std::string> & s);
     
@@ -106,6 +116,7 @@ public:
     const std::string &         get_plain_file_name() const { return _plainFileName;}
     const std::string &         get_latex_file_name() const { return _latexFileName;}
     const std::string &         get_title() const { return _title;}
+    const Fx_First_Feas_Method & get_FFFeasMeth() const { return _FFFeasM;}
 
     const std::vector<std::string> & get_plot_selection() const { return _plotSelection;}
     const Plot_Type &           get_plot_type() const { return _plotType;}
@@ -116,6 +127,9 @@ public:
     
     static Profile_Type stringToProfileType(const std::string & s) ;
     static std::string profileTypeToString(const Profile_Type & pType) ;
+    
+    static Fx_First_Feas_Method stringToFFFeasMeth(const std::string & s) ;
+    static std::string fFeasMethToString(const Fx_First_Feas_Method & fffm) ;
     
     static Plot_Type stringToPlotType(const std::string & sConst);
     static std::string plotTypeToString(const Plot_Type & pType);

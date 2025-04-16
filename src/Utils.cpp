@@ -136,15 +136,15 @@ RUNNERPOST::StatOutputType::StatOutputType(const std::string &sConst)
     std::string s = sConst;
     RUNNERPOST::toUpperCase(s);
     
-    if (s == "OBJ")
+    if (s == "OBJ" || s == "OBJECTIVE")
     {
         _type = RUNNERPOST::StatOutputType::Type::OBJ;
     }
-    else if (s == "CST")
+    else if (s == "CST" || s == "CON" || s == "CONS" || s == "CONST" || s == "CONSTRAINT")
     {
         _type = RUNNERPOST::StatOutputType::Type::CST;
     }
-    else if (s == "FEAS")
+    else if (s == "FEAS" || s == "FEA" || s == "FEASIBLE")
     {
         _type = RUNNERPOST::StatOutputType::Type::FEAS;
     }
@@ -152,11 +152,11 @@ RUNNERPOST::StatOutputType::StatOutputType(const std::string &sConst)
     {
         _type = RUNNERPOST::StatOutputType::Type::TIME;
     }
-    else if (s == "CNT_EVAL")
+    else if (s == "CNT_EVAL" || s == "COUNT" || s =="NB_EVAL" || s== "EVAL")
     {
         _type = RUNNERPOST::StatOutputType::Type::CNT_EVAL;
     }
-    else if (s == "SOL")
+    else if (s == "SOL" || s == "SOLUTION" || s == "X" || s == "XSOL")
     {
         _type = RUNNERPOST::StatOutputType::Type::SOL;
     }

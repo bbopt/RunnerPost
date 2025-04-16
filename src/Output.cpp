@@ -122,6 +122,55 @@ RUNNERPOST::Output::Profile_Type RUNNERPOST::Output::stringToProfileType(const s
     return pType;
 }
 
+RUNNERPOST::Output::Fx_First_Feas_Method RUNNERPOST::Output::stringToFFFeasMeth(const std::string & sConst)
+{
+    Fx_First_Feas_Method fffm = Output::Fx_First_Feas_Method::UNDEFINED_FFFM;
+    
+    std::string s = sConst;
+    RUNNERPOST::toUpperCase(s);
+    
+    if (s == "MIN")
+    {
+        fffm = Fx_First_Feas_Method::min;
+    }
+    else if (s == "MAX")
+    {
+        fffm = Fx_First_Feas_Method::max;
+    }
+    else if (s == "AVG" || s == "AVERAGE")
+    {
+        fffm = Fx_First_Feas_Method::avg;
+    }
+    
+    return fffm;
+}
+
+
+std::string RUNNERPOST::Output::fFeasMethToString(const Fx_First_Feas_Method & fffm)
+{
+    std::string fffmStr;
+    switch (fffm)
+    {
+        case Fx_First_Feas_Method::min:
+            fffmStr = "MIN";
+            break;
+        case Fx_First_Feas_Method::max:
+            fffmStr = "MAX";
+            break;
+        case Fx_First_Feas_Method::avg:
+            fffmStr = "AVG";
+            break;
+        case Fx_First_Feas_Method::UNDEFINED_FFFM:
+            fffmStr = "UNDEFINED";
+            break;
+        default:
+            break;
+    }
+    return fffmStr;
+
+    
+}
+
 RUNNERPOST::Output::Plot_Type RUNNERPOST::Output::stringToPlotType(const std::string & sConst)
 {
     Plot_Type pType = Output::Plot_Type::UNDEFINED_PLOT_TYPE;
@@ -218,6 +267,10 @@ bool RUNNERPOST::Output::setSingleAttribute(const std::pair<std::string,std::vec
     else if (att.first.find("OUTPUT_LATEX") != std::string::npos)
     {
         return setLatexFileName(att.second[0]);
+    }
+    else if (att.first.find("FX_FIRST_FEAS") != std::string::npos)
+    {
+        return setFFFeasMeth(att.second[0]);
     }
     else
     {

@@ -33,7 +33,6 @@ struct StatOutputType
         EXTRA_O,     ///< Extra outputs (ignored for pb)
         UNDEFINED ///< Default for error
     };
-
     Type _type;
     
     

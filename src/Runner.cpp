@@ -11,7 +11,7 @@
 RUNNERPOST::Runner::Runner ( ) :
 _results    ( NULL ) ,
 _test_id    ( NULL ) ,
-_use_avg_fx_first_feas( false ) ,
+// _use_avg_fx_first_feas( false ) ,
 _use_evals_for_dataprofiles ( false ) ,
 _use_hypervolume_for_profiles ( false ),
 _feasibilityThreshold (0.0)
@@ -783,7 +783,7 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     }
 
     // Get fx0s for all problems
-    const ArrayOfDouble& fx0s = get_fx0s();
+    const ArrayOfDouble& fx0s = get_fx0s(out.get_FFFeasMeth());
     
     // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
     if ( fx0s.empty())
@@ -1227,7 +1227,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     }
 
     // Get fx0s for all problems
-    const auto& fx0s = get_fx0s();
+    const auto& fx0s = get_fx0s(out.get_FFFeasMeth());
     
     // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
     if ( fx0s.empty())
@@ -1498,7 +1498,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
         }
     }
     // Get fx0s for all problems
-    ArrayOfDouble fx0s = get_fx0s();
+    ArrayOfDouble fx0s = get_fx0s(out.get_FFFeasMeth());
     
     // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
     if ( fx0s.empty())
@@ -1672,7 +1672,8 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
     }
 
     // Get fx0s for all problems
-    const auto& fx0s = get_fx0s();
+    auto fx_first_feas_method = out.get_FFFeasMeth();
+    const auto& fx0s = get_fx0s(fx_first_feas_method);
     
     // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
     if ( fx0s.empty())
@@ -1885,10 +1886,11 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
 /* get the value of f at x0 for all problems (private)   */
 /*-------------------------------------------------------*/
 /* If x0 is infeasible, get the value of fs at the first */
-/* feasible point for all problems : max (default)       */
-/* value of first feasible eval of all algo/instances    */
+/* feasible point for all problems : max (default) or min*/
+/* or average value of first feasible eval of all        */
+/* algo/instances                                        */
 /*-------------------------------------------------------*/
-RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
+RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output::Fx_First_Feas_Method & fx_first_feas) const
 {
     const size_t n_pb = _selected_pbs.size();
     const size_t n_algo = _selected_algos.size();
@@ -1921,8 +1923,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
         }
 
         // fx0 for problems with constraints may not be available (case infeasible initial point -- > INF)
-        // fx0--> average of first feasible point obj
-        //     or max first feasible point obj
+        // fx0--> average, max, min of first feasible point obj
         if ( fx0s[i_pb]==INF )
         {
             double first_fx;
@@ -1935,7 +1936,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
                     if ( !_results[i_pb][i_algo][i_pb_instance].is_infeas() )
                     {
                         first_fx = _results[i_pb][i_algo][i_pb_instance].get_first_fx();
-                        if ( ! _use_avg_fx_first_feas )
+                        if ( fx_first_feas == Output::Fx_First_Feas_Method::max )
                         {
                             if ( nb_first_fx == 0 )
                                 fx0s[i_pb] = first_fx;
@@ -1943,8 +1944,21 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
                                 fx0s[i_pb] = std::max( first_fx , fx0s[i_pb] );
 
                         }
-                        else
+                        else if ( fx_first_feas == Output::Fx_First_Feas_Method::min )
+                        {
+                            if ( nb_first_fx == 0 )
+                                fx0s[i_pb] = first_fx;
+                            else
+                                fx0s[i_pb] = std::min( first_fx , fx0s[i_pb] );
+                        }
+                        else if ( fx_first_feas == Output::Fx_First_Feas_Method::avg)
                             fx0s[i_pb] += first_fx;
+                        else
+                        {
+                            std::cout << "... unknown strategy to obtain the first feas fx value: " << Output::fFeasMethToString(fx_first_feas) << std::endl;
+                            fx0s.clear();
+                            return fx0s;
+                        }
 
                         nb_first_fx++;
                     }
@@ -1952,13 +1966,13 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s() const
             }
             if ( nb_first_fx > 0 )
             {
-                if ( _use_avg_fx_first_feas )
+                if ( fx_first_feas == Output::Fx_First_Feas_Method::avg )
                     fx0s[i_pb]/=nb_first_fx;
             }
             else
                 fx0s[i_pb]=INF;
 
-            std::cout << "pb #"<< i_pb+1 << " has infeasible starting point ---> " << ( ( _use_avg_fx_first_feas  ) ? "average" : "max" ) << " of first feasible point objective functions is used: fx0="<<fx0s[i_pb] << std::endl;
+            std::cout << "pb #"<< i_pb+1 << " has infeasible starting point ---> " << Output::fFeasMethToString(fx_first_feas) << " method for first feasible point objective functions is used: fx0="<<fx0s[i_pb] << std::endl;
         }
 
     }
@@ -2252,32 +2266,32 @@ void RUNNERPOST::Runner::display_pbs ( const std::vector<Problem *> & pbs ) cons
     }
 }
 
-/*---------------------------------------*/
-/*           display all problems        */
-/*---------------------------------------*/
-void RUNNERPOST::Runner::display_special_options ( void ) const
-{
-
-    if ( _use_h_for_profiles || _use_avg_fx_first_feas || _use_evals_for_dataprofiles )
-    {
-        std::cout <<std::endl << "Special options for runner:" <<std::endl;
-        if ( _use_h_for_profiles )
-        {
-            std::cout  << "\t Use infeasibility h(x)=sum_j ( max(c_j(x),0)^2) for data and performance profiles" <<std::endl;
-
-        }
-        if ( _use_avg_fx_first_feas )
-        {
-            std::cout << "\t Use average fx of all first feasible points on all instance of a problem (default uses max) as a reference for convergence test." <<std::endl;
-        }
-        if ( _use_evals_for_dataprofiles )
-        {
-            std::cout  << "\t Use number of evals instead of nbevals/(n+1)=number of simplex grad for x axis on data profiles" <<std::endl;
-
-        }
-    }
-
-}
+///*---------------------------------------*/
+///*           display all problems        */
+///*---------------------------------------*/
+//void RUNNERPOST::Runner::display_special_options ( void ) const
+//{
+//
+//    if ( _use_h_for_profiles || _use_avg_fx_first_feas || _use_evals_for_dataprofiles )
+//    {
+//        std::cout <<std::endl << "Special options for runner:" <<std::endl;
+//        if ( _use_h_for_profiles )
+//        {
+//            std::cout  << "\t Use infeasibility h(x)=sum_j ( max(c_j(x),0)^2) for data and performance profiles" <<std::endl;
+//
+//        }
+//        if ( _use_avg_fx_first_feas )
+//        {
+//            std::cout << "\t Use average fx of all first feasible points on all instance of a problem (default uses max) as a reference for convergence test." <<std::endl;
+//        }
+//        if ( _use_evals_for_dataprofiles )
+//        {
+//            std::cout  << "\t Use number of evals instead of nbevals/(n+1)=number of simplex grad for x axis on data profiles" <<std::endl;
+//
+//        }
+//    }
+//
+//}
 
 
 /*------------------------------------------------*/
@@ -2964,25 +2978,22 @@ bool RUNNERPOST::Runner::read_problem_selection_from_algo_dir ( std::string     
         // TODO: what about multi objectives
         
         bool hasConst = (std::count(sotList.begin(),sotList.end(),StatOutputType::CST) > 0);
+        bool constIsUniqueAndLast = ((sotList.back() == StatOutputType::CST) && std::count(sotList.begin(),sotList.end(),StatOutputType::CST) == 1);
+        
         // bool hasSol = (std::count(sotList.begin(),sotList.end(),StatOutputType::SOL) > 0); // Let's try to use some info (like DIM = xx or SOL) in stats file to figure out the pb dimension
-        size_t nbObj = std::count(sotList.begin(),sotList.end(),StatOutputType::OBJ);
-        
-        if (nbObj > 1)
-        {
-            error_msg = "Error. Algo " + algo->get_id() + " has more than one objective in the output. Cannot select problems from algo directories.";
-            return false;
-        }
-        
-        if (hasConst)
-        {
-            error_msg = "Error. Algo " + algo->get_id() + " has constraints in the output. Cannot deduce problems from algo directories.";
-            return false;
-        }
-//        if (!hasSol)
+//        size_t nbObj = std::count(sotList.begin(),sotList.end(),StatOutputType::OBJ);
+//        
+//        if (nbObj > 1)
 //        {
-//            error_msg = "Error. Algo " + algo->get_id() + " has no solutions in the output. Cannot select problems from algo directories.";
+//            error_msg = "Error. Algo " + algo->get_id() + " has more than one objective in the output. Cannot select problems from algo directories.";
 //            return false;
 //        }
+        
+        if (hasConst && !constIsUniqueAndLast)
+        {
+            error_msg = "Error. Algo " + algo->get_id() + " has constraints in the output. Cannot deduce problems definition from algo directories. Provide explicit problem definition ";
+            return false;
+        }
         
         algo_dirs.push_back( algo->get_id());
     }
@@ -4372,7 +4383,7 @@ RUNNERPOST::StatOutputTypeList RUNNERPOST::Runner::composeStatsFileFormat(const 
         else if (acSot.isOfType(StatOutputType::CST))
         {
             const size_t numberOfConstraints = m - RUNNERPOST::getNbObj(acSotList);
-            if (numberOfConstraints < 0)
+            if (numberOfConstraints <= 0)
             {
                 completeSotList.clear();
                 return completeSotList;

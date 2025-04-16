@@ -26,7 +26,7 @@ private:
     Result                     *** _results;      // results
     std::string                **  _test_id;      // the test names
     
-    bool                           _use_avg_fx_first_feas;  // if true, use the average fx value of all the first feasible points instead of the max (default)
+//    bool                           _use_avg_fx_first_feas;  // if true, use the average fx value of all the first feasible points instead of the max (default)
     bool                           _use_evals_for_dataprofiles; // if true, the data profiles use (n+1)*nbevals as x axis
     bool                           _use_h_for_profiles;  // if true, set the options for data/performance profiles on h
     
@@ -135,7 +135,7 @@ private:
     // access to the date:
     std::string get_date ( void ) const;
     
-    ArrayOfDouble         get_fx0s() const;
+    ArrayOfDouble         get_fx0s(const RUNNERPOST::Output::Fx_First_Feas_Method & fx_first_feas) const;
     ArrayOfDouble         get_best_fx() const;
     ArrayOfDouble get_mean_algo_times(size_t i_bbe) const;
     ArrayOfDouble get_relative_algo_times(size_t i_bbe) const;
@@ -190,8 +190,8 @@ public:
     // display all problems:
     void display_all_problems ( void ) const;
     
-    // display special options:
-    void display_special_options ( void ) const;
+//    // display special options:
+//    void display_special_options ( void ) const;
     
     // display results:
     void display_algo_diff     ( void ) const;
@@ -205,9 +205,9 @@ public:
 //    void clearAlgoRunSeeds ( void ) { _algoRunSeeds.clear() ; }
 //    void appendAlgoRunSeed(int seed){ _algoRunSeeds.push_back(seed);}
     
-    // select data/performance profile options:
-    // ---------------------------------------
-    void set_use_avg_fx_first_feas() { _use_avg_fx_first_feas = true; }
+//    // select data/performance profile options:
+//    // ---------------------------------------
+//    void set_use_avg_fx_first_feas() { _use_avg_fx_first_feas = true; }
     
     
     // select data/performance profile using infeasibility h

@@ -159,6 +159,11 @@ RUNNERPOST::Problem::Problem(const std::string&  result_file, RUNNERPOST::StatOu
             return;
         }
         dimPb = std::stoi(first_line_words[2]);
+        if (first_line_words.size() == 6 && first_line_words[3] =="M" && first_line_words[4] == "=")
+        {
+            _m = std::stoi(first_line_words[5]);
+        }
+        
         
     }
     else
@@ -182,7 +187,10 @@ RUNNERPOST::Problem::Problem(const std::string&  result_file, RUNNERPOST::StatOu
     }
     
     _n = int(dimPb);
-    _m = 1;
+    if (_m < 0)
+    {
+        _m = 1;
+    }
     
     _pbFromParse = pbFromParse;
     

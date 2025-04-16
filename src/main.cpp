@@ -472,12 +472,6 @@ int main ( int argc , char ** argv )
 
         RUNNERPOST::Runner runner;
         
-        // TODO
-        // Select special options
-        
-        // Display special options ( Use h for data/perf profiles instead of f (default), use the average fx value of all the first feasible points instead of the max (default) )
-        // runner.display_special_options();
-        
         // Algo config file :
         if ( argc < 4 )
         {
