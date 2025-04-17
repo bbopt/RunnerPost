@@ -2019,7 +2019,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output:
             }
             else
             {
-                std::cout << "pb #"<< i_pb+1 << " has not constraint but no first point in stats ---> Let use the first valid fx value: " << fx0s[i_pb] << std::endl;
+                std::cout << "pb #"<< i_pb+1 << " has not constraint but no first point in stats ---> Let's use the first valid fx value: " << fx0s[i_pb] << std::endl;
             }
         }
 
