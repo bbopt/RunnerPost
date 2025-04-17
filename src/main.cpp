@@ -508,17 +508,6 @@ int main ( int argc , char ** argv )
         }
         
         
-        // run:
-        if ( !runner.run_post_processing( error_msg ) )
-        {
-            std::cout << "runner.post_processing() returned the error \"" << error_msg << "\"" << std::endl;
-            std::cout << "runner is stopped prematurely" << std::endl;
-            return 1;
-        }
-        
-        
-        // Output
-        
         // Read output_selection file
         if ( !runner.read_output_selection_file ( argv[3] , error_msg ) )
         {
@@ -526,9 +515,18 @@ int main ( int argc , char ** argv )
             std::cerr << "Stop prematurely with error \"" << error_msg << "\"" << std::endl;
             return 1;
         }
-        
         runner.display_selected_outputs();
         
+        // Post processing of results is done after reading the outputs.
+        // For example, the max bbe can be used for post processing.
+        if ( !runner.run_post_processing( error_msg ) )
+        {
+            std::cout << "runner.post_processing() returned the error \"" << error_msg << "\"" << std::endl;
+            std::cout << "runner is stopped prematurely" << std::endl;
+            return 1;
+        }
+        
+        // Generate outputs
         if ( !runner.generate_outputs( error_msg ) )
         {
             std::cout << "runner.post_processing() returned the error \"" << error_msg << "\"" << std::endl;

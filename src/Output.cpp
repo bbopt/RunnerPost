@@ -243,13 +243,22 @@ bool RUNNERPOST::Output::setSingleAttribute(const std::pair<std::string,std::vec
     }
     else if (att.first.find("X_MAX") != std::string::npos )
     {
-        if (att.second[0] =="MAX" || att.second[0] == "INF")
+        if (toUpperCase(att.second[0]) =="MAX" || toUpperCase(att.second[0]) == "INF")
         {
             return setXMax(RUNNERPOST::P_INF_INT);
         }
         else
         {
-            return setXMax(att.second[0]);
+            try
+            {
+                int xmax = std::stoi(att.second[0]);
+                return setXMax(xmax);
+            }
+            catch (const std::invalid_argument& ia)
+            {
+                std::cerr << "Invalid argument for x_max: " << att.second[0] << " --> " << ia.what() << '\n';
+                return false;
+            }
         }
     }
     else if (att.first.find("PLOT_SELECTION") != std::string::npos )

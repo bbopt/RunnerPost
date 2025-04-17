@@ -169,7 +169,6 @@ inline std::ostream& operator<<(std::ostream& out, const StatOutputTypeList &sot
 std::istream& operator>>(std::istream& is, StatOutputTypeList& sotList);
 
 
-
 #include "runnerpost_nsend.hpp"
 
 #endif

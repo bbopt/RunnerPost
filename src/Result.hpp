@@ -27,8 +27,8 @@ private:
     std::vector<double>             _infH; // Values >=0
     
     
-//    std::vector<NOMAD_BASE::EvalPoint> _mobj;
-//    std::vector<size_t>                _nb_dominating_ref_obj;
+    std::vector<std::vector<double>>   _mobj;
+    std::vector<size_t>                _nb_dominating_ref_obj;
     
    
     std::string                _last_x;
@@ -37,7 +37,7 @@ private:
     bool                       _is_infeas;
     
     // Option to compute f (hypervolume) and h
-    bool                       _use_hypervolume_for_obj;
+    // bool                       _use_hypervolume_for_obj;
     bool                       _use_std_h;
     bool                       _use_h_for_obj; // NOT USED. KEEP IT FOR NOW (for prev version of functions!)
     
@@ -61,10 +61,12 @@ private:
     // clear best infeas:
     void clear_best_infeas ( void );
 
-//
-//    // Helper to update pareto when a single objs point is provided, return success true if at least one point and false otherwise
-//    bool update_pareto_single ( const NOMAD_BASE::EvalPoint & evalPoint,
-//                                std::vector<NOMAD_BASE::Point> & combinedPareto ) const;
+
+    // Helpers to update pareto when a single objs point is provided, return success true if at least one point and false otherwise
+    bool update_pareto_single ( const std::vector<double> & point,
+                                std::vector<std::vector<double>> & combinedPareto ) const;
+    bool compMultiObjForDominate(const std::vector<double> & point1,
+                                 const std::vector<double> & point2) const;
     
 public:
     
@@ -72,7 +74,7 @@ public:
     Result ( bool use_hypervolume_for_obj =false ):
         _totalBbe(0),
         _totalTime(0),
-        _use_hypervolume_for_obj(use_hypervolume_for_obj),
+        // _use_hypervolume_for_obj(use_hypervolume_for_obj),
         _use_std_h(true) // For now use_std_h is always true
     {
         clear_solution();
@@ -82,7 +84,7 @@ public:
     virtual ~Result ( void ) {}
     
     // reset stored bbe, obj, mobjs and set option to use for h computation
-    void reset ( bool use_hypervolume_for_obj  ); // Reset can change the default computation of obj set in constructor. For now _use_std_h is always true
+    void reset (  ); // Reset can change the default computation of obj set in constructor. For now _use_std_h is always true
     
     // compute solution:
     bool compute_solution ( int                   n     ,
@@ -112,8 +114,8 @@ public:
 //                                      const NOMAD_BASE::Point              & refParetoIdealPt,
 //                                      const NOMAD_BASE::Point              & refParetoNadirPt) ;
     
-//    bool update_pareto ( size_t bbe,
-//                         std::vector<NOMAD_BASE::Point> & pareto ) const;
+    bool update_pareto ( size_t bbeMax,
+                         std::vector<std::vector<double>> & pareto ) const;
     
     // read results:
     bool read ( std::ifstream & in , size_t max_bbe , const StatOutputTypeList & sotList, const double & feasibilityThreshold );

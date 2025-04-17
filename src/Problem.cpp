@@ -122,11 +122,11 @@ RUNNERPOST::Problem::Problem(const std::string&  result_file, RUNNERPOST::StatOu
         error_msg = "Error. Cannot create pb. Constraints and solution are in " + result_file;
         return;
     }
-    if (nbObj > 1)
-    {
-        error_msg = "Error. Cannot create pb. More than one objective in " + result_file;
-        return;
-    }
+//    if (nbObj > 1)
+//    {
+//        error_msg = "Error. Cannot create pb. More than one objective in " + result_file;
+//        return;
+//    }
     
     
     std::ifstream in ( result_file, std::ios::in );
@@ -187,9 +187,10 @@ RUNNERPOST::Problem::Problem(const std::string&  result_file, RUNNERPOST::StatOu
     }
     
     _n = int(dimPb);
+    // Number of outputs is not provided. Let's guess it.
     if (_m < 0)
     {
-        _m = 1;
+        _m = int(nbObj);
     }
     
     _pbFromParse = pbFromParse;

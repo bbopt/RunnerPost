@@ -455,7 +455,7 @@ bool RUNNERPOST::Runner::run_post_processing ( std::string & error_msg )
             
             for (size_t i_pb_inst = 0 ; i_pb_inst < n_pb_inst ; i_pb_inst++)
             {
-                _results[i_pb][i_algo][i_pb_inst].reset( _use_hypervolume_for_profiles );
+                _results[i_pb][i_algo][i_pb_inst].reset( );
             }
 
             if ( !RUNNERPOST::Runner::get_results ( _test_id              [i_pb][i_algo]  ,
@@ -496,10 +496,20 @@ bool RUNNERPOST::Runner::run_post_processing ( std::string & error_msg )
     
     
     // 4- Set the combined pareto results
-    if ( _use_hypervolume_for_profiles )
+    bool multiObj = (_selected_algos[0]->getNbObjectives() > 1);
+    for (size_t i_algo = 1 ; i_algo < n_algo ; ++i_algo )
     {
-        std::cerr << "Hyper volume results are not yet available" << std::endl;
-        // set_hypervolume_result();
+        if ( multiObj != (_selected_algos[i_algo]->getNbObjectives() > 1))
+        {
+            std::cerr << "Inconsistent number of objectives in algo definitiion." << std::endl;
+            return false;
+        }
+    }
+    if ( multiObj )
+    {
+        std::cout << "Use hyper volume for profiling." << std::endl;
+        _use_hypervolume_for_profiles = true;
+        set_hypervolume_result();
     }
     
     std::cout << std::endl;
@@ -2544,99 +2554,100 @@ void RUNNERPOST::Runner::set_result (const std::string        & test_id /*not us
     }
 }
 
-///*------------------------------------------------*/
-///*              set a result (private)            */
-///*------------------------------------------------*/
-//void Runner::set_hypervolume_result ()
-//{
-//
-//    if (!_use_hypervolume_for_profiles)
-//    {
-//        std::cout << "This is for hypervoluem results. Cannot set regular results." << std::endl;
-//    }
-//
-//
-//    // Initialize reference combined pareto (empty) for all pbs
-//    _refParetoIdealPtAllAlgos = std::vector<NOMAD_BASE::Point>(_n_pb);
-//    _refParetoNadirPtAllAlgos = std::vector<NOMAD_BASE::Point>(_n_pb);
-//    _combinedParetoAllAlgos = std::vector<std::vector<NOMAD_BASE::Point>>(_n_pb);
-//
-//    // loop on the problems:
-//    for ( size_t i_pb = 0 ; i_pb < _n_pb ; ++i_pb )
-//    {
-//        const auto & pb = *_selected_pbs[i_pb];
-//        size_t pbIndex = pb.get_index();
-//        size_t nb_obj = pb.getNbObj();
-//
-//        // bbe corresponds to the desired max number of bb evaluations,
-//        //  and not necessarily to the last entry in the stats file.
-//        size_t  bbe = pb.getMaxBBEvals();
-//
-//        int n = pb.get_n();
-//
-//        if (nb_obj < 2)
-//        {
-//            std::cout << "/t Pb #" << pbIndex << " is not multi-objective. Cannot compute hypervolume." << std::endl;
-//            return;
-//        }
-//
-//        // loop on the algorithm:
-//        // For a problem combine all pareto front obtained and the ideal and nadir reference
-//        // This is use to compute hypervolume
-//        for ( size_t i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
-//        {
-//            const auto & ap = *_selected_algos[i_algo];
-//
-//            // This is partial because it is for all seeds of a single algo
-//            std::vector<NOMAD_BASE::Point> partialCombinedPareto;
-//
-//            // Multi-objective: Check file for combined pareto of all seeds
-//            std::string combinedParetoFile = Runner::get_test_dir ( _test_id[i_pb][i_algo] , pb ) + "combinedPareto.txt";
-//            std::ifstream finPareto( combinedParetoFile.c_str());
-//            if (! finPareto.fail())
-//            {
-//                std::cout << "\t pb #"  << pbIndex+1 << " algo #" << ap.getIndex()+1 << ". Read partial combined pareto file: " << combinedParetoFile;
-//                NOMAD_BASE::ArrayOfDouble pt(pb.getNbObj());
-//                while ( !finPareto.eof())
-//                {
-//                    finPareto >> pt;
-//                    partialCombinedPareto.push_back(pt);
-//                }
-//                std::cout << ": " << partialCombinedPareto.size() << " pts " << std::endl;
-//            }
-//            else
-//            {
-//
-//                std::cout << "\t pb #" << i_pb + 1 << " algo #" << ap.getIndex() +1 << ". Partial pareto of seeds runs: " <<std::endl;
-//                for (size_t i_seed=0 ; i_seed < _n_seed_run ; ++i_seed )
-//                {
-//                    _results[i_pb][i_algo][i_seed].update_pareto (  bbe         ,
-//                                                                  partialCombinedPareto);
-//                    std::cout << "\t \t - Seeds 1->" << i_seed+1 << ", " << partialCombinedPareto.size() << " pts" << std::endl;
-//                }
-//
-//                // We write the partial combined pareto
-//                writePartialCombinedPareto(_test_id[i_pb][i_algo], pb, ap, partialCombinedPareto);
-//
-//            }
-//
-//            std::cout << std::endl;
-//
-//            // Clock
-//            time_t t0,t1;
-//            time(&t0);
-//
-//            // Update combined pareto with partial
-//            addToCombinedPareto(partialCombinedPareto, i_pb);
-//
-//            time(&t1);
-//
-//            std::cout << "\t pb #" << i_pb + 1 << " algo 1->" << ap.getIndex() +1 <<  ". Combined pareto of seeds runs: " << _combinedParetoAllAlgos[i_pb].size() << " pts. Comput. time: " << difftime(t1,t0) << " s" << std::endl;
-//
-//            std::cout << std::endl;
-//
-//            finPareto.close();
-//        }
+/*------------------------------------------------*/
+/*              set a result (private)            */
+/*------------------------------------------------*/
+void RUNNERPOST::Runner::set_hypervolume_result ()
+{
+    const size_t n_algo = static_cast<int>(_selected_algos.size());
+    const size_t n_pb = static_cast<int>(_selected_pbs.size());
+    
+    if (!_use_hypervolume_for_profiles)
+    {
+        std::cerr << "Error: set_hypervolume_result is called but flag _use_hypervolume_for_profiles is not set" << std::endl;
+        return;
+        
+    }
+    
+    int xmax = _selected_outputs[0]->get_x_max();
+    for (size_t i_o = 1; i_o < _selected_outputs.size() ; i_o++ )
+    {
+        if (xmax != _selected_outputs[0]->get_x_max())
+        {
+            std::cerr << "Error: set_hypervolume_result. Cannot handle the case with multiple selected outputs havin different xmax." << std::endl;
+            return;
+        }
+    }
+    if (xmax < RUNNERPOST::P_INF_INT)
+    {
+        std::cerr << "Error: set_hypervolume_result. Cannot handle the case with xmax < INF." << std::endl;
+        return;
+    }
+    int bbeMax = RUNNERPOST::P_INF_INT;
+
+    
+    // Initialize reference combined pareto (empty) for all pbs
+    _refParetoIdealPtAllAlgos = std::vector<std::vector<double>>(n_pb);
+    _refParetoNadirPtAllAlgos = std::vector<std::vector<double>>(n_pb);
+    _combinedParetoAllAlgos = std::vector<std::vector<std::vector<double>>>(n_pb);
+
+    // loop on the problems:
+    for ( size_t i_pb = 0 ; i_pb <  n_pb; ++i_pb )
+    {
+        const auto & pb = *_selected_pbs[i_pb];
+        // size_t pbIndex = pb.get_index();
+        // size_t nb_obj = pb.getNbObj();
+        
+        int n = pb.get_n();
+        
+        auto n_pb_inst = pb.get_nbPbInstances();
+        
+        
+        //        if (nb_obj < 2)
+        //        {
+        //            std::cout << "/t Pb #" << pbIndex << " is not multi-objective. Cannot compute hypervolume." << std::endl;
+        //            return;
+        //        }
+        
+        // loop on the algorithm:
+        // For a problem combine all pareto front obtained and the ideal and nadir reference
+        // This is use to compute hypervolume
+        for ( size_t i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+        {
+            const auto & ap = *_selected_algos[i_algo];
+            
+            // This is partial because it is for all seeds of a single algo
+            std::vector<std::vector<double>> partialCombinedPareto;
+            
+            
+            
+            for (size_t i_pb_inst = 0 ; i_pb_inst < n_pb_inst ; i_pb_inst++)
+            {
+                
+                std::cout << "\t pb #" << i_pb + 1 << " algo #" << i_algo+1 << ". Partial pareto of seeds runs: " <<std::endl;
+                _results[i_pb][i_algo][i_pb_inst].update_pareto (  bbeMax         ,
+                                                                 partialCombinedPareto);
+                std::cout << "\t \t - Instance " << i_pb_inst+1 << ", " << partialCombinedPareto.size() << " pts" << std::endl;
+            }
+            
+            
+            std::cout << std::endl;
+            
+            //            // Clock
+            //            time_t t0,t1;
+            //            time(&t0);
+            //
+            //            // Update combined pareto with partial
+            //            addToCombinedPareto(partialCombinedPareto, i_pb);
+            //
+            //            time(&t1);
+            //
+            //            std::cout << "\t pb #" << i_pb + 1 << " algo 1->" << ap.getIndex() +1 <<  ". Combined pareto of seeds runs: " << _combinedParetoAllAlgos[i_pb].size() << " pts. Comput. time: " << difftime(t1,t0) << " s" << std::endl;
+            //
+            //            std::cout << std::endl;
+            //
+            //            finPareto.close();
+        }
 //
 //
 //        // Set the reference ideal and nadir pts for pb.
@@ -2685,9 +2696,8 @@ void RUNNERPOST::Runner::set_result (const std::string        & test_id /*not us
 //                    std::cout << "no solution" << std::endl;
 //                }
 //            }
-//        }
-//    }
-//}
+        }
+}
 
 ///*-------------------------------------------------------*/
 ///*               read and add algo parameter file        */
@@ -3413,7 +3423,7 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
         if ( fin.fail() )
         {
             fin.close();
-            result[i_pb_instance].reset(_use_hypervolume_for_profiles);
+            result[i_pb_instance].reset();
             return false;
         }
         
@@ -3424,7 +3434,7 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
         if ( !result[i_pb_instance].read ( fin , INF_SIZE_T /*for now we consider all evaluations */ , statsFileFormat, _feasibilityThreshold )  )
         {
             fin.close();
-            result[i_pb_instance].reset( _use_hypervolume_for_profiles);
+            result[i_pb_instance].reset();
             return false;
         }
         fin.close();
@@ -3433,7 +3443,7 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
 
         if ( res_bbe <= 0 )
         {
-            result[i_pb_instance].reset( _use_hypervolume_for_profiles);
+            result[i_pb_instance].reset();
             return false;
         }
         i_pb_instance++;

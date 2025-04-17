@@ -92,7 +92,6 @@ public:
     bool setXSelect(const std::string & s);
     void setXSelect(const Output::X_Select & xs) { _xSel = xs;}
     bool setXMax(const int & xMax) { if (xMax<=0) return false; _xMax = xMax ; return true; }
-    bool setXMax(const std::string & s) {return setXMax(std::stoi(s));}
     bool setFFFeasMeth(const std::string & s) { _FFFeasM = stringToFFFeasMeth(s); if (_FFFeasM == Fx_First_Feas_Method::UNDEFINED_FFFM) return false; return true; }
     
     bool setPlotSelection(const std::vector<std::string> & s);

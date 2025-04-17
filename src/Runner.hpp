@@ -34,12 +34,12 @@ private:
     
     
     bool                           _use_hypervolume_for_profiles;  // if true, set the options for data/performance profiles on hypervolume
-//    std::vector<std::vector<NOMAD_BASE::Point>> _combinedParetoAllAlgos; // combined paretos for all runs for a given problem for all algos and seeds
-//    std::vector<NOMAD_BASE::Point>              _refParetoIdealPtAllAlgos, _refParetoNadirPtAllAlgos ;   // Pareto reference point: The max for each objective (feasible points only) for a given problem for all algos and seeds.
+    std::vector<std::vector<std::vector<double>>> _combinedParetoAllAlgos; // combined paretos for all runs for a given problem for all algos and seeds
+    std::vector<std::vector<double>>              _refParetoIdealPtAllAlgos, _refParetoNadirPtAllAlgos ;   // Pareto reference point: The max for each objective (feasible points only) for a given problem for all algos and seeds.
     
-    std::list<int>                 _algoRunSeeds; //The seeds for algo runs are stored as a list of int
+    // std::list<int>                 _algoRunSeeds; //The seeds for algo runs are stored as a list of int
 
-    bool                           _pb_selection_from_dir; // Flag to indicate if the selection of problems is done from the content of the algo directories
+    // bool                           _pb_selection_from_dir; // Flag to indicate if the selection of problems is done from the content of the algo directories
     
     // Clear memory
     void clear_memory ( );
@@ -65,8 +65,8 @@ private:
                      const Problem                        & pb      ,
                      const Algorithm               & ac        ) ;
     
-//    // set a result:
-//    void set_hypervolume_result ( ) ;
+    // set a result:
+    void set_hypervolume_result ( ) ;
     
 //    // check if fx is at alpha % relatively close to fxe:
 //    static bool is_within ( const double & fx    ,

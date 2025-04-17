@@ -14,14 +14,14 @@
 /*----------------------------------*/
 /*               reset              */
 /*----------------------------------*/
-void RUNNERPOST::Result::reset ( bool use_hypervolume_for_obj )
+void RUNNERPOST::Result::reset (  )
 {
     _bbe.clear();
     _obj.clear();
-    // _mobj.clear();
+    _mobj.clear();
     _last_x.clear();
     
-    _use_hypervolume_for_obj = use_hypervolume_for_obj;
+    //_use_hypervolume_for_obj = use_hypervolume_for_obj;
     // For now use_std_h is always true;      // _use_std_h = use_std_h ;  
     _nb_obj = 0; // Need to be updated
     clear_solution();
@@ -88,25 +88,6 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
     }
     
     const bool hasCntEval = (std::count(sotList.begin(),sotList.end(),StatOutputType::CNT_EVAL) > 0);
-    
-    if (_use_hypervolume_for_obj)
-    {
-        std::cerr << "Result::read for hypervolumem not yet implemented." << std::endl;
-        return false;
-    }
-    
-    if (_use_hypervolume_for_obj && _nb_obj < 2)
-    {
-        std::cout << "Result::read Cannot compute hypervolume when nb objective is not greater than 1" <<std::endl;
-        return false;
-    }
-    
-    // For multi objective, for now, we can only compute profiles with hypervolume
-    if (!_use_hypervolume_for_obj && _nb_obj > 1)
-    {
-        std::cout << "Nb objectives is greater than 1. Need to enable option to compute hypervolume of pareto fronts" <<std::endl;
-        return false;
-    }
     
     if ( m-_nb_obj > 0 )
     {
@@ -246,6 +227,7 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
                 }
                 else
                 {
+                    // For multi-obj, obj is not used. bbo[i] are processed instead
                     obj = bbo[i];
                 }
                 i++;
@@ -282,7 +264,23 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
         // Keep improving feasible evaluations
         if (h <= feasibilityThreshold)
         {
-            if ( obj < obj_prev && bbe <= max_bbe )
+            // For multi-objectif, all evals are kept.
+            // Post-processing will create the pareto front
+            if ( _nb_obj > 1)
+            {
+                int i = 0;
+                std::vector<double> objs;
+                for (const auto & sot: sotList)
+                {
+                    if (sot.isObjective())
+                    {
+                        objs.push_back(bbo[i]);
+                    }
+                    i++;
+                }
+                _mobj.push_back(objs);
+            }
+            else if ( obj < obj_prev && bbe <= max_bbe )
             {
                 _bbe.push_back( bbe );
                 _obj.push_back( obj );
@@ -402,105 +400,68 @@ void RUNNERPOST::Result::TMPtransform()
 //    }
 }
 
-//bool RUNNERPOST::Result::update_pareto_single ( const NOMAD_BASE::EvalPoint & evalPoint ,
-//                                   std::vector<NOMAD_BASE::Point> & combinedPareto) const
-//{
-//    bool updated_pareto = false;
-//
-//    NOMAD_BASE::Point bboEP = evalPoint.getFs(NOMAD_BASE::defaultFHComputeType);
-//    bool insert = true;
-//    std::vector<NOMAD_BASE::Point>::iterator itPf = combinedPareto.begin();
-//    NOMAD_BASE::EvalPoint tempEP(1); // Fake number of variables
-//    while (itPf != combinedPareto.end())
-//    {
-//        // Create a fake eval point for using compMO
-//        tempEP.setBBO(itPf->displayNoPar(), NOMAD_BASE::BBOutputTypeList(_nb_obj, NOMAD_BASE::BBOutputType::OBJ), NOMAD_BASE::EvalType::BB, true /* eval is ok*/);
-//        auto compFlag = evalPoint.compMO(tempEP, NOMAD_BASE::defaultFHComputeType);
-//        if (compFlag == NOMAD_BASE::CompareType::DOMINATED || compFlag == NOMAD_BASE::CompareType::EQUAL)
-//        {
-//            return false;
-//        }
-//        if (compFlag == NOMAD_BASE::CompareType::DOMINATING)
-//        {
-//            itPf = combinedPareto.erase(itPf);
-//            updated_pareto = true;
-//            continue;
-//        }
-//        itPf++;
-//    }
-//    if (insert)
-//    {
-//        combinedPareto.push_back(bboEP);
-//        updated_pareto = true;
-//    }
-//    return updated_pareto;
-//}
+bool RUNNERPOST::Result::compMultiObjForDominate(const std::vector<double> & point1, const std::vector<double> & point2) const 
+{
+    return false;
+}
 
 
-//bool RUNNERPOST::Result::update_pareto ( const size_t bbe ,
-//                            std::vector<NOMAD_BASE::Point> & pareto) const
-//{
-//    bool updated_pareto = false;
-//
-//    std::vector<size_t>::const_iterator itBBE = _bbe.begin();
-//    std::vector<NOMAD_BASE::EvalPoint>::const_iterator itMobj ;
-//
-//    // udpate pareto using all multi objective evaluations
-//    for ( itMobj = _mobj.begin() ; itMobj < _mobj.end() ; itMobj++, itBBE++ )
-//    {
-//        if ( *itBBE > bbe)
-//            break;
-//
-//        NOMAD_BASE::Point bboEP = itMobj->getFs(NOMAD_BASE::defaultFHComputeType);
-//        if (pareto.size() == 0)
-//        {
-//            pareto.push_back(bboEP);
-//            updated_pareto = true;
-//            continue;
-//        }
-//        if (pareto.size() == 1 && !pareto[0].isComplete())
-//        {
-//            pareto[0] = bboEP;
-//            updated_pareto = true;
-//            continue;
-//        }
-//        updated_pareto = update_pareto_single(*itMobj, pareto) || updated_pareto;
-//    }
-//
-////
-////    if (updateCombinedPareto)
-////    {
-////        bool flagEmptyCombinedPareto = (combinedPareto.size() == 0);
-////
-////        // If partial pareto is not updated we don't need to update combined pareto
-////        // Update combined pareto using only partial pareto
-////        if (updated_partial_pareto)
-////        {
-////            for (const auto & pt: partialCombinedPareto )
-////            {
-////                // If the combine pareto was empty, partial = combined
-////                if (flagEmptyCombinedPareto)
-////                {
-////                    combinedPareto.push_back(pt);
-////                    updated_pareto = true;
-////                    continue;
-////                }
-////                if (combinedPareto.size() == 1 && !combinedPareto[0].isComplete())
-////                {
-////                    combinedPareto[0] = pt;
-////                    updated_pareto = true;
-////                    continue;
-////                }
-////                NOMAD_BASE::EvalPoint tempEP(1);
-////                tempEP.setBBO(pt.displayNoPar(), NOMAD_BASE::BBOutputTypeList(_nb_obj, NOMAD_BASE::BBOutputType::OBJ), NOMAD_BASE::EvalType::BB, true /* eval is ok*/);
-////                updated_pareto = update_pareto_single(tempEP, combinedPareto) || updated_pareto;
-////
-////            }
-////        }
-////    }
-//
-//    return updated_pareto;
-//}
+bool RUNNERPOST::Result::update_pareto_single ( const std::vector<double> & point ,
+                                               std::vector<std::vector<double>> & combinedPareto) const
+{
+    bool updated_pareto = false;
+
+    bool insert = true;
+    std::vector<std::vector<double>>::iterator itPf = combinedPareto.begin();
+    while (itPf != combinedPareto.end())
+    {
+        // Create a fake eval point for using compMO
+        bool compFlag = compMultiObjForDominate(point, *itPf);
+        if ( !compFlag)
+        {
+            return false;
+        }
+        else
+        {
+            itPf = combinedPareto.erase(itPf);
+            updated_pareto = true;
+            continue;
+        }
+        itPf++;
+    }
+    if (insert)
+    {
+        combinedPareto.push_back(point);
+        updated_pareto = true;
+    }
+    return updated_pareto;
+}
+
+
+bool RUNNERPOST::Result::update_pareto ( const size_t bbeMax ,
+                                        std::vector<std::vector<double>> & pareto) const
+{
+    bool updated_pareto = false;
+
+    std::vector<size_t>::const_iterator itBBE = _bbe.begin();
+    std::vector<std::vector<double>>::const_iterator itMobj ;
+
+    // udpate pareto using all multi objective evaluations
+    for ( itMobj = _mobj.begin() ; itMobj < _mobj.end() ; itMobj++, itBBE++ )
+    {
+        if ( *itBBE > bbeMax)
+            break;
+
+        if (pareto.size() == 0)
+        {
+            pareto.push_back(*itMobj);
+            updated_pareto = true;
+            continue;
+        }
+        updated_pareto = update_pareto_single(*itMobj, pareto) || updated_pareto;
+    }
+    return updated_pareto;
+}
 
 //// Compute scaled hypervolume of pareto front with respect to ref ideal and nadir points. See LS paper.
 //NOMAD_BASE::Double RUNNERPOST::Result::compute_hv (const std::vector<NOMAD_BASE::Point> & pareto,

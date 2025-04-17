@@ -75,7 +75,10 @@ public:
     
     const StatOutputTypeList &       get_stats_output_type_list() const { return _sotList;}
     
-    
+    bool hasConstraint() const { return (std::count(_sotList.begin(),_sotList.end(),StatOutputType::CST) > 0);}
+    bool hasMultiObjective() const { return (std::count(_sotList.begin(),_sotList.end(),StatOutputType::OBJ) > 1);}
+    size_t getNbConstraints() const { return std::count(_sotList.begin(),_sotList.end(),StatOutputType::CST);}
+    size_t getNbObjectives() const { return std::count(_sotList.begin(),_sotList.end(),StatOutputType::OBJ);}
 };
 
 #include "runnerpost_nsend.hpp"
