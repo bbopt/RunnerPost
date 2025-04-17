@@ -414,15 +414,15 @@ bool RUNNERPOST::Runner::run_post_processing ( std::string & error_msg )
         msg << "s (" << nn << ")";
     }
     
-    if ( _use_h_for_profiles )
-    {
-        msg << " [ h(x)=sum_j ( max(c_j(x),0)^2) -- > replaces f ]" ;
-    }
-    
-    if ( _use_hypervolume_for_profiles )
-    {
-        msg << " [ Pareto hypervolume is used for f ]" ;
-    }
+//    if ( _use_h_for_profiles )
+//    {
+//        msg << " [ h(x)=sum_j ( max(c_j(x),0)^2) -- > replaces f ]" ;
+//    }
+//    
+//    if ( _use_hypervolume_for_profiles )
+//    {
+//        msg << " [ Pareto hypervolume is used for f ]" ;
+//    }
     
     msg << ": \n";
     std::cout << msg.str();
@@ -1929,50 +1929,98 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output:
             double first_fx;
             size_t nb_first_fx = 0;
             fx0s[i_pb]=0.0;
+            
+            size_t nbConstraints=0;
+            bool checkConsistency = false;
+            
             for (size_t  i_algo = 0 ; i_algo < n_algo ; ++i_algo )
             {
+                nbConstraints =  _selected_algos[i_algo]->getNbConstraints();
+                if (i_algo > 0)
+                {
+                    size_t nbConstraintsP =  _selected_algos[i_algo-1]->getNbConstraints();
+                    if ( nbConstraints != nbConstraintsP)
+                    {
+                        std::cout << "Error: inconsistent contraint definition between algos " << std::endl;
+                        fx0s.clear();
+                        return fx0s;
+                    }
+                }
+                
+                // Special case where fx0[i_pb] is INF but no constraint is defined.
+                // We probably have hidden constraints and several X0 points are evaluated
+                // and some failed. Let's use the first valid evaluation for fx0.
+                // Unlike when constraint are present we need to verify consistency
+                // between the algos. Set a flag for that.
+                checkConsistency = (nbConstraints == 0);
+                
                 for (size_t i_pb_instance=0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance)
                 {
                     if ( !_results[i_pb][i_algo][i_pb_instance].is_infeas() )
                     {
                         first_fx = _results[i_pb][i_algo][i_pb_instance].get_first_fx();
-                        if ( fx_first_feas == Output::Fx_First_Feas_Method::max )
+                        
+                        if (checkConsistency)
                         {
-                            if ( nb_first_fx == 0 )
+                            if (nb_first_fx == 0 && i_algo == 0)
                                 fx0s[i_pb] = first_fx;
                             else
-                                fx0s[i_pb] = std::max( first_fx , fx0s[i_pb] );
-
+                            {
+                                if (fx0s[i_pb] != first_fx)
+                                {
+                                    std::cout << "Error: inconsistency between algos for the first fx. For problem " << _selected_pbs[i_pb]->get_id() << " and algo " << _selected_algos[i_algo]->get_id() << " fx0=" << first_fx << " fx0s[ipb]=" << fx0s[i_pb] << std::endl;
+                                    fx0s.clear();
+                                    return fx0s;
+                                }
+                            }
                         }
-                        else if ( fx_first_feas == Output::Fx_First_Feas_Method::min )
-                        {
-                            if ( nb_first_fx == 0 )
-                                fx0s[i_pb] = first_fx;
-                            else
-                                fx0s[i_pb] = std::min( first_fx , fx0s[i_pb] );
-                        }
-                        else if ( fx_first_feas == Output::Fx_First_Feas_Method::avg)
-                            fx0s[i_pb] += first_fx;
                         else
                         {
-                            std::cout << "... unknown strategy to obtain the first feas fx value: " << Output::fFeasMethToString(fx_first_feas) << std::endl;
-                            fx0s.clear();
-                            return fx0s;
+                            if ( fx_first_feas == Output::Fx_First_Feas_Method::max )
+                            {
+                                if ( nb_first_fx == 0 )
+                                    fx0s[i_pb] = first_fx;
+                                else
+                                    fx0s[i_pb] = std::max( first_fx , fx0s[i_pb] );
+                                
+                            }
+                            else if ( fx_first_feas == Output::Fx_First_Feas_Method::min )
+                            {
+                                if ( nb_first_fx == 0 )
+                                    fx0s[i_pb] = first_fx;
+                                else
+                                    fx0s[i_pb] = std::min( first_fx , fx0s[i_pb] );
+                            }
+                            else if ( fx_first_feas == Output::Fx_First_Feas_Method::avg)
+                                fx0s[i_pb] += first_fx;
+                            else
+                            {
+                                std::cout << "... unknown strategy to obtain the first feas fx value: " << Output::fFeasMethToString(fx_first_feas) << std::endl;
+                                fx0s.clear();
+                                return fx0s;
+                            }
                         }
-
                         nb_first_fx++;
                     }
                 }
             }
-            if ( nb_first_fx > 0 )
+            
+            if (!checkConsistency)
             {
-                if ( fx_first_feas == Output::Fx_First_Feas_Method::avg )
-                    fx0s[i_pb]/=nb_first_fx;
+                if ( nb_first_fx > 0 )
+                {
+                    if ( fx_first_feas == Output::Fx_First_Feas_Method::avg )
+                        fx0s[i_pb]/=nb_first_fx;
+                }
+                else
+                    fx0s[i_pb]=INF;
+                
+                std::cout << "pb #"<< i_pb+1 << " has infeasible starting point ---> " << Output::fFeasMethToString(fx_first_feas) << " method for first feasible point objective functions is used: fx0="<<fx0s[i_pb] << std::endl;
             }
             else
-                fx0s[i_pb]=INF;
-
-            std::cout << "pb #"<< i_pb+1 << " has infeasible starting point ---> " << Output::fFeasMethToString(fx_first_feas) << " method for first feasible point objective functions is used: fx0="<<fx0s[i_pb] << std::endl;
+            {
+                std::cout << "pb #"<< i_pb+1 << " has not constraint but no first point in stats ---> Let use the first valid fx value: " << fx0s[i_pb] << std::endl;
+            }
         }
 
     }
@@ -2385,7 +2433,7 @@ bool RUNNERPOST::Runner::construct_list_of_files ( std::list<std::string> & list
         // loop over all files in the directory
         for (const auto& entry : std::filesystem::directory_iterator(directory))
         {
-            if (entry.is_regular_file())
+            if (entry.is_regular_file() && ! entry.path().filename().string().starts_with("."))
             {
                 list_of_files.push_back(entry.path().string());
             }
@@ -2982,7 +3030,7 @@ bool RUNNERPOST::Runner::read_problem_selection_from_algo_dir ( std::string     
         
         // bool hasSol = (std::count(sotList.begin(),sotList.end(),StatOutputType::SOL) > 0); // Let's try to use some info (like DIM = xx or SOL) in stats file to figure out the pb dimension
 //        size_t nbObj = std::count(sotList.begin(),sotList.end(),StatOutputType::OBJ);
-//        
+//
 //        if (nbObj > 1)
 //        {
 //            error_msg = "Error. Algo " + algo->get_id() + " has more than one objective in the output. Cannot select problems from algo directories.";
