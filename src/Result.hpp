@@ -7,6 +7,17 @@
 
 #include "runnerpost_nsbegin.hpp"
 
+// Comparison type for Multi-Objective
+enum class MOCompareType
+{
+    EQUAL,              ///< Both points are feasible or infeasible, and their
+                        ///< objective values and h (where h is the squared sum
+                        ///< of violations of all constraints) are equal to
+                        ///< approximation tolerance rounding.
+    INDIFFERENT,        ///< Both point are non dominated relatively to each other.
+    DOMINATED,          ///< The first point is dominated by the other.
+    DOMINATING         ///< The first point dominates the other.
+};
 
 // Class to store the results from a stats file in a compact form.
 // Keep only improving solution for f or h.
@@ -47,7 +58,7 @@ private:
     size_t                     _sol_bbe;
     double                     _sol_fx;
     double                     _sol_fxe;
-//    size_t                     _nb_pareto_points;
+    size_t                     _nb_pareto_points;
     ArrayOfDouble              _sol_xe;
     
     // If we have no solution, we can have a best infeasible point (min h)
@@ -63,10 +74,9 @@ private:
 
 
     // Helpers to update pareto when a single objs point is provided, return success true if at least one point and false otherwise
+    //
     bool update_pareto_single ( const std::vector<double> & point,
                                 std::vector<std::vector<double>> & combinedPareto ) const;
-    bool compMultiObjForDominate(const std::vector<double> & point1,
-                                 const std::vector<double> & point2) const;
     
 public:
     
@@ -94,28 +104,32 @@ public:
     bool compute_best_infeasible ( int            n ,
                                    size_t         bbe);
     
-//    // compute hypervolume for multi objective:
-//    bool compute_hypervolume_solution ( int                   n     ,
-//                                    size_t                   bbe ,
-//                                    const std::vector<NOMAD_BASE::Point> & combinedPareto,
-//                                    const NOMAD_BASE::Point              & refParetoIdealPt,
-//                                    const NOMAD_BASE::Point              & refParetoNadirPt);
+    // compute hypervolume for multi objective:
+    bool compute_hypervolume_solution ( int                   n     ,
+                                    size_t                   bbe ,
+                                    const std::vector<std::vector<double>> & combinedPareto,
+                                    const std::vector<double>              & refParetoIdealPt,
+                                    const std::vector<double>              & refParetoNadirPt);
 
-//    // Compute scaled hypervolume of a pareto front (multi obj pb)
-//    static NOMAD_BASE::Double compute_hv (const std::vector<NOMAD_BASE::Point> & pareto,
-//                                          const NOMAD_BASE::Point              & refParetoIdealPt,
-//                                          const NOMAD_BASE::Point              & refParetoNadirPt,
-//                                          size_t & nb_dominating_ref_obj) ;
+    // Compute scaled hypervolume of a pareto front (multi obj pb)
+    static double compute_hv (const std::vector<std::vector<double>> & pareto,
+                                          const std::vector<double>              & refParetoIdealPt,
+                                          const std::vector<double>              & refParetoNadirPt,
+                                          size_t & nb_dominating_ref_obj) ;
     
-//    // Compute a single f from the objectives fs. The single f values have monotonic decrease.
-//    // The value is computed as the hypervolume between the pareto of the result and a ref combined pareto
-//    bool compute_hypervolume_for_obj ( const size_t bbe         ,
-//                                      const std::vector<NOMAD_BASE::Point> & combinedPareto,
-//                                      const NOMAD_BASE::Point              & refParetoIdealPt,
-//                                      const NOMAD_BASE::Point              & refParetoNadirPt) ;
+    // Compute a single f from the objectives fs. The single f values have monotonic decrease.
+    // The value is computed as the hypervolume between the pareto of the result and a ref combined pareto
+    bool compute_hypervolume_for_obj ( const size_t bbe         ,
+                                      const std::vector<std::vector<double>> & combinedPareto,
+                                      const std::vector<double>              & refParetoIdealPt,
+                                      const std::vector<double>              & refParetoNadirPt) ;
     
     bool update_pareto ( size_t bbeMax,
                          std::vector<std::vector<double>> & pareto ) const;
+    
+
+    static MOCompareType compMultiObjForDominate(const std::vector<double> & point1,
+                                                 const std::vector<double> & point2) ;
     
     // read results:
     bool read ( std::ifstream & in , size_t max_bbe , const StatOutputTypeList & sotList, const double & feasibilityThreshold );
@@ -142,8 +156,11 @@ public:
     const std::vector<size_t> & get_bbes ( void ) const { return _bbe; }
     const std::vector<double> & get_objs ( void ) const { return _obj; }
     
-//    size_t                     get_nb_pareto_points   ( void    ) const { return _nb_pareto_points; }
-//    size_t                     get_nb_dominating_ref_obj   ( void    ) const { return _nb_dominating_ref_obj.back(); }
+    // Getter for multi-objs
+    size_t get_nbNbObjs( void ) const { if (_mobj.empty()) return 0 ; return _mobj[0].size(); }
+    
+    size_t                     get_nb_pareto_points   ( void    ) const { return _nb_pareto_points; }
+    size_t                     get_nb_dominating_ref_obj   ( void    ) const { return _nb_dominating_ref_obj.back(); }
 //    const ArrayOfDouble  & get_sol_xe     ( void    ) const { return _sol_xe;     }
     
     double         get_sol        ( size_t bbe ) const;

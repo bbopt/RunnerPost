@@ -1976,7 +1976,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output:
                                 fx0s[i_pb] = first_fx;
                             else
                             {
-                                if (fx0s[i_pb] != first_fx)
+                                if (std::fabs(fx0s[i_pb]-first_fx) > 1.E-16)
                                 {
                                     std::cout << "Error: inconsistency between algos for the first fx. For problem " << _selected_pbs[i_pb]->get_id() << " and algo " << _selected_algos[i_algo]->get_id() << " fx0=" << first_fx << " fx0s[ipb]=" << fx0s[i_pb] << std::endl;
                                     fx0s.clear();
@@ -2499,7 +2499,7 @@ void RUNNERPOST::Runner::set_result (const std::string        & test_id /*not us
 {
     // Set single objective result
     
-    if ( _use_hypervolume_for_profiles )
+    if ( ac.getNbObjectives() > 1 )
         return;
     
     // For now we consider all evaluations available
@@ -2595,32 +2595,24 @@ void RUNNERPOST::Runner::set_hypervolume_result ()
     for ( size_t i_pb = 0 ; i_pb <  n_pb; ++i_pb )
     {
         const auto & pb = *_selected_pbs[i_pb];
-        // size_t pbIndex = pb.get_index();
-        // size_t nb_obj = pb.getNbObj();
         
         int n = pb.get_n();
-        
         auto n_pb_inst = pb.get_nbPbInstances();
         
-        
-        //        if (nb_obj < 2)
-        //        {
-        //            std::cout << "/t Pb #" << pbIndex << " is not multi-objective. Cannot compute hypervolume." << std::endl;
-        //            return;
-        //        }
+        if (pb.get_m()< 2)
+        {
+            std::cout << "/t Pb #" << pb.get_id() << " is not multi-objective. Cannot compute hypervolume." << std::endl;
+            return;
+        }
         
         // loop on the algorithm:
         // For a problem combine all pareto front obtained and the ideal and nadir reference
         // This is use to compute hypervolume
         for ( size_t i_algo = 0 ; i_algo < n_algo ; ++i_algo )
         {
-            const auto & ap = *_selected_algos[i_algo];
             
             // This is partial because it is for all seeds of a single algo
             std::vector<std::vector<double>> partialCombinedPareto;
-            
-            
-            
             for (size_t i_pb_inst = 0 ; i_pb_inst < n_pb_inst ; i_pb_inst++)
             {
                 
@@ -2633,70 +2625,71 @@ void RUNNERPOST::Runner::set_hypervolume_result ()
             
             std::cout << std::endl;
             
-            //            // Clock
-            //            time_t t0,t1;
-            //            time(&t0);
-            //
-            //            // Update combined pareto with partial
-            //            addToCombinedPareto(partialCombinedPareto, i_pb);
-            //
-            //            time(&t1);
-            //
-            //            std::cout << "\t pb #" << i_pb + 1 << " algo 1->" << ap.getIndex() +1 <<  ". Combined pareto of seeds runs: " << _combinedParetoAllAlgos[i_pb].size() << " pts. Comput. time: " << difftime(t1,t0) << " s" << std::endl;
-            //
-            //            std::cout << std::endl;
-            //
-            //            finPareto.close();
+            // Clock
+            time_t t0,t1;
+            time(&t0);
+            
+            // Update combined pareto with partial
+            addToCombinedPareto(partialCombinedPareto, i_pb);
+            
+            time(&t1);
+            
+            std::cout << "\t pb #" << i_pb + 1 << " algo 1->" <<  i_algo +1 <<  ". Combined pareto of seeds runs: " << _combinedParetoAllAlgos[i_pb].size() << " pts. Comput. time: " << difftime(t1,t0) << " s" << std::endl;
+            
+            std::cout << std::endl;
+            
         }
-//
-//
-//        // Set the reference ideal and nadir pts for pb.
-//        if (_combinedParetoAllAlgos[i_pb].size() > 0 && _combinedParetoAllAlgos[i_pb][0].isComplete() )
-//        {
-//            _refParetoIdealPtAllAlgos[i_pb] = NOMAD_BASE::Point(nb_obj, NOMAD_BASE::INF);
-//            _refParetoNadirPtAllAlgos[i_pb] = NOMAD_BASE::Point(nb_obj, -NOMAD_BASE::INF);
-//            for (const auto & p : _combinedParetoAllAlgos[i_pb])
-//            {
-//                for (size_t j=0; j < nb_obj ; j++)
-//                {
-//                    _refParetoIdealPtAllAlgos[i_pb][j] = min( p[j], _refParetoIdealPtAllAlgos[i_pb][j]);
-//                    _refParetoNadirPtAllAlgos[i_pb][j] = max( p[j], _refParetoNadirPtAllAlgos[i_pb][j]);
-//                }
-//            }
-//        }
-//        else
-//        {
-//            std::cout << "/t Cannot set results (ref pts) for hypervolumes of pb " << _selected_pbs[i_pb]->get_id() << ". Reference hypervolume is not defined." << std::endl;
-//        }
-//
-//        // Compute hypervolume solution for all seeds and all algos
-//        for ( size_t i_algo = 0 ; i_algo < _n_algo ; ++i_algo )
-//        {
-//            for (size_t i_seed=0 ; i_seed < _n_seed_run ; ++i_seed )
-//            {
-//                Result * result = &_results[i_pb][i_algo][i_seed];
-//                display_instance_name ( i_pb , i_algo , i_seed );
-//                std::cout << ": found in " << Runner::get_test_dir ( _test_id[i_pb][i_algo] , pb ) << ": ";
-//                // Clock
-//                time_t t0,t1;
-//                time(&t0);
-//                if (result->compute_hypervolume_solution(n, bbe, _combinedParetoAllAlgos[i_pb], _refParetoIdealPtAllAlgos[i_pb], _refParetoNadirPtAllAlgos[i_pb]) )
-//                {
-//                    time(&t1);
-//                    std::cout << "bbe="   << result->get_sol_bbe ()
-//                    << " optim time=" << result->get_time(result->get_sol_bbe())
-//                    << " nb_pareto_points="    << result->get_nb_pareto_points  ()
-//                    << " pareto_dominating_ref_obj="    << result->get_nb_dominating_ref_obj()
-//                    << " HV_f="    << result->get_sol_fx  ()
-//                    << " HV_fx0=" << result->get_sol(1)
-//                    << " compute time=" << difftime(t1,t0) << " s" << std::endl;
-//                }
-//                else
-//                {
-//                    std::cout << "no solution" << std::endl;
-//                }
-//            }
+        
+        auto nb_obj = _results[i_pb][0][0].get_nbNbObjs();
+        // Set the reference ideal and nadir pts for pb.
+        if (_combinedParetoAllAlgos[i_pb].size() > 0)
+        {
+            _refParetoIdealPtAllAlgos[i_pb] = std::vector<double>(nb_obj, RUNNERPOST::INF);
+            _refParetoNadirPtAllAlgos[i_pb] = std::vector<double>(nb_obj, RUNNERPOST::M_INF);
+            for (const auto & p : _combinedParetoAllAlgos[i_pb])
+            {
+                for (size_t j=0; j < nb_obj ; j++)
+                {
+                    _refParetoIdealPtAllAlgos[i_pb][j] = std::min( p[j], _refParetoIdealPtAllAlgos[i_pb][j]);
+                    _refParetoNadirPtAllAlgos[i_pb][j] = std::max( p[j], _refParetoNadirPtAllAlgos[i_pb][j]);
+                }
+            }
         }
+        else
+        {
+            std::cout << "/t Cannot set results (ref pts) for hypervolumes of pb " << _selected_pbs[i_pb]->get_id() << ". Reference hypervolume is not defined." << std::endl;
+        }
+        
+        // Compute hypervolume solution for all pb instances and all algos
+        for ( size_t i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+        {
+            const auto & ac = *_selected_algos[i_algo];
+            for (size_t i_pb_inst=0 ; i_pb_inst < n_pb_inst ; ++i_pb_inst )
+            {
+                Result * result = &_results[i_pb][i_algo][i_pb_inst];
+                display_instance_name (pb , ac , i_pb_inst );
+                std::cout << ": found in " << Runner::get_test_dir ( ac , pb ) << ": ";
+                // Clock
+                time_t t0,t1;
+                time(&t0);
+                if (result->compute_hypervolume_solution(n, bbeMax, _combinedParetoAllAlgos[i_pb], _refParetoIdealPtAllAlgos[i_pb], _refParetoNadirPtAllAlgos[i_pb]) )
+                {
+                    time(&t1);
+                    std::cout << "bbe="   << result->get_sol_bbe ()
+                    << " optim time=" << result->get_time(result->get_sol_bbe())
+                    << " nb_pareto_points="    << result->get_nb_pareto_points  ()
+                    << " pareto_dominating_ref_obj="    << result->get_nb_dominating_ref_obj()
+                    << " HV_f="    << result->get_sol_fx  ()
+                    << " HV_fx0=" << result->get_sol(1)
+                    << " compute time=" << difftime(t1,t0) << " s" << std::endl;
+                }
+                else
+                {
+                    std::cout << "no solution" << std::endl;
+                }
+            }
+        }
+    }
 }
 
 ///*-------------------------------------------------------*/
@@ -3209,60 +3202,56 @@ bool RUNNERPOST::Runner::read_problem_selection_from_algo_dir ( std::string     
 }
 
 
-//bool Runner::addToCombinedPareto(const std::vector<NOMAD_BASE::Point> & paretoPoints, const size_t & pbIndex )
-//{
-//    bool updated_pareto = false;
-//
-//    if (_combinedParetoAllAlgos[pbIndex].size() == 0)
-//    {
-//        _combinedParetoAllAlgos[pbIndex] = paretoPoints;
-//        updated_pareto = true;
-//    }
-//    else
-//    {
-//        for (const auto & pt: paretoPoints)
-//        {
-//            updated_pareto = addToCombinedPareto(NOMAD_BASE::ArrayOfDouble(pt), pbIndex) || updated_pareto ;
-//        }
-//    }
-//    return updated_pareto;
-//}
-//
-//bool Runner::addToCombinedPareto(const NOMAD_BASE::ArrayOfDouble & pt, const size_t & pbIndex )
-//{
-//
-//    bool updated_pareto = false;
-//
-//    bool insert = true;
-//    std::vector<NOMAD_BASE::Point>::iterator itPf = _combinedParetoAllAlgos[pbIndex].begin();
-//    NOMAD_BASE::EvalPoint tempEP(1); // Fake number of variables
-//    NOMAD_BASE::EvalPoint ep(1);
-//    ep.setBBO(pt.display(),NOMAD_BASE::BBOutputTypeList(pt.size(), NOMAD_BASE::BBOutputType::OBJ), NOMAD_BASE::EvalType::BB, true /* eval is ok*/);
-//    while (itPf != _combinedParetoAllAlgos[pbIndex].end())
-//    {
-//        // Create a fake eval point for using compMO
-//        tempEP.setBBO(itPf->displayNoPar(), NOMAD_BASE::BBOutputTypeList(pt.size(), NOMAD_BASE::BBOutputType::OBJ), NOMAD_BASE::EvalType::BB, true /* eval is ok*/);
-//        auto compFlag = ep.compMO(tempEP, NOMAD_BASE::defaultFHComputeType);
-//        if (compFlag == NOMAD_BASE::CompareType::DOMINATED || compFlag == NOMAD_BASE::CompareType::EQUAL)
-//        {
-//            return false;
-//        }
-//        if (compFlag == NOMAD_BASE::CompareType::DOMINATING)
-//        {
-//            itPf = _combinedParetoAllAlgos[pbIndex].erase(itPf);
-//            updated_pareto = true;
-//            continue;
-//        }
-//        itPf++;
-//    }
-//    if (insert)
-//    {
-//        _combinedParetoAllAlgos[pbIndex].push_back(pt);
-//        updated_pareto = true;
-//    }
-//    return updated_pareto;
-//
-//}
+bool RUNNERPOST::Runner::addToCombinedPareto(const std::vector<std::vector<double>> & paretoPoints, const size_t & pbIndex )
+{
+    bool updated_pareto = false;
+
+    if (_combinedParetoAllAlgos[pbIndex].size() == 0)
+    {
+        _combinedParetoAllAlgos[pbIndex] = paretoPoints;
+        updated_pareto = true;
+    }
+    else
+    {
+        for (const auto & pt: paretoPoints)
+        {
+            updated_pareto = addToCombinedPareto(pt, pbIndex) || updated_pareto ;
+        }
+    }
+    return updated_pareto;
+}
+
+bool RUNNERPOST::Runner::addToCombinedPareto(const std::vector<double> & pt, const size_t & pbIndex )
+{
+
+    bool updated_pareto = false;
+
+    bool insert = true;
+    std::vector<std::vector<double>>::iterator itPf = _combinedParetoAllAlgos[pbIndex].begin();
+    while (itPf != _combinedParetoAllAlgos[pbIndex].end())
+    {
+        // Create a fake eval point for using compMO
+        auto moCompFlag = RUNNERPOST::Result::compMultiObjForDominate(pt,*itPf);
+        if (moCompFlag == RUNNERPOST::MOCompareType::DOMINATED || moCompFlag == RUNNERPOST::MOCompareType::EQUAL)
+        {
+            return false;
+        }
+        if (moCompFlag == RUNNERPOST::MOCompareType::DOMINATING)
+        {
+            itPf = _combinedParetoAllAlgos[pbIndex].erase(itPf);
+            updated_pareto = true;
+            continue;
+        }
+        itPf++;
+    }
+    if (insert)
+    {
+        _combinedParetoAllAlgos[pbIndex].push_back(pt);
+        updated_pareto = true;
+    }
+    return updated_pareto;
+
+}
 
 bool RUNNERPOST::Runner::read_output_selection_file( const std::string  & output_selection_file_name ,
                                                     std::string        & error_msg )

@@ -278,6 +278,7 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
                     }
                     i++;
                 }
+                _bbe.push_back( bbe );
                 _mobj.push_back(objs);
             }
             else if ( obj < obj_prev && bbe <= max_bbe )
@@ -400,13 +401,51 @@ void RUNNERPOST::Result::TMPtransform()
 //    }
 }
 
-bool RUNNERPOST::Result::compMultiObjForDominate(const std::vector<double> & point1, const std::vector<double> & point2) const 
+
+RUNNERPOST::MOCompareType RUNNERPOST::Result::compMultiObjForDominate(const std::vector<double> & f1, const std::vector<double> & f2)
 {
-    return false;
+    // COMPARAISON ONLY BETWEEN FEASIBLE POINTS
+    // f1 dominates f2 ?
+    
+    MOCompareType compareFlag = MOCompareType::INDIFFERENT;
+    
+    // Comparing objective vectors of different size is undefined
+    if (f1.size() != f2.size())
+    {
+        std::cerr << "ERROR: Results::compMultiObjForDominate. Incompatible number of objective." << std::endl;
+        return compareFlag;
+    }
+    
+    bool isbetter = false;
+    bool isworse = false;
+    for (size_t i = 0; i < f1.size(); ++i)
+    {
+        if (f1[i] < f2[i])
+        {
+            isbetter = true;
+        }
+        if (f2[i] < f1[i])
+        {
+            isworse = true;
+        }
+        if (isworse && isbetter)
+        {
+            break;
+        }
+    }
+    if (isworse)
+    {
+        compareFlag = isbetter ? MOCompareType::INDIFFERENT : MOCompareType::DOMINATED;
+    }
+    else
+    {
+        compareFlag = isbetter ? MOCompareType::DOMINATING : MOCompareType::EQUAL;
+    }
+    return compareFlag;
 }
 
 
-bool RUNNERPOST::Result::update_pareto_single ( const std::vector<double> & point ,
+bool RUNNERPOST::Result::update_pareto_single ( const std::vector<double> & fs ,
                                                std::vector<std::vector<double>> & combinedPareto) const
 {
     bool updated_pareto = false;
@@ -415,13 +454,13 @@ bool RUNNERPOST::Result::update_pareto_single ( const std::vector<double> & poin
     std::vector<std::vector<double>>::iterator itPf = combinedPareto.begin();
     while (itPf != combinedPareto.end())
     {
-        // Create a fake eval point for using compMO
-        bool compFlag = compMultiObjForDominate(point, *itPf);
-        if ( !compFlag)
+        
+        MOCompareType moCompFlag = compMultiObjForDominate(fs, *itPf);
+        if (moCompFlag == MOCompareType::DOMINATED || moCompFlag == MOCompareType::EQUAL)
         {
             return false;
         }
-        else
+        if (moCompFlag == MOCompareType::DOMINATING)
         {
             itPf = combinedPareto.erase(itPf);
             updated_pareto = true;
@@ -431,7 +470,7 @@ bool RUNNERPOST::Result::update_pareto_single ( const std::vector<double> & poin
     }
     if (insert)
     {
-        combinedPareto.push_back(point);
+        combinedPareto.push_back(fs);
         updated_pareto = true;
     }
     return updated_pareto;
@@ -443,13 +482,14 @@ bool RUNNERPOST::Result::update_pareto ( const size_t bbeMax ,
 {
     bool updated_pareto = false;
 
-    std::vector<size_t>::const_iterator itBBE = _bbe.begin();
     std::vector<std::vector<double>>::const_iterator itMobj ;
 
+    size_t bbeMobj = 0 ;
     // udpate pareto using all multi objective evaluations
-    for ( itMobj = _mobj.begin() ; itMobj < _mobj.end() ; itMobj++, itBBE++ )
+    // All evaluations are stored
+    for ( itMobj = _mobj.begin() ; itMobj < _mobj.end() ; itMobj++, bbeMobj++ )
     {
-        if ( *itBBE > bbeMax)
+        if ( bbeMobj > bbeMax)
             break;
 
         if (pareto.size() == 0)
@@ -463,183 +503,188 @@ bool RUNNERPOST::Result::update_pareto ( const size_t bbeMax ,
     return updated_pareto;
 }
 
-//// Compute scaled hypervolume of pareto front with respect to ref ideal and nadir points. See LS paper.
-//NOMAD_BASE::Double RUNNERPOST::Result::compute_hv (const std::vector<NOMAD_BASE::Point> & pareto,
-//                                       const NOMAD_BASE::Point              & refParetoIdealPt,
-//                                       const NOMAD_BASE::Point              & refParetoNadirPt,
-//                                       size_t & nb_dominating_ref_obj)
-//{
-//    NOMAD_BASE::Double scaledHV;
-//    nb_dominating_ref_obj = 0;
+// Compute scaled hypervolume of pareto front with respect to ref ideal and nadir points. See LS paper.
+double RUNNERPOST::Result::compute_hv (const std::vector<std::vector<double>> & pareto,
+                                                   const std::vector<double>  & refParetoIdealPt,
+                                                   const std::vector<double>  & refParetoNadirPt,
+                                                   size_t & nb_dominating_ref_obj)
+{
+    double scaledHV;
+    nb_dominating_ref_obj = 0;
+
+    // data for hv
+    const int nb_obj = static_cast<int>(refParetoIdealPt.size());
+    if (nb_obj != refParetoNadirPt.size() || nb_obj != pareto[0].size())
+    {
+        std::cout << "Inconsistent dimension of the number of objectives" <<std::endl;
+        return RUNNERPOST::INF;
+    }
+    
+    double * dpareto = new double[nb_obj*pareto.size()];
+    size_t k=0;
+    std::vector<std::vector<double>> Tpareto; // Transformed (scaled) pareto (see LS paper)
+
+    for (const auto & p : pareto)
+    {
+        std::vector<double> Tpt(nb_obj);
+        bool dominating = true;
+        for (size_t j =0 ; j < nb_obj; j++)
+        {
+            Tpt[j] = p[j]-refParetoIdealPt[j];
+            if (refParetoIdealPt[j] != refParetoNadirPt[j])
+            {
+                Tpt[j] /= (refParetoNadirPt[j] - refParetoIdealPt[j]);
+            }
+            if ( dominating && Tpt[j] > 1.0)
+                dominating = false;
+            dpareto[k++] = Tpt[j];
+        }
+        if (dominating)
+            nb_dominating_ref_obj++;
+    }
+
+    double reference[nb_obj]; // scaled reference point is 1 for all objectives
+    for (size_t j =0 ; j < nb_obj; j++)
+    {
+        reference[j] = 1.0;
+    }
+    
+    
+#ifdef LIB_HYPERVOLUME
+
+// TEMP for testing hv computation
+//    std::ifstream fin ( "viennet.txt" );
+//    size_t lines=0;
+//    double l,m,r,lmax=-100000000,mmax=-10000000,rmax=-1000000000;
 //
-//#ifdef LIB_HYPERVOLUME
-//
-//    // data for hv
-//    const int nb_obj = static_cast<int>(refParetoIdealPt.size());
-//    if (nb_obj != refParetoNadirPt.size() || nb_obj != pareto[0].size())
+//    while ( !fin.eof() )
 //    {
-//        std::cout << "Inconsistent dimension of the number of objectives" <<std::endl;
-//        return NOMAD_BASE::INF;
-//    }
-//    double * dpareto = new double[nb_obj*pareto.size()];
-//    size_t k=0;
-//    std::vector<NOMAD_BASE::Point> Tpareto; // Transformed (scaled) pareto (see LS paper)
-//
-//// TEMP for testing hv computation
-////    std::ifstream fin ( "viennet.txt" );
-////    size_t lines=0;
-////    double l,m,r,lmax=-100000000,mmax=-10000000,rmax=-1000000000;
-////
-////    while ( !fin.eof() )
-////    {
-////        lines ++;
-////        fin >> l  ;
-////        fin >> m  ;
-////        fin >> r  ;
-////        dpareto[k++] = l;
-////        dpareto[k++] = m;
-////        dpareto[k++] = r;
-////        if ( l > lmax)
-////        {
-////            lmax = l;
-////        }
-////        if ( m > mmax)
-////        {
-////            mmax = m;
-////        }
-////        if ( r > rmax)
-////        {
-////            rmax = r;
-////        }
-////
-////    }
-////    fin.close();
-////    double reference[3] = { lmax, mmax, rmax };
-////    scaledHV = fpli_hv(dpareto, 3, 874, reference);
-////    if (abs(scaledHV - 3.86877) > 0.01)
-////      std::cout << "ERROR in hv compuation" <<std::endl;
-//
-//
-//    for (const auto & p : pareto)
-//    {
-//        NOMAD_BASE::Point Tpt(nb_obj);
-//        bool dominating = true;
-//        for (size_t j =0 ; j < nb_obj; j++)
+//        lines ++;
+//        fin >> l  ;
+//        fin >> m  ;
+//        fin >> r  ;
+//        dpareto[k++] = l;
+//        dpareto[k++] = m;
+//        dpareto[k++] = r;
+//        if ( l > lmax)
 //        {
-//            Tpt[j] = p[j].todouble()-refParetoIdealPt[j].todouble();
-//            if (refParetoIdealPt[j] != refParetoNadirPt[j])
-//            {
-//                Tpt[j] /= (refParetoNadirPt[j].todouble() - refParetoIdealPt[j].todouble());
-//            }
-//            if ( dominating && Tpt[j] > 1.0)
-//                dominating = false;
-//            dpareto[k++] = Tpt[j].todouble();
+//            lmax = l;
 //        }
-//        if (dominating)
-//            nb_dominating_ref_obj++;
-//    }
-//
-//    double reference[nb_obj]; // scaled reference point is 1 for all objectives
-//    for (size_t j =0 ; j < nb_obj; j++)
-//    {
-//        reference[j] = 1.0;
-//    }
-//
-//    scaledHV = fpli_hv(dpareto, static_cast<int>(nb_obj), static_cast<int>(pareto.size()), reference);
-//    delete[] dpareto;
-//
-//#else
-//    std::cout << "Hypervolume computation library (HV) is not available." <<std::endl;
-//    return NOMAD_BASE::INF;
-//
-//#endif
-//
-//    return scaledHV;
-//}
-
-
-//// Replaces the objectives fs by single f values with monotonic decrease. The value is computed as the hypervolume between
-//bool RUNNERPOST::Result::compute_hypervolume_for_obj ( const size_t bbeMax         ,
-//                     const std::vector<NOMAD_BASE::Point> & refCombinedPareto,
-//                     const NOMAD_BASE::Point              & refParetoIdealPt,
-//                     const NOMAD_BASE::Point              & refParetoNadirPt)
-//{
-//    std::vector<size_t>             bbeTmp;
-//    std::vector<NOMAD_BASE::Double> timeTmp;
-//
-//    // Hypervolume values are put into a new obj vector
-//    _obj.clear();
-//
-//    // Compute pareto profiles for increasing values of bbe
-//    std::vector<NOMAD_BASE::EvalPoint>::const_iterator itMobj = _mobj.begin();
-//    std::vector<NOMAD_BASE::Point> pareto(1, itMobj->getFs(NOMAD_BASE::defaultFHComputeType)); // First fs point alway inserted for starting
-//    std::vector<size_t>::const_iterator itBBE = _bbe.begin();
-//    bbeTmp.push_back(*itBBE);
-//    size_t nb_dom;
-//    _obj.push_back(0.0); // We must have f(x0)=0
-//    _nb_dominating_ref_obj.push_back(0); // Laziness. We should test if fs(x0) are below ref objs.
-//    ++itBBE;
-//    ++itMobj;
-//    for ( itMobj ; itMobj < _mobj.end() ; itMobj++, itBBE++ )
-//    {
-//        if ( update_pareto_single(*itMobj, pareto) )
+//        if ( m > mmax)
 //        {
-//            bbeTmp.push_back(*itBBE);
-//            NOMAD_BASE::Double hv = -compute_hv(pareto, refParetoIdealPt, refParetoNadirPt, nb_dom);
-//            _obj.push_back(hv); // We want a decrease in the objective function
-//            _nb_dominating_ref_obj.push_back(nb_dom);
+//            mmax = m;
 //        }
+//        if ( r > rmax)
+//        {
+//            rmax = r;
+//        }
+//
 //    }
-//
-//    _bbe=bbeTmp;
-//    _sol_fx = _obj.back();
-//
-//    // Transfer into a single value hypervolume is complete. No need for mobj anymore.
-//    _mobj.clear();
-//
-//    // Update number of pareto points for this
-//    _nb_pareto_points = pareto.size();
-//    _has_sol = true;
-//
-//    return true;
-//}
+//    fin.close();
+//    double reference[3] = { lmax, mmax, rmax };
+//    scaledHV = fpli_hv(dpareto, 3, 874, reference);
+//    if (abs(scaledHV - 3.86877) > 0.01)
+//      std::cout << "ERROR in hv compuation" <<std::endl;
+    
+    scaledHV = fpli_hv(dpareto, static_cast<int>(nb_obj), static_cast<int>(pareto.size()), reference);
 
-///*-----------------------------------*/
-///*          compute solution         */
-///*-----------------------------------*/
-//bool RUNNERPOST::Result::compute_hypervolume_solution ( int n    ,
-//                                        size_t  bbe,
-//                                        const std::vector<NOMAD_BASE::Point> & combinedPareto,
-//                                        const NOMAD_BASE::Point              & refParetoIdealPt,
-//                                        const NOMAD_BASE::Point              & refParetoNadirPt)
-//{
-//
-//    // NOTE: sol_xe has no sense for multi-obj
-//
-//    if ( _bbe.empty() || _mobj.empty())
-//    {
-//        size_t sol_bbe = _sol_bbe;
-//        clear_solution();
-//        _sol_bbe = sol_bbe;
-//        return false;
-//    }
-//
-//    clear_solution();
-//
-//    _sol_bbe = bbe;
-//    _nb_pareto_points = 0;
-//
-//    size_t p = _bbe.size();
-//
+#else
+    if (nb_obj > 2)
+    {
+        std::cout << "Number of objective is greater than 2. Requires to enable hypervolume computation library (HV)." <<std::endl;
+        return RUNNERPOST::INF;
+    }
+    
+
+#endif
+    delete[] dpareto;
+
+    return scaledHV;
+}
+
+
+// Replaces the objectives fs by single f values with monotonic decrease. The value is computed as the hypervolume between ...
+bool RUNNERPOST::Result::compute_hypervolume_for_obj ( const size_t bbeMax         ,
+                     const std::vector<std::vector<double>> & refCombinedPareto,
+                     const std::vector<double>              & refParetoIdealPt,
+                     const std::vector<double>              & refParetoNadirPt)
+{
+    std::vector<size_t>             bbeTmp;
+    std::vector<std::vector<double>> timeTmp;
+
+    // Hypervolume values are put into a new obj vector
+    _obj.clear();
+
+    // Compute pareto profiles for increasing values of bbe
+    std::vector<std::vector<double>>::const_iterator itMobj = _mobj.begin();
+    std::vector<std::vector<double>> pareto(1, *itMobj); // First fs point alway inserted for starting
+    std::vector<size_t>::const_iterator itBBE = _bbe.begin();
+    bbeTmp.push_back(*itBBE);
+    size_t nb_dom;
+    _obj.push_back(0.0); // We must have f(x0)=0
+    _nb_dominating_ref_obj.push_back(0); // Laziness. We should test if fs(x0) are below ref objs.
+    ++itBBE;
+    ++itMobj;
+    for ( itMobj ; itMobj < _mobj.end() ; itMobj++, itBBE++ )
+    {
+        if ( update_pareto_single(*itMobj, pareto) )
+        {
+            bbeTmp.push_back(*itBBE);
+            double hv = -compute_hv(pareto, refParetoIdealPt, refParetoNadirPt, nb_dom);
+            _obj.push_back(hv); // We want a decrease in the objective function
+            _nb_dominating_ref_obj.push_back(nb_dom);
+        }
+    }
+
+    _bbe=bbeTmp;
+    _sol_fx = _obj.back();
+
+    // Transfer into a single value hypervolume is complete. No need for mobj anymore.
+    _mobj.clear();
+
+    // Update number of pareto points for this
+    _nb_pareto_points = pareto.size();
+    _has_sol = true;
+
+    return true;
+}
+
+/*-----------------------------------*/
+/*          compute solution         */
+/*-----------------------------------*/
+bool RUNNERPOST::Result::compute_hypervolume_solution ( int n    ,
+                                        size_t  bbe,
+                                        const std::vector<std::vector<double>> & combinedPareto,
+                                        const std::vector<double>              & refParetoIdealPt,
+                                        const std::vector<double>              & refParetoNadirPt)
+{
+
+    // NOTE: sol_xe has no sense for multi-obj
+
+    if ( _bbe.empty() || _mobj.empty())
+    {
+        size_t sol_bbe = _sol_bbe;
+        clear_solution();
+        _sol_bbe = sol_bbe;
+        return false;
+    }
+
+    clear_solution();
+
+    _sol_bbe = bbe;
+    _nb_pareto_points = 0;
+
+    size_t p = _bbe.size();
+
 //    // Test if no feasible point has been obtained
-//    if ( _last_x.empty() && ! _bbe.empty() && ! _mobj.empty() && p==_mobj.size() )
+//    if (! _bbe.empty() && ! _mobj.empty() && p==_mobj.size() )
 //    {
 //        // Cases where the last line of stats file contains "no feasible ...." or if the only line in the file is the initial point and is not feasible
 //        if ( _use_h_for_obj ) // Case where f= h and h != Inf
 //        {
 //            _is_infeas = true;
 //        }
-//        else if ( _mobj.back().getFs(NOMAD_BASE::defaultFHComputeType)[0]==NOMAD_BASE::INF)
+//        else if ( _mobj.back()[0]==RUNNERPOST::INF)
 //        {
 //            _is_infeas  = true ; // Case multi obj, h > 0 and f[0] = Inf
 //        }
@@ -649,39 +694,38 @@ bool RUNNERPOST::Result::update_pareto ( const size_t bbeMax ,
 //        }
 //        return false;
 //    }
-//
-//    if (_last_x.empty()                        ||
-//        _bbe.empty()                           ||
-//        _mobj.empty()                          ||
-//        p != _mobj.size()                      ||
-//        ( _sol_bbe < NOMAD_BASE::INF_SIZE_T && _bbe[0] > _sol_bbe )    )
-//    {
-//        clear_solution();
-//        _sol_bbe = bbe;
-//        return false;
-//    }
-//
-//    if ( _sol_bbe == NOMAD_BASE::INF_SIZE_T )
-//    {
-//        _sol_bbe = _bbe[p-1];
-//    }
-//
-//    // Compute hypervolume and update the solution. Also computes the number of pareto
-//    // points and the number of points undominated by the nadir ref
-//
-//    if (! compute_hypervolume_for_obj(bbe, combinedPareto, refParetoIdealPt, refParetoNadirPt))
-//    {
-//        clear_solution();
-//        return false;
-//    }
-//
-//    _has_sol = true;
-//    _sol_bbe = _bbe.back();
-//    _sol_fxe = _obj.back();
-//    _sol_fx  = _sol_fxe;
-//
-//    return true;
-//}
+
+    if (_bbe.empty()                           ||
+        _mobj.empty()                          ||
+        p != _mobj.size()                      ||
+        ( _sol_bbe < RUNNERPOST::INF_SIZE_T && _bbe[0] > _sol_bbe )    )
+    {
+        clear_solution();
+        _sol_bbe = bbe;
+        return false;
+    }
+
+    if ( _sol_bbe == RUNNERPOST::INF_SIZE_T )
+    {
+        _sol_bbe = _bbe[p-1];
+    }
+
+    // Compute hypervolume and update the solution. Also computes the number of pareto
+    // points and the number of points undominated by the nadir ref
+
+    if (! compute_hypervolume_for_obj(bbe, combinedPareto, refParetoIdealPt, refParetoNadirPt))
+    {
+        clear_solution();
+        return false;
+    }
+
+    _has_sol = true;
+    _sol_bbe = _bbe.back();
+    _sol_fxe = _obj.back();
+    _sol_fx  = _sol_fxe;
+
+    return true;
+}
 
 /*-----------------------------------*/
 /*          compute solution         */
@@ -701,7 +745,7 @@ bool RUNNERPOST::Result::compute_solution_prev ( int n    ,
     clear_solution();
     
 
-    // _nb_pareto_points = 0;
+    _nb_pareto_points = 0;
     
     size_t p = _bbe.size();
     
@@ -802,7 +846,7 @@ bool RUNNERPOST::Result::compute_solution ( int n    ,
     
     clear_solution();
     
-    // _nb_pareto_points = 0;
+    _nb_pareto_points = 0;
     
     
     
@@ -866,9 +910,9 @@ bool RUNNERPOST::Result::compute_best_infeasible ( int n    ,
         return false;
     }
 
-    // _nb_pareto_points = 0;
+    _nb_pareto_points = 0;
     
-// More test to identify that no infeasible point has been obtained
+    // More test to identify that no infeasible point has been obtained
     if ( _infH.back()==INF ) // Case h = Inf
     {
         clear_best_infeas();
@@ -914,6 +958,10 @@ bool RUNNERPOST::Result::compute_best_infeasible ( int n    ,
 double RUNNERPOST::Result::get_sol ( const size_t bbe) const
 {
     double cur = INF;
+    if (_obj.empty())
+    {
+        return cur;
+    }
     int n = static_cast<int> ( _bbe.size() );
     if (n > 0 && _bbe[n-1] <= bbe)
     {

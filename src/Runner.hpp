@@ -90,13 +90,13 @@ private:
 //                                     const AlgoParameters    & ap      ,
 //                                     std::vector<NOMAD_BASE::Point> & partialCombinedPareto ) const ;
 //
-//    // Update combined pareto with a single point
-//    bool addToCombinedPareto(const NOMAD_BASE::ArrayOfDouble & pt,
-//                             const size_t & pbIndex );
-//
-//    // Update combined pareto with pareto points
-//    bool addToCombinedPareto(const std::vector<NOMAD_BASE::Point> & paretoPts,
-//                             const size_t & pbIndex );
+    // Update combined pareto with a single point
+    bool addToCombinedPareto(const std::vector<double> & pt,
+                             const size_t & pbIndex );
+
+    // Update combined pareto with pareto points
+    bool addToCombinedPareto(const std::vector<std::vector<double>> & paretoPts,
+                             const size_t & pbIndex );
     
     // functions to access directory and file names:
     static std::string get_test_dir ( const Algorithm    & ac,
