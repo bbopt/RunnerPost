@@ -519,6 +519,9 @@ double RUNNERPOST::Result::compute_hv (const std::vector<std::vector<double>> & 
         std::cout << "Inconsistent dimension of the number of objectives" <<std::endl;
         return RUNNERPOST::INF;
     }
+
+    
+#ifdef LIB_HYPERVOLUME
     
     double * dpareto = new double[nb_obj*pareto.size()];
     size_t k=0;
@@ -548,9 +551,7 @@ double RUNNERPOST::Result::compute_hv (const std::vector<std::vector<double>> & 
     {
         reference[j] = 1.0;
     }
-    
-    
-#ifdef LIB_HYPERVOLUME
+
 
 // TEMP for testing hv computation
 //    std::ifstream fin ( "viennet.txt" );
@@ -583,10 +584,11 @@ double RUNNERPOST::Result::compute_hv (const std::vector<std::vector<double>> & 
 //    fin.close();
 //    double reference[3] = { lmax, mmax, rmax };
 //    scaledHV = fpli_hv(dpareto, 3, 874, reference);
-//    if (abs(scaledHV - 3.86877) > 0.01)
+//    if (std::fabs(scaledHV - 3.86877) > 0.01)
 //      std::cout << "ERROR in hv compuation" <<std::endl;
     
     scaledHV = fpli_hv(dpareto, static_cast<int>(nb_obj), static_cast<int>(pareto.size()), reference);
+    delete[] dpareto;
 
 #else
     if (nb_obj > 2)
@@ -595,9 +597,29 @@ double RUNNERPOST::Result::compute_hv (const std::vector<std::vector<double>> & 
         return RUNNERPOST::INF;
     }
     
+    double VolR = 1.0;
+    for (size_t j =0 ; j < nb_obj; j++)
+    {
+        if (std::fabs(refParetoIdealPt[j] - refParetoNadirPt[j]) > 1.E-16)
+        {
+            VolR *= (refParetoNadirPt[j] - refParetoIdealPt[j]);
+        }
+    }
+    
+    double io = 0.0;
+    size_t i ;
+    for (i = 0; i < pareto.size()-1 ; i++)
+    {
+        io += (pareto[i+1][0]-pareto[i][0])*std::max(refParetoNadirPt[1]-pareto[i][1],0.0);
+    }
+
+    
+    io += std::max(refParetoNadirPt[0]-pareto[i][0],0.0)*std::max(refParetoNadirPt[1]-pareto[i][1],0.0);
+    
+    scaledHV = -io /VolR;
 
 #endif
-    delete[] dpareto;
+    
 
     return scaledHV;
 }
@@ -1048,14 +1070,17 @@ double RUNNERPOST::Result::get_best_infeas_by_time ( const double & time) const
 double RUNNERPOST::Result::get_time(const size_t bbe) const
 {
     double cur = 0;
-    int n = static_cast<int>(_bbe.size());
-
-    for (int k = 0; k < n; ++k)
+    if (_time.size() > 0)
     {
-        cur = _time[k];
-        if (bbe < INF_SIZE_T && _bbe[k] > bbe)
+        int n = static_cast<int>(_bbe.size());
+        
+        for (int k = 0; k < n; ++k)
         {
-            break;
+            cur = _time[k];
+            if (bbe < INF_SIZE_T && _bbe[k] > bbe)
+            {
+                break;
+            }
         }
     }
 

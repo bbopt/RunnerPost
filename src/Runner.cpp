@@ -629,7 +629,7 @@ bool RUNNERPOST::Runner::generate_outputs(std::string &error_msg)
 //    if ( fxe != 0.0 )
 //        return ( std::fabs( (fx - fxe) / fxe ) <= alpha / 100.0 );
 //
-//    return ( fabs(fx) <= alpha / 100.0 );
+//    return ( std::fabs(fx) <= alpha / 100.0 );
 //}
 //
 ///*---------------------------------------------*/
@@ -2054,12 +2054,11 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx() const
     {
         if ( _use_hypervolume_for_profiles )
         {
-            std::cerr << "Error: MULTIOBJ NOT YET HANDLED. TODO " << std::endl;
-//            // Get the best hypervolume using the combined paretos of algos
-//            fxe[i_pb] = - Result::compute_hv( _combinedParetoAllAlgos[i_pb],
-//                                            _refParetoIdealPtAllAlgos[i_pb],
-//                                            _refParetoNadirPtAllAlgos[i_pb],
-//                                            nbDomRefObj );
+            // Get the best hypervolume using the combined paretos of algos
+            fxe[i_pb] = - Result::compute_hv( _combinedParetoAllAlgos[i_pb],
+                                            _refParetoIdealPtAllAlgos[i_pb],
+                                            _refParetoNadirPtAllAlgos[i_pb],
+                                            nbDomRefObj );
         }
         else
         {
