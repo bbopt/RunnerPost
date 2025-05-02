@@ -681,16 +681,18 @@ double RUNNERPOST::Result::compute_hv (const std::vector<std::vector<double>> & 
         }
         if (pareto[i+1][0] > refParetoNadirPt[0])
         {
-            // Break because remaining points are above Nadir. We are NOT done with io summation because
+            // Break because remaining points are above Nadir.
+            // We are NOT done with io summation because
             // previous point is below N
             io += (refParetoNadirPt[0]-pareto[i][0])*(refParetoNadirPt[1]-pareto[i][1]);
+            
             i++; // This is to prevent last part of the summation (i=m)
             break;
         }
         io += (pareto[i+1][0]-pareto[i][0])*(refParetoNadirPt[1]-pareto[i][1]);
 
     }
-    // Last point of the pareto
+    // Last point of the pareto (i=m in the paper)
     if ( i < pareto.size() && pareto[i][0] < refParetoNadirPt[0] && pareto[i][1] < refParetoNadirPt[1]  )
     {
         io += (refParetoNadirPt[0]-pareto[i][0])*(refParetoNadirPt[1]-pareto[i][1]);
