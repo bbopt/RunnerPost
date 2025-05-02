@@ -446,10 +446,11 @@ RUNNERPOST::MOCompareType RUNNERPOST::Result::compMultiObjForDominate(const std:
 
 
 bool RUNNERPOST::Result::update_pareto_single ( const std::vector<double> & fs ,
-                                               std::vector<std::vector<double>> & combinedPareto) const
+                                               std::vector<std::vector<double>> & combinedPareto,
+                                               bool sort) const
 {
     bool updated_pareto = false;
-
+    
     bool insert = true;
     std::vector<std::vector<double>>::iterator itPf = combinedPareto.begin();
     while (itPf != combinedPareto.end())
@@ -471,6 +472,41 @@ bool RUNNERPOST::Result::update_pareto_single ( const std::vector<double> & fs ,
     if (insert)
     {
         combinedPareto.push_back(fs);
+        
+        // For bi-objective, let's sort.
+        // This is required for bi-obj compute_hv
+        if (sort && combinedPareto.size() > 1 && fs.size()==2)
+        {
+            std::sort(combinedPareto.begin(),combinedPareto.end(),[](const std::vector<double> & a, const std::vector<double> & b)
+                      {
+                        if (a[0] > b[0])
+                        {
+                          return false;
+                        }
+                        else if(b[0] > a[0])
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            // a[0]==b[0]
+                            if (a[1] > b[1])
+                            {
+                                return false;
+                            }
+                            else if (b[1] > a[1])
+                            {
+                                return true;
+                            }
+                            else
+                            {
+                                // a[0] == b[0] && a[1]==b[1])
+                                return false;
+                            }
+                        }
+                          });
+        }
+        
         updated_pareto = true;
     }
     return updated_pareto;
@@ -498,7 +534,7 @@ bool RUNNERPOST::Result::update_pareto ( const size_t bbeMax ,
             updated_pareto = true;
             continue;
         }
-        updated_pareto = update_pareto_single(*itMobj, pareto) || updated_pareto;
+        updated_pareto = update_pareto_single(*itMobj, pareto, true /*true: sort, false: do not sort*/) || updated_pareto;
     }
     return updated_pareto;
 }
@@ -511,7 +547,7 @@ double RUNNERPOST::Result::compute_hv (const std::vector<std::vector<double>> & 
 {
     double scaledHV;
     nb_dominating_ref_obj = 0;
-
+    
     // data for hv
     const int nb_obj = static_cast<int>(refParetoIdealPt.size());
     if (nb_obj != refParetoNadirPt.size() || nb_obj != pareto[0].size())
@@ -519,14 +555,14 @@ double RUNNERPOST::Result::compute_hv (const std::vector<std::vector<double>> & 
         std::cout << "Inconsistent dimension of the number of objectives" <<std::endl;
         return RUNNERPOST::INF;
     }
-
+    
     
 #ifdef LIB_HYPERVOLUME
     
     double * dpareto = new double[nb_obj*pareto.size()];
     size_t k=0;
     std::vector<std::vector<double>> Tpareto; // Transformed (scaled) pareto (see LS paper)
-
+    
     for (const auto & p : pareto)
     {
         std::vector<double> Tpt(nb_obj);
@@ -545,51 +581,51 @@ double RUNNERPOST::Result::compute_hv (const std::vector<std::vector<double>> & 
         if (dominating)
             nb_dominating_ref_obj++;
     }
-
+    
     double reference[nb_obj]; // scaled reference point is 1 for all objectives
     for (size_t j =0 ; j < nb_obj; j++)
     {
         reference[j] = 1.0;
     }
-
-
-// TEMP for testing hv computation
-//    std::ifstream fin ( "viennet.txt" );
-//    size_t lines=0;
-//    double l,m,r,lmax=-100000000,mmax=-10000000,rmax=-1000000000;
-//
-//    while ( !fin.eof() )
-//    {
-//        lines ++;
-//        fin >> l  ;
-//        fin >> m  ;
-//        fin >> r  ;
-//        dpareto[k++] = l;
-//        dpareto[k++] = m;
-//        dpareto[k++] = r;
-//        if ( l > lmax)
-//        {
-//            lmax = l;
-//        }
-//        if ( m > mmax)
-//        {
-//            mmax = m;
-//        }
-//        if ( r > rmax)
-//        {
-//            rmax = r;
-//        }
-//
-//    }
-//    fin.close();
-//    double reference[3] = { lmax, mmax, rmax };
-//    scaledHV = fpli_hv(dpareto, 3, 874, reference);
-//    if (std::fabs(scaledHV - 3.86877) > 0.01)
-//      std::cout << "ERROR in hv compuation" <<std::endl;
+    
+    
+    // TEMP for testing hv computation
+    //    std::ifstream fin ( "viennet.txt" );
+    //    size_t lines=0;
+    //    double l,m,r,lmax=-100000000,mmax=-10000000,rmax=-1000000000;
+    //
+    //    while ( !fin.eof() )
+    //    {
+    //        lines ++;
+    //        fin >> l  ;
+    //        fin >> m  ;
+    //        fin >> r  ;
+    //        dpareto[k++] = l;
+    //        dpareto[k++] = m;
+    //        dpareto[k++] = r;
+    //        if ( l > lmax)
+    //        {
+    //            lmax = l;
+    //        }
+    //        if ( m > mmax)
+    //        {
+    //            mmax = m;
+    //        }
+    //        if ( r > rmax)
+    //        {
+    //            rmax = r;
+    //        }
+    //
+    //    }
+    //    fin.close();
+    //    double reference[3] = { lmax, mmax, rmax };
+    //    scaledHV = fpli_hv(dpareto, 3, 874, reference);
+    //    if (std::fabs(scaledHV - 3.86877) > 0.01)
+    //      std::cout << "ERROR in hv compuation" <<std::endl;
     
     scaledHV = fpli_hv(dpareto, static_cast<int>(nb_obj), static_cast<int>(pareto.size()), reference);
     delete[] dpareto;
-
+    
 #else
     if (nb_obj > 2)
     {
@@ -597,26 +633,71 @@ double RUNNERPOST::Result::compute_hv (const std::vector<std::vector<double>> & 
         return RUNNERPOST::INF;
     }
     
+    
+    
     double VolR = 1.0;
     for (size_t j =0 ; j < nb_obj; j++)
     {
-        if (std::fabs(refParetoIdealPt[j] - refParetoNadirPt[j]) > 1.E-16)
-        {
-            VolR *= (refParetoNadirPt[j] - refParetoIdealPt[j]);
-        }
+        VolR *= (refParetoNadirPt[j] - refParetoIdealPt[j]);
+    }
+    if ( VolR < 1.E-16)
+    {
+        return 0.0;
     }
     
     double io = 0.0;
     size_t i ;
     for (i = 0; i < pareto.size()-1 ; i++)
     {
-        io += (pareto[i+1][0]-pareto[i][0])*std::max(refParetoNadirPt[1]-pareto[i][1],0.0);
+        // Test: f1 increasing, f2 decreasing
+        if (pareto[i+1][0] < pareto[i][0])
+        {
+            std::cerr << "Result::compute_hv (bi-obj): pareto points should have f1 strictly increasing" << std::endl;
+            return 0.0;
+        }
+        if (pareto[i+1][1] > pareto[i][1])
+        {
+            std::cerr << "Result::compute_hv (bi-obj): pareto points should have f2 strictly decreasing" << std::endl;
+            return 0.0;
+        }
+        if (pareto[i][0] < refParetoIdealPt[0] || pareto[i][1] < refParetoIdealPt[1] )
+        {
+            std::cerr << "ERROR: Result::compute_hv (bi-obj): pareto points should be above Ideal" << std::endl;
+            return 0.0;
+            // This point is outside [I,N] hyperrectangle, below I. This is not supposed to happen
+        }
+        
+        if ( pareto[i][1] > refParetoNadirPt[1])
+        {
+            continue;
+            // This point is outside [I,N] hyperrectangle above N.
+            // Not considered in io computation. Move to next point.
+        }
+        
+        if (pareto[i][0] > refParetoNadirPt[0])
+        {
+            // Break because remaining points are above Nadir. We are done with io summation.
+            break;
+        }
+        if (pareto[i+1][0] > refParetoNadirPt[0])
+        {
+            // Break because remaining points are above Nadir. We are NOT done with io summation because
+            // previous point is below N
+            io += (refParetoNadirPt[0]-pareto[i][0])*(refParetoNadirPt[1]-pareto[i][1]);
+            i++; // This is to prevent last part of the summation (i=m)
+            break;
+        }
+        io += (pareto[i+1][0]-pareto[i][0])*(refParetoNadirPt[1]-pareto[i][1]);
+
+    }
+    // Last point of the pareto
+    if ( i < pareto.size() && pareto[i][0] < refParetoNadirPt[0] && pareto[i][1] < refParetoNadirPt[1]  )
+    {
+        io += (refParetoNadirPt[0]-pareto[i][0])*(refParetoNadirPt[1]-pareto[i][1]);
     }
 
     
-    io += std::max(refParetoNadirPt[0]-pareto[i][0],0.0)*std::max(refParetoNadirPt[1]-pareto[i][1],0.0);
-    
-    scaledHV = -io /VolR;
+    scaledHV = io /VolR;
 
 #endif
     
@@ -649,12 +730,23 @@ bool RUNNERPOST::Result::compute_hypervolume_for_obj ( const size_t bbeMax      
     ++itMobj;
     for ( itMobj ; itMobj < _mobj.end() ; itMobj++, itBBE++ )
     {
-        if ( update_pareto_single(*itMobj, pareto) )
+        std::vector<std::vector<double>> pareto_tmp = pareto;
+        if ( update_pareto_single(*itMobj, pareto , true /* true: sort if bi-obj*/) )
         {
-            bbeTmp.push_back(*itBBE);
             double hv = -compute_hv(pareto, refParetoIdealPt, refParetoNadirPt, nb_dom);
-            _obj.push_back(hv); // We want a decrease in the objective function
-            _nb_dominating_ref_obj.push_back(nb_dom);
+            if (hv-_obj.back() < -1E-10)
+            {
+                bbeTmp.push_back(*itBBE);
+                _obj.push_back(hv); // We want a decrease in the objective function
+                _nb_dominating_ref_obj.push_back(nb_dom);
+            }
+            if (hv-_obj.back() > 1E-10)
+            {
+                std::cout << "ERROR Result::compute_hypervolume_for_obj: Increase of hv" << std::endl;
+                return false;
+                // double hv_tmp = compute_hv(pareto, refParetoIdealPt, refParetoNadirPt, nb_dom);
+            }
+            
         }
     }
 

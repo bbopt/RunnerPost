@@ -3246,6 +3246,42 @@ bool RUNNERPOST::Runner::addToCombinedPareto(const std::vector<double> & pt, con
     if (insert)
     {
         _combinedParetoAllAlgos[pbIndex].push_back(pt);
+        
+        // For bi-objective, let's sort.
+        // This is required for bi-obj compute_hv
+        if (_combinedParetoAllAlgos[pbIndex].size() > 1 && pt.size()==2)
+        {
+            std::sort(_combinedParetoAllAlgos[pbIndex].begin(),_combinedParetoAllAlgos[pbIndex].end(),[](const std::vector<double> & a, const std::vector<double> & b)
+                      {
+                        if (a[0] > b[0])
+                        {
+                          return false;
+                        }
+                        else if(b[0] > a[0])
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            // a[0]==b[0]
+                            if (a[1] > b[1])
+                            {
+                                return false;
+                            }
+                            else if (b[1] > a[1])
+                            {
+                                return true;
+                            }
+                            else
+                            {
+                                // a[0] == b[0] && a[1]==b[1])
+                                return false;
+                            }
+                        }
+                          });
+        }
+
+        
         updated_pareto = true;
     }
     return updated_pareto;

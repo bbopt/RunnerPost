@@ -76,7 +76,8 @@ private:
     // Helpers to update pareto when a single objs point is provided, return success true if at least one point and false otherwise
     //
     bool update_pareto_single ( const std::vector<double> & point,
-                                std::vector<std::vector<double>> & combinedPareto ) const;
+                                std::vector<std::vector<double>> & combinedPareto,
+                                bool sort) const;
     
 public:
     
