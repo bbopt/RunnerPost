@@ -1332,7 +1332,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
 
 bool RUNNERPOST::Runner::output_time_profile_plain(const Output& out) const
 {
-    const std::string profileName = "time profile";
+    const std::string profileName = "time profiles";
     
     const size_t n_algo = _selected_algos.size();
     const size_t n_pb = _selected_pbs.size();
