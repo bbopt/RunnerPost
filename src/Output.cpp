@@ -413,7 +413,7 @@ bool RUNNERPOST::Output::plotIsSelected(const std::string & algoId, const std::s
     
     std::string s = algoId;
     RUNNERPOST::toUpperCase(s);
-    bool algoIsSelected = (_plotSelection[0] == "ALL" || _plotSelection[0] == "*" || _plotSelection[0] == s );
+    bool algoIsSelected = (_plotSelection[0] == "ALLALGO" || _plotSelection[0] == "*" || _plotSelection[0] == s );
 
     if (_plotSelection.size() == 1 )
     {
@@ -422,13 +422,13 @@ bool RUNNERPOST::Output::plotIsSelected(const std::string & algoId, const std::s
     
     s = pbId;
     RUNNERPOST::toUpperCase(s);
-    bool pbIsSelected = (_plotSelection[1] == "ALL" || _plotSelection[1] == "*" || _plotSelection[1] == s );
+    bool pbIsSelected = (_plotSelection[1] == "ALLPB" || _plotSelection[1] == "*" || _plotSelection[1] == s );
     if (_plotSelection.size() == 2 )
     {
         return algoIsSelected && pbIsSelected;
     }
     
-    bool pbInstanceIsSelected = (_plotSelection[2] == "ALL" || _plotSelection[2] == "*" || std::stoi(_plotSelection[2]) == i_pbInstance );
+    bool pbInstanceIsSelected = (_plotSelection[2] == "ALLINST" || _plotSelection[2] == "*" || std::stoi(_plotSelection[2]) == i_pbInstance );
     return algoIsSelected && pbIsSelected && pbInstanceIsSelected;
     
 }
