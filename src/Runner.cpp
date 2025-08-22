@@ -3653,10 +3653,9 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
     bool factorNP1Found = false;
     for ( const auto & out: _selected_outputs )
     {
-        if (out->get_x_select() == RUNNERPOST::Output::X_Select::TIME ||
-            out->get_profile_type() == RUNNERPOST::Output::Profile_Type::PERFORMANCE_PROFILE)
+        if (out->get_x_select() == RUNNERPOST::Output::X_Select::TIME)
         {
-            // If a single output is selected with x_select == TIME or is a performance profile
+            // If a single output is selected with x_select == TIME 
             // no limit for reading. But best fx will be picked according to the situation
             xMaxFactor = RUNNERPOST::INF_SIZE_T;
             break;
