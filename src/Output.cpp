@@ -241,22 +241,31 @@ bool RUNNERPOST::Output::setSingleAttribute(const std::pair<std::string,std::vec
     {
         return setTau(att.second[0]);
     }
+    else if (att.first.find("FXBEST_SELECT") != std::string::npos)
+    {
+        return setFXBestSelect(att.second[0]);
+    }
     else if (att.first.find("X_MAX") != std::string::npos )
     {
         if (toUpperCase(att.second[0]) =="MAX" || toUpperCase(att.second[0]) == "INF")
         {
-            return setXMax(RUNNERPOST::P_INF_INT);
+            _xMax = RUNNERPOST::INF_SIZE_T;
+            return true;
         }
         else
         {
             try
             {
-                int xmax = std::stoi(att.second[0]);
-                return setXMax(xmax);
+                _xMax = std::stoull(att.second[0]);
+                return true;
             }
             catch (const std::invalid_argument& ia)
             {
                 std::cerr << "Invalid argument for x_max: " << att.second[0] << " --> " << ia.what() << '\n';
+                return false;
+            }
+            catch (const std::out_of_range& e) {
+                std::cerr << "Out of range for x_max: " << att.second[0] << " --> " << e.what() << '\n';
                 return false;
             }
         }
@@ -358,6 +367,35 @@ bool RUNNERPOST::Output::setYSelect(const std::string &s)
     }
     return true;
 }
+
+bool RUNNERPOST::Output::setFXBestSelect(const std::string &s)
+{
+    _fxBestSel = RUNNERPOST::Output::FXBest_Select::CROSSINSTANCE;
+
+    std::string sUpper = s;
+    RUNNERPOST::toUpperCase(sUpper);
+
+    if (s.find("CROSSINSTANCE") != std::string::npos)
+    {
+        _fxBestSel = RUNNERPOST::Output::FXBest_Select::CROSSINSTANCE;
+    }
+    else if (s.find("SINGLEINSTANCE") != std::string::npos)
+    {
+        _fxBestSel = RUNNERPOST::Output::FXBest_Select::SINGLEINSTANCE;
+    }
+    else if (s.find("USERPROVIDE") != std::string::npos)
+    {
+        std::cerr << "FXBestSelect with USERPROVIDE is not yet implemented" << std::endl;
+        return false;
+        // _fxBestSel = RUNNERPOST::Output::FXBest_Select::USERPROVIDE;
+    }
+    else
+    {
+        return false;
+    }
+    return true;
+}
+
 
 
 /*----------------------------------------------*/

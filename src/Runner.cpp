@@ -4,6 +4,7 @@
 #include <fstream>
 
 #include <filesystem>
+#include <algorithm>
 
 /*----------------------------------*/
 /*            constructor           */
@@ -14,7 +15,7 @@ _test_id    ( NULL ) ,
 // _use_avg_fx_first_feas( false ) ,
 _use_evals_for_dataprofiles ( false ) ,
 _use_hypervolume_for_profiles ( false ),
-_feasibilityThreshold (0.0)
+_feasibilityThreshold (0)
 {
 
 }
@@ -418,7 +419,7 @@ bool RUNNERPOST::Runner::run_post_processing ( std::string & error_msg )
 //    {
 //        msg << " [ h(x)=sum_j ( max(c_j(x),0)^2) -- > replaces f ]" ;
 //    }
-//    
+//
 //    if ( _use_hypervolume_for_profiles )
 //    {
 //        msg << " [ Pareto hypervolume is used for f ]" ;
@@ -793,7 +794,7 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     }
 
     // Get fx0s for all problems
-    const ArrayOfDouble& fx0s = get_fx0s(out.get_FFFeasMeth());
+    const ArrayOfDouble& fx0s = get_fx0s(out.get_FFFeasMeth(), out.get_fxBest_select());
     
     // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
     if ( fx0s.empty())
@@ -804,7 +805,7 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     }
 
     // get the best solution for each problem:
-    const ArrayOfDouble& fxe = get_best_fx();
+    const ArrayOfDouble& fxe = get_best_fx( out.get_x_max(), out.get_x_select(), out.get_fxBest_select());
 
 
     // compute tpsMin (Moré and Wild  2009, eq. 2.1)
@@ -1065,7 +1066,7 @@ bool RUNNERPOST::Runner::output_convergence_profile_plain ( const Output & out )
                         std::cout << "\t writing of " << plainFileName << " ..." << std::flush;
                         
                         size_t max_bbe = out.get_x_max();
-                        if ( max_bbe == RUNNERPOST::P_INF_INT )
+                        if ( max_bbe == RUNNERPOST::INF_SIZE_T )
                         {
                             max_bbe = _results[i_pb][i_algo][i_pb_instance].get_last_bbe();
                         }
@@ -1237,7 +1238,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     }
 
     // Get fx0s for all problems
-    const auto& fx0s = get_fx0s(out.get_FFFeasMeth());
+    const auto& fx0s = get_fx0s(out.get_FFFeasMeth(),  out.get_fxBest_select());
     
     // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
     if ( fx0s.empty())
@@ -1246,26 +1247,27 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
         fout.close();
         return false;
     }
-    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
-    {
-        if ( fx0s[i_pb]==INF )
-        {
-            std::cout << "pb #" << i_pb+1 << " ---> fx0=Inf --> un-resolved"<<std::endl;
-        }
-    }
-
+//    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+//    {
+//        if ( fx0s[i_pb]==INF )
+//        {
+//            std::cout << "pb #" << i_pb+1 << " ---> fx0=Inf --> un-resolved"<<std::endl;
+//        }
+//    }
+    
     // get the best solution for each problem:
-    const auto& fxe = get_best_fx();
+    const auto& fxe = get_best_fx(out.get_x_max(), out.get_x_select(), out.get_fxBest_select());
 
+    
     // compute the data profile:
     // -------------------------
-    int max_alpha = out.get_x_max();
+    size_t max_alpha = out.get_x_max();
 
     // Update the range for x axis according to all problems considered:
     // - take the max of all problems last bbe OR
     // - take the max of all problems last bbe divided by n+1
     bool useNp1Evals = (out.get_x_select() == Output::X_Select::NP1EVAL);
-    if ( max_alpha == RUNNERPOST::P_INF_INT )
+    if ( max_alpha == RUNNERPOST::INF_SIZE_T )
     {
         max_alpha = 0;
         for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
@@ -1275,11 +1277,12 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
             {
                 for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
                 {
-                    max_alpha = std::max(max_alpha , int(std::ceil(_results[i_pb][i_algo][i_pb_instance].get_last_bbe()/(dimPb+1.0))));
+                    max_alpha = fmax(max_alpha , int(std::ceil(_results[i_pb][i_algo][i_pb_instance].get_last_bbe()/(dimPb+1.0))));
                 }
             }
         }
     }
+    
     
     size_t cnt, cnt_pb_instance;
     std::stringstream ftmp_alpha,ftmp_cnt,ftmp_cnt_prev;
@@ -1293,23 +1296,58 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
         {
             cnt = 0;
             cnt_pb_instance = 0;
-            for (i_pb = 0 ; i_pb < n_pb ; ++i_pb)
+            
+            if (out.get_fxBest_select() == RUNNERPOST::Output::FXBest_Select::SINGLEINSTANCE)
             {
-                auto n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
-                cnt_pb_instance += n_pb_instance;
-                
-                // Use evals instead of (n+1)*evals
-                size_t dimPb= ( useNp1Evals ) ?  _selected_pbs[i_pb]->get_n() : 0;
-                if ( fx0s[i_pb] < INF && fxe[i_pb] < INF )
+                size_t fI=0;
+                for (i_pb = 0 ; i_pb < n_pb ; ++i_pb)
                 {
+                    auto n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
+                    cnt_pb_instance += n_pb_instance;
+                    
+                    // Use evals instead of (n+1)*evals
+                    size_t dimPb= ( useNp1Evals ) ?  _selected_pbs[i_pb]->get_n() : 0;
                     for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance ; ++i_pb_instance )
                     {
-                        if ( fx0s[i_pb]-_results[i_pb][i_algo] [i_pb_instance].get_sol(alpha*(dimPb+1)) >= (1.0-out.get_tau())*(fx0s[i_pb]-fxe[i_pb]) )
+                        
+                        if ( fx0s[fI] < INF && fxe[fI] < INF )
                         {
-                            ++cnt;
+                            if ( fx0s[fI]-_results[i_pb][i_algo] [i_pb_instance].get_sol(alpha*(dimPb+1)) >= (1.0-out.get_tau())*(fx0s[fI]-fxe[fI]) )
+                            {
+                                ++cnt;
+                            }
+                        }
+                        fI++;
+                    }
+                }
+                
+            }
+            else if (out.get_fxBest_select() == RUNNERPOST::Output::FXBest_Select::CROSSINSTANCE)
+            {
+                
+                for (i_pb = 0 ; i_pb < n_pb ; ++i_pb)
+                {
+                    auto n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
+                    cnt_pb_instance += n_pb_instance;
+                    
+                    // Use evals instead of (n+1)*evals
+                    size_t dimPb= ( useNp1Evals ) ?  _selected_pbs[i_pb]->get_n() : 0;
+                    if ( fx0s[i_pb] < INF && fxe[i_pb] < INF )
+                    {
+                        for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance ; ++i_pb_instance )
+                        {
+                            if ( fx0s[i_pb]-_results[i_pb][i_algo] [i_pb_instance].get_sol(alpha*(dimPb+1)) >= (1.0-out.get_tau())*(fx0s[i_pb]-fxe[i_pb]) )
+                            {
+                                ++cnt;
+                            }
                         }
                     }
                 }
+            }
+            else
+            {
+                std::cerr << "ERROR: Only single instance and cross instance accepted for best fx" << std::endl;
+                return false;
             }
             ftmp_cnt << 1.0*cnt/cnt_pb_instance << " " ;
         }
@@ -1508,7 +1546,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
         }
     }
     // Get fx0s for all problems
-    ArrayOfDouble fx0s = get_fx0s(out.get_FFFeasMeth());
+    ArrayOfDouble fx0s = get_fx0s(out.get_FFFeasMeth(), out.get_fxBest_select());
     
     // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
     if ( fx0s.empty())
@@ -1525,8 +1563,8 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
             std::cout << "pb #" << i_pb+1 << " ---> fx0=Inf --> un-resolved"<<std::endl;
         }
     }
-    // get the best solution for each problem:
-    ArrayOfDouble fxe = get_best_fx();
+    // get the best solution for each problem for selected max time
+    ArrayOfDouble fxe = get_best_fx( out.get_x_max(), out.get_x_select(), out.get_fxBest_select());
 
     // compute the time data profile:
     // -------------------------
@@ -1683,7 +1721,7 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
 
     // Get fx0s for all problems
     auto fx_first_feas_method = out.get_FFFeasMeth();
-    const auto& fx0s = get_fx0s(fx_first_feas_method);
+    const auto& fx0s = get_fx0s(fx_first_feas_method,  out.get_fxBest_select());
     
     // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
     if ( fx0s.empty())
@@ -1701,7 +1739,7 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
     }
 
     // get the best solution for each problem:
-    const auto& fxe = get_best_fx();
+    const auto& fxe = get_best_fx( out.get_x_max(), out.get_x_select(), out.get_fxBest_select());
 
     // Compute list of ds = - log10(1-(fx(nmax)-fx0)/(fx* - fx0))
     // -------------------------
@@ -1800,17 +1838,17 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
 //{
 //    const size_t n_algo = _selected_algos.size();
 //    const size_t n_pb = _selected_pbs.size();
-//    
+//
 //    if ( tau < 0 || n_pb == 0 || n_algo == 0 )
 //    {
 //        std::cerr << "Error: cannot compute data profile for tau < 0 or n_pb ==0 or n_algo == 0" << std::endl;
 //        return ;
 //    }
-//    
+//
 //    std::cout << "Detecting unsolved problems at precision tau=" << tau << " for " << ((nbSimplexEval<0) ? "max": std::to_string(nbSimplexEval)) << " nb simplex evals" << std::endl;
-//    
+//
 //    size_t i_pb, i_algo, i_pb_instance;
-//    
+//
 //    // check that best solution and all results are available:
 //    std::list<size_t> miss_list;
 //    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
@@ -1824,7 +1862,7 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
 //                    miss_list.push_back ( i_pb   );
 //                    miss_list.push_back ( i_algo );
 //                    miss_list.push_back ( i_pb_instance );
-//                    
+//
 //                    // An infeasible run has no solution -> special flag in miss_list is set
 //                    if ( _results[i_pb][i_algo][i_pb_instance].is_infeas() )
 //                        miss_list.push_back( 1 );
@@ -1834,7 +1872,7 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
 //            }
 //        }
 //    }
-//    
+//
 //    // Get fx0s for all problems
 //    ArrayOfDouble fx0s = get_fx0s();
 //    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
@@ -1844,10 +1882,10 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
 //            std::cout << "pb #" << i_pb+1 << " ---> fx0=Inf --> un-resolved"<<std::endl;
 //        }
 //    }
-//    
+//
 //    // get the best solution for each problem:
 //    ArrayOfDouble fxe = get_best_fx();
-//    
+//
 //    // Search for unsolved problems:
 //    // -------------------------
 //    int alpha = (nbSimplexEval < 0 ) ?  Problem::getNbSimplexEvals(): std::round(nbSimplexEval) ;
@@ -1900,45 +1938,170 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
 /* or average value of first feasible eval of all        */
 /* algo/instances                                        */
 /*-------------------------------------------------------*/
-RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output::Fx_First_Feas_Method & fx_first_feas) const
+RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output::Fx_First_Feas_Method & fx_first_feas , const RUNNERPOST::Output::FXBest_Select & fxBestSelect) const
 {
+    if (fxBestSelect == RUNNERPOST::Output::FXBest_Select::USERPROVIDE )
+    {
+        std::cerr << "Runner::get_fx0s: Option FX Best select provided by user is not yet implemented" << std::endl;
+        return ArrayOfDouble();
+    }
+    
     const size_t n_pb = _selected_pbs.size();
     const size_t n_algo = _selected_algos.size();
     
-    ArrayOfDouble fx0s(n_pb, INF);
+    size_t n_fx = n_pb;
+    // Each instance has a separate best fx0, like it is another problem
+    if (fxBestSelect == RUNNERPOST::Output::FXBest_Select::SINGLEINSTANCE)
+    {
+        n_fx = 0;
+        for (size_t i_pb = 0; i_pb < n_pb ; ++i_pb)
+        {
+            n_fx += _selected_pbs[i_pb]->get_nbPbInstances() ;
+        }
+    }
+    
+    ArrayOfDouble fx0s(n_fx, INF);
     double fx0;
 
     // Get fx0 for all problems
+    size_t fI=0;
     for (size_t i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
-        fx0s[i_pb] = _results[i_pb][0][0].get_sol(1);
-        for (size_t i_algo = 1 ; i_algo < n_algo ; ++i_algo )
+        for (size_t i_pb_instance=0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance)
         {
-            for (size_t i_pb_instance=0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance)
+            fx0s[fI] = _results[i_pb][0][i_pb_instance].get_sol(1);
+            for (size_t i_algo = 1 ; i_algo < n_algo ; ++i_algo )
             {
+                
                 fx0 = _results[i_pb][i_algo][i_pb_instance].get_sol(1);
-                if ( (fx0s[i_pb] == INF && fx0 != INF) || (fx0s[i_pb] != INF && fx0 == INF) )
+                
+                if ( (fx0s[fI] == INF && fx0 != INF) || (fx0s[fI] != INF && fx0 == INF) )
                 {
-                    std::cout << "... inconsistent starting points (feas/infeas) between instance runs for problem " << _selected_pbs[i_pb]->get_id() << " and algo " << _selected_algos[i_algo]->get_id() << " fx0=" << fx0 << " fx0s[ipb]=" << fx0s[i_pb] << std::endl;
+                    std::cout << "... inconsistent starting points (feas/infeas) between algo runs for problem " << _selected_pbs[i_pb]->get_id() << " and algo #" << i_algo << "(" << _selected_algos[i_algo]->get_id() << ") fx0=" << fx0 << " fx0s[i]=" << fx0s[fI] << std::endl;
                     fx0s.clear();
                     return fx0s;
                 }
-                else if ( fx0s[i_pb] != INF && fx0 != INF && std::fabs(fx0 - fx0s[i_pb]) > 1e-10 )
+                else if ( fx0s[fI] != INF && fx0 != INF && std::fabs(fx0 - fx0s[fI]) > 1e-10 )
                 {
-                    std::cout << "... inconsistent starting points between instance runs for problem " << _selected_pbs[i_pb]->get_id() << " and algo " << _selected_algos[i_algo]->get_id() << " fx0=" << fx0 << " fx0s[ipb]=" << fx0s[i_pb] << std::endl;
+                    std::cout << "... inconsistent starting points between runs for problem " << _selected_pbs[i_pb]->get_id() << " and algo " << _selected_algos[i_algo]->get_id() << " fx0=" << fx0 << " fx0s[i]=" << fx0s[fI] << std::endl;
                     fx0s.clear();
                     return fx0s;
                 }
+            }
+            if (fxBestSelect == RUNNERPOST::Output::FXBest_Select::SINGLEINSTANCE)
+            {
+                // fx0 for problems with constraints may not be available (case infeasible initial point -- > INF)
+                // fx0--> average, max, min of first feasible point obj
+                if (fx0s[fI] == INF)
+                {
+                    double first_fx;
+                    fx0s[fI]=0.0;
+                    
+                    size_t nbConstraints=0;
+                    size_t nb_first_fx = 0;
+                    bool checkConsistency = false;
+                    
+                    for (size_t  i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+                    {
+                        nbConstraints =  _selected_algos[i_algo]->getNbConstraints();
+                        if (i_algo > 0)
+                        {
+                            size_t nbConstraintsP =  _selected_algos[i_algo-1]->getNbConstraints();
+                            if ( nbConstraints != nbConstraintsP)
+                            {
+                                std::cout << "Error: inconsistent contraint definition between algos " << std::endl;
+                                fx0s.clear();
+                                return fx0s;
+                            }
+                        }
+                        
+                        // Special case where fx0[fI] is INF but no constraint is defined.
+                        // We probably have hidden constraints and several X0 points are evaluated
+                        // and some failed. Let's use the first valid evaluation for fx0.
+                        // Unlike when constraints are present we need to verify consistency
+                        // between the algos. Set a flag for that.
+                        checkConsistency = (nbConstraints == 0);
+                        
+                        if ( !_results[i_pb][i_algo][i_pb_instance].is_infeas() )
+                        {
+                            first_fx = _results[i_pb][i_algo][i_pb_instance].get_first_fx();
+                            
+                            if (checkConsistency)
+                            {
+                                if (nb_first_fx == 0)
+                                    fx0s[fI] = first_fx;
+                                else
+                                {
+                                    if (std::fabs(fx0s[fI]-first_fx) > 1.E-16)
+                                    {
+                                        std::cout << "Error: inconsistency between algos for the first fx. For problem " << _selected_pbs[i_pb]->get_id() << " and algo " << _selected_algos[i_algo]->get_id() << " fx0=" << first_fx << " fx0s[i]=" << fx0s[fI] << std::endl;
+                                        fx0s.clear();
+                                        return fx0s;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                if ( fx_first_feas == Output::Fx_First_Feas_Method::max )
+                                {
+                                    if ( nb_first_fx == 0 )
+                                        fx0s[fI] = first_fx;
+                                    else
+                                        fx0s[fI] = std::max( first_fx , fx0s[fI] );
+                                    
+                                }
+                                else if ( fx_first_feas == Output::Fx_First_Feas_Method::min )
+                                {
+                                    if ( i_algo == 0 )
+                                        fx0s[fI] = first_fx;
+                                    else
+                                        fx0s[fI] = std::min( first_fx , fx0s[fI] );
+                                }
+                                else if ( fx_first_feas == Output::Fx_First_Feas_Method::avg)
+                                    fx0s[fI] += first_fx;
+                                else
+                                {
+                                    std::cout << "... unknown strategy to obtain the first feas fx value: " << Output::fFeasMethToString(fx_first_feas) << std::endl;
+                                    fx0s.clear();
+                                    return fx0s;
+                                }
+                            }
+                            nb_first_fx++;
+                        }
+                    }
+                    
+                    if (!checkConsistency)
+                    {
+                        if ( nb_first_fx > 0 )
+                        {
+                            if ( fx_first_feas == Output::Fx_First_Feas_Method::avg )
+                                fx0s[fI]/=nb_first_fx;
+                            
+                            std::cout << "pb #"<< i_pb+1 << "(" << _selected_pbs[i_pb]->get_id() << "-" << i_pb_instance << ") has infeasible starting point ---> " << Output::fFeasMethToString(fx_first_feas) << " method for first feasible point objective functions is used: fx0="<<fx0s[fI] << std::endl;
+                        }
+                        else
+                        {
+                            fx0s[fI]=INF;
+                            std::cout << "pb #"<< i_pb+1 << "(" << _selected_pbs[i_pb]->get_id() << "-" << i_pb_instance << ") has infeasible starting point and no feasible solution found ---> fx0="<<fx0s[fI] << std::endl;
+                        }
+                        
+                    }
+                    else
+                    {
+                        std::cout << "pb #"<< i_pb+1 << "(" << _selected_pbs[i_pb]->get_id() << "-" << i_pb_instance << ") has no constraint but no first point in stats ---> Let's use the first valid fx value: " << fx0s[fI] << std::endl;
+                    }
+                }
+                fI++;
             }
         }
 
         // fx0 for problems with constraints may not be available (case infeasible initial point -- > INF)
         // fx0--> average, max, min of first feasible point obj
-        if ( fx0s[i_pb]==INF )
+        if (fxBestSelect == RUNNERPOST::Output::FXBest_Select::CROSSINSTANCE && fx0s[fI]==INF )
         {
             double first_fx;
             size_t nb_first_fx = 0;
-            fx0s[i_pb]=0.0;
+            fx0s[fI]=0.0;
             
             size_t nbConstraints=0;
             bool checkConsistency = false;
@@ -1957,10 +2120,10 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output:
                     }
                 }
                 
-                // Special case where fx0[i_pb] is INF but no constraint is defined.
+                // Special case where fx0[fI] is INF but no constraint is defined.
                 // We probably have hidden constraints and several X0 points are evaluated
                 // and some failed. Let's use the first valid evaluation for fx0.
-                // Unlike when constraint are present we need to verify consistency
+                // Unlike when constraints are present we need to verify consistency
                 // between the algos. Set a flag for that.
                 checkConsistency = (nbConstraints == 0);
                 
@@ -1973,12 +2136,12 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output:
                         if (checkConsistency)
                         {
                             if (nb_first_fx == 0 && i_algo == 0)
-                                fx0s[i_pb] = first_fx;
+                                fx0s[fI] = first_fx;
                             else
                             {
-                                if (std::fabs(fx0s[i_pb]-first_fx) > 1.E-16)
+                                if (std::fabs(fx0s[fI]-first_fx) > 1.E-16)
                                 {
-                                    std::cout << "Error: inconsistency between algos for the first fx. For problem " << _selected_pbs[i_pb]->get_id() << " and algo " << _selected_algos[i_algo]->get_id() << " fx0=" << first_fx << " fx0s[ipb]=" << fx0s[i_pb] << std::endl;
+                                    std::cout << "Error: inconsistency between algos for the first fx. For problem " << _selected_pbs[i_pb]->get_id() << " and algo " << _selected_algos[i_algo]->get_id() << " fx0=" << first_fx << " fx0s[i]=" << fx0s[fI] << std::endl;
                                     fx0s.clear();
                                     return fx0s;
                                 }
@@ -1989,20 +2152,20 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output:
                             if ( fx_first_feas == Output::Fx_First_Feas_Method::max )
                             {
                                 if ( nb_first_fx == 0 )
-                                    fx0s[i_pb] = first_fx;
+                                    fx0s[fI] = first_fx;
                                 else
-                                    fx0s[i_pb] = std::max( first_fx , fx0s[i_pb] );
+                                    fx0s[fI] = std::max( first_fx , fx0s[fI] );
                                 
                             }
                             else if ( fx_first_feas == Output::Fx_First_Feas_Method::min )
                             {
                                 if ( nb_first_fx == 0 )
-                                    fx0s[i_pb] = first_fx;
+                                    fx0s[fI] = first_fx;
                                 else
-                                    fx0s[i_pb] = std::min( first_fx , fx0s[i_pb] );
+                                    fx0s[fI] = std::min( first_fx , fx0s[fI] );
                             }
                             else if ( fx_first_feas == Output::Fx_First_Feas_Method::avg)
-                                fx0s[i_pb] += first_fx;
+                                fx0s[fI] += first_fx;
                             else
                             {
                                 std::cout << "... unknown strategy to obtain the first feas fx value: " << Output::fFeasMethToString(fx_first_feas) << std::endl;
@@ -2020,19 +2183,27 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output:
                 if ( nb_first_fx > 0 )
                 {
                     if ( fx_first_feas == Output::Fx_First_Feas_Method::avg )
-                        fx0s[i_pb]/=nb_first_fx;
+                        fx0s[fI]/=nb_first_fx;
+                    
+                    std::cout << "pb #"<< i_pb+1 << " has infeasible starting point ---> " << Output::fFeasMethToString(fx_first_feas) << " method for first feasible point objective functions is used: fx0="<<fx0s[fI] << std::endl;
                 }
                 else
-                    fx0s[i_pb]=INF;
+                {
+                    fx0s[fI]=INF;
+                    std::cout << "pb #"<< i_pb+1 << " has infeasible starting point and no feasible solution found ---> fx0="<<fx0s[fI] << std::endl;
+                }
                 
-                std::cout << "pb #"<< i_pb+1 << " has infeasible starting point ---> " << Output::fFeasMethToString(fx_first_feas) << " method for first feasible point objective functions is used: fx0="<<fx0s[i_pb] << std::endl;
             }
             else
             {
-                std::cout << "pb #"<< i_pb+1 << " has not constraint but no first point in stats ---> Let's use the first valid fx value: " << fx0s[i_pb] << std::endl;
+                std::cout << "pb #"<< i_pb+1 << " has not constraint but no first point in stats ---> Let's use the first valid fx value: " << fx0s[fI] << std::endl;
             }
         }
-
+        
+        if (fxBestSelect == RUNNERPOST::Output::FXBest_Select::CROSSINSTANCE)
+        {
+            fI++;
+        }
     }
     return fx0s;
 
@@ -2042,40 +2213,80 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output:
 /*-------------------------------------------------------*/
 /* get the best solution for all problems (private)      */
 /*-------------------------------------------------------*/
-RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx() const
+RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx( size_t maxBBE, const RUNNERPOST::Output::X_Select & xSelect, const RUNNERPOST::Output::FXBest_Select & fxBestSelect ) const
 {
+    if (fxBestSelect == RUNNERPOST::Output::FXBest_Select::USERPROVIDE )
+    {
+        std::cerr << "Runner::get_best_fx: Option FX Best select provided by user is not yet implemented" << std::endl;
+        return ArrayOfDouble();
+    }
+    
     const size_t n_pb = _selected_pbs.size();
     const size_t n_algo = _selected_algos.size();
     
-    ArrayOfDouble fxe(n_pb, INF);
+    size_t n_fx = n_pb;
+    // Each instance has a separate best fx, like it is another problem
+    if (fxBestSelect == RUNNERPOST::Output::FXBest_Select::SINGLEINSTANCE)
+    {
+        n_fx = 0;
+        for (size_t i_pb = 0; i_pb < n_pb ; ++i_pb)
+        {
+            n_fx += _selected_pbs[i_pb]->get_nbPbInstances() ;
+        }
+    }
+    
+    ArrayOfDouble fxe(n_fx, INF);
     double fxe_tmp;
     size_t nbDomRefObj; // not used here
+    size_t fI = 0;
     for (size_t i_pb = 0; i_pb < n_pb ; ++i_pb)
     {
+        if (maxBBE < RUNNERPOST::INF_SIZE_T && xSelect == RUNNERPOST::Output::X_Select::NP1EVAL)
+        {
+            // WARNING: Let's cross fingers that maxBBE*(n+1) <= INF_SIZE_T
+            
+            // Case when maxBBE must be multiplied by n+1
+            maxBBE *= (static_cast<size_t>(_selected_pbs[i_pb]->get_n())+1);
+        }
+        
         if ( _use_hypervolume_for_profiles )
         {
             // Get the best hypervolume using the combined paretos of algos
             fxe[i_pb] = - Result::compute_hv( _combinedParetoAllAlgos[i_pb],
-                                            _refParetoIdealPtAllAlgos[i_pb],
-                                            _refParetoNadirPtAllAlgos[i_pb],
-                                            nbDomRefObj );
+                                             _refParetoIdealPtAllAlgos[i_pb],
+                                             _refParetoNadirPtAllAlgos[i_pb],
+                                             nbDomRefObj );
         }
         else
         {
-            for (size_t i_algo = 0 ; i_algo < n_algo ; ++i_algo )
-            {
+
                 for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
                 {
-                    // size_t max_bb_evals=_selected_pbs[i_pb]->getMaxBBEvals();
-                    // For now we consider all evaluations available
-                    fxe_tmp = _results[i_pb][i_algo][i_pb_instance].get_sol ( INF_SIZE_T );
-                    
-                    if ( fxe_tmp < INF &&
-                        ( fxe[i_pb] == INF || fxe_tmp < fxe[i_pb] ) )
-                        fxe[i_pb] = fxe_tmp;
+                    for (size_t i_algo = 0 ; i_algo < n_algo ; ++i_algo )
+                    {
+                        // For now we consider all evaluations stored in results
+                        fxe_tmp = _results[i_pb][i_algo][i_pb_instance].get_sol ( maxBBE );
+                        
+                        if ( fxe_tmp < INF &&
+                            ( fxe[fI] == INF || fxe_tmp < fxe[fI] ) )
+                        {
+                            fxe[fI] = fxe_tmp;
+                        }
+                    }
+                    // Each instance has a separate best fx, like it is another problem
+                    // Increment index for each instance
+                    if ( fxBestSelect == RUNNERPOST::Output::FXBest_Select::SINGLEINSTANCE )
+                    {
+                        fI++;
+                    }
+                }
+                // Each instance has a separate best fx, like it is another problem
+                // Increment index only when done with all instances
+                if ( fxBestSelect == RUNNERPOST::Output::FXBest_Select::CROSSINSTANCE )
+                {
+                    fI++;
                 }
             }
-        }
     }
     return fxe;
 }
@@ -2200,9 +2411,10 @@ size_t RUNNERPOST::Runner::get_bbe_max() const
 }
 
 
-/*-----------------------------------------------------*/
-/* get the maximum of iteration for a specific algorithm */
-/*-----------------------------------------------------*/
+/*----------------------------------------------------------*/
+/* get the maximum number of evals for a specific algorithm */
+/* for all problems and all instances                       */
+/*----------------------------------------------------------*/
 size_t RUNNERPOST::Runner::get_bbe_max(size_t i_algo) const
 {
     
@@ -2212,13 +2424,10 @@ size_t RUNNERPOST::Runner::get_bbe_max(size_t i_algo) const
     size_t bbe_max = 0;
     for (size_t i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
-        for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance)
+        tmp = get_bbe_max(i_pb, i_algo);
+        if (tmp > bbe_max)
         {
-            tmp = _results[i_pb][i_algo][i_pb_instance].get_sol_bbe();
-            if (tmp > bbe_max)
-            {
-                bbe_max = tmp;
-            }
+            bbe_max = tmp;
         }
     }
 
@@ -2226,9 +2435,10 @@ size_t RUNNERPOST::Runner::get_bbe_max(size_t i_algo) const
 }
 
 
-/*-----------------------------------------------------*/
-/* get the maximum of iteration for a specific problem and specific algorithm */
-/*-----------------------------------------------------*/
+/*------------------------------------------------------------------------*/
+/* get the maximum of evals for a specific problem and specific algorithm */
+/* for all run instances                                                  */
+/*------------------------------------------------------------------------*/
 size_t RUNNERPOST::Runner::get_bbe_max(size_t i_pb, size_t i_algo) const
 {
 
@@ -2568,22 +2778,26 @@ void RUNNERPOST::Runner::set_hypervolume_result ()
         
     }
     
-    int xmax = _selected_outputs[0]->get_x_max();
+    size_t xmax = _selected_outputs[0]->get_x_max();
+    auto x_select = _selected_outputs[0]->get_x_select();
     for (size_t i_o = 1; i_o < _selected_outputs.size() ; i_o++ )
     {
-        if (xmax != _selected_outputs[0]->get_x_max())
+        if (xmax != _selected_outputs[i_o]->get_x_max())
         {
-            std::cerr << "Error: set_hypervolume_result. Cannot handle the case with multiple selected outputs havin different xmax." << std::endl;
+            std::cerr << "Error: set_hypervolume_result. Cannot handle the case with multiple selected outputs having different xmax." << std::endl;
+            return;
+        }
+        if (x_select != _selected_outputs[i_o]->get_x_select())
+        {
+            std::cerr << "Error: set_hypervolume_result. Cannot handle the case with multiple selected outputs having different x select." << std::endl;
             return;
         }
     }
-    if (xmax < RUNNERPOST::P_INF_INT)
+    if (xmax < RUNNERPOST::INF_SIZE_T)
     {
         std::cerr << "Error: set_hypervolume_result. Cannot handle the case with xmax < INF." << std::endl;
         return;
     }
-    int bbeMax = RUNNERPOST::P_INF_INT;
-
     
     // Initialize reference combined pareto (empty) for all pbs
     _refParetoIdealPtAllAlgos = std::vector<std::vector<double>>(n_pb);
@@ -2616,7 +2830,7 @@ void RUNNERPOST::Runner::set_hypervolume_result ()
             {
                 
                 std::cout << "\t pb #" << i_pb + 1 << " algo #" << i_algo+1 << ". Partial pareto of seeds runs: " <<std::endl;
-                _results[i_pb][i_algo][i_pb_inst].update_pareto (  bbeMax         ,
+                _results[i_pb][i_algo][i_pb_inst].update_pareto (  xmax         ,
                                                                  partialCombinedPareto);
                 std::cout << "\t \t - Instance " << i_pb_inst+1 << ", " << partialCombinedPareto.size() << " pts" << std::endl;
             }
@@ -2671,7 +2885,7 @@ void RUNNERPOST::Runner::set_hypervolume_result ()
                 // Clock
                 time_t t0,t1;
                 time(&t0);
-                if (result->compute_hypervolume_solution(n, bbeMax, _combinedParetoAllAlgos[i_pb], _refParetoIdealPtAllAlgos[i_pb], _refParetoNadirPtAllAlgos[i_pb]) )
+                if (result->compute_hypervolume_solution(n, xmax, _combinedParetoAllAlgos[i_pb], _refParetoIdealPtAllAlgos[i_pb], _refParetoNadirPtAllAlgos[i_pb]) )
                 {
                     time(&t1);
                     std::cout << "bbe="   << result->get_sol_bbe ()
@@ -2985,6 +3199,7 @@ bool RUNNERPOST::Runner::read_problem_selection_file ( const std::string  & pb_s
         // Here the * is detected and the pb selection is delayed after
         if (line.find("*") == 0)
         {
+            
             in.close();
             std::cerr << "Select pbs from the content of the algos directories.";
             
@@ -3433,6 +3648,31 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
         pbIs.push_back("0");
     }
     
+    // loop on outputs:
+    size_t xMaxFactor = 0;
+    bool factorNP1Found = false;
+    for ( const auto & out: _selected_outputs )
+    {
+        if (out->get_x_select() == RUNNERPOST::Output::X_Select::TIME ||
+            out->get_profile_type() == RUNNERPOST::Output::Profile_Type::PERFORMANCE_PROFILE)
+        {
+            // If a single output is selected with x_select == TIME or is a performance profile
+            // no limit for reading. But best fx will be picked according to the situation
+            xMaxFactor = RUNNERPOST::INF_SIZE_T;
+            break;
+        }
+        // Get the max value for xMaxFactor
+        xMaxFactor = fmax(out->get_x_max(),xMaxFactor);
+        if ( out->get_x_select() == RUNNERPOST::Output::X_Select::NP1EVAL )
+        {
+            factorNP1Found = true;
+        }
+        if (xMaxFactor == RUNNERPOST::INF_SIZE_T)
+        {
+            break;
+        }
+    }
+
     size_t i_pb_instance = 0;
     for ( const auto & pbInstance : pbIs )
     {
@@ -3455,7 +3695,14 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
         StatOutputTypeList statsFileFormat = composeStatsFileFormat(ac.get_stats_output_type_list(), pb.get_n(), pb.get_m());
         
         // Read the stats file into results
-        if ( !result[i_pb_instance].read ( fin , INF_SIZE_T /*for now we consider all evaluations */ , statsFileFormat, _feasibilityThreshold )  )
+        // Limit the reading to the max bbe allowed by all outputs
+        // NOTE: the best fx will be picked more precisely according to the selected output.
+        size_t max_bbe = RUNNERPOST::INF_SIZE_T;
+        if (xMaxFactor < RUNNERPOST::INF_SIZE_T)
+        {
+            max_bbe = (factorNP1Found) ? xMaxFactor * (pb.get_n()+1): xMaxFactor;
+        }
+        if ( !result[i_pb_instance].read ( fin , max_bbe , statsFileFormat, _feasibilityThreshold )  )
         {
             fin.close();
             result[i_pb_instance].reset();
@@ -3842,7 +4089,10 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
         {
             std::cerr << "\n Warning:  number of colors and symbols do not match." << std::endl;
         }
-        std::cerr << "\n Warning:  not enough symbols/colors for the number of algo. Let's plot only the first " << std::to_string(maxAlgos) << " algos." << std::endl;
+        if (RUNNERPOST::Output::Profile_Type::CONVERGENCE_PROFILE != profile_type)
+        {
+            std::cerr << "\n Warning:  not enough symbols/colors for the number of algo. Let's plot only the first " << std::to_string(maxAlgos) << " algos." << std::endl;
+        }
     }
     
     // int repeat_mark = 10;
@@ -3901,6 +4151,7 @@ bool RUNNERPOST::Runner::output_convergence_profile_pgfplots(const Output & out 
     
     std::vector<std::string> listFileNames;
     std::vector<std::string> listLegends;
+    std::vector<std::string> listAlgos;
     
     for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
     {
@@ -3917,6 +4168,7 @@ bool RUNNERPOST::Runner::output_convergence_profile_pgfplots(const Output & out 
                 
                 listFileNames.push_back(out.get_plain_file_name()+extension);
                 listLegends.push_back(RUNNERPOST::removeChar(legend,'_'));
+                listAlgos.push_back(_selected_algos[i_algo]->get_id());
             }
         }
     }
@@ -4053,29 +4305,38 @@ bool RUNNERPOST::Runner::output_convergence_profile_pgfplots(const Output & out 
     
     // Maximum number of algorithms that can be plotted
     const size_t maxPlots = std::min(SYMBOLS.size(),COLORS.size());
-    if ( listFileNames.size() > maxPlots )
+    if ( n_algo > maxPlots )
     {
         if (SYMBOLS.size() != COLORS.size())
         {
             std::cerr << "\n Warning:  number of colors and symbols do not match." << std::endl;
         }
-        std::cerr << "\n Warning:  not enough symbols/colors for the number of algo. Let's plot only the first " << std::to_string(maxPlots) << " plots." << std::endl;
+        std::cerr << "\n Warning:  not enough symbols/colors for all algos. Not all algos displayed." << std::endl;
     }
     
-    size_t nbPlotted = 0;
+    size_t nbAlgosPlotted = 0;
     std::string lineStyle = "solid";
+    symbol_index = color_index = 0;
     
     std::vector<std::string>::iterator itLeg = listLegends.begin();
+    size_t j = 0;
     for (const auto & plain_file_name : listFileNames )
     {
         // Modify plain file name to include the key "step"
         std::string plain_file_name_step = plain_file_name + ".step";
 
-        out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 20, color=" << COLORS[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
+        out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index] << ", mark repeat = 20, color=" << COLORS[color_index] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
         out_tex << "\\addlegendentry{" << *itLeg << "};" <<std::endl;
-        nbPlotted++;
         itLeg++;
-        if (nbPlotted >= maxPlots)
+        j++;
+        if (listAlgos[j] != listAlgos[j-1] )
+        {
+            symbol_index++;
+            color_index++;
+            nbAlgosPlotted++;
+        }
+        
+        if (nbAlgosPlotted >= maxPlots)
         {
             break;
         }
@@ -4114,8 +4375,15 @@ bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output 
     const size_t n_pb = _selected_pbs.size();
     const size_t n_algo = _selected_algos.size();
     
+    if (n_pb > 1)
+    {
+        std::cerr << "\n Error in output_convergence_profile_pgfplots: More than one problem is selected. Only several instances of the same problem is accepted." << std::endl;
+        return false;
+    }
+    
     std::vector<std::string> listFileNames;
     std::vector<std::string> listLegends;
+    std::vector<std::string> listAlgos;
     
     for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
     {
@@ -4129,11 +4397,12 @@ bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output 
                 auto extensionF = "."+_selected_algos[i_algo]->get_id()+"."+_selected_pbs[i_pb]->get_id()+".Inst"+std::to_string(i_pb_instance)+".F";
                 auto extensionH = "."+_selected_algos[i_algo]->get_id()+"."+_selected_pbs[i_pb]->get_id()+".Inst"+std::to_string(i_pb_instance)+".H";
                 
-                auto legend = "Algo. " + _selected_algos[i_algo]->get_id()+" Pb. "+_selected_pbs[i_pb]->get_id()+" Inst. "+std::to_string(i_pb_instance);
+                auto legend = "Algo. " + _selected_algos[i_algo]->get_name()+" Pb. "+_selected_pbs[i_pb]->get_name()+" Inst. "+std::to_string(i_pb_instance);
                 
                 listFileNames.push_back(out.get_plain_file_name()+extensionF);
                 listFileNames.push_back(out.get_plain_file_name()+extensionH);
                 listLegends.push_back(legend);
+                listAlgos.push_back(_selected_algos[i_algo]->get_id());
             }
         }
     }
@@ -4248,27 +4517,35 @@ bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output 
     
     // Maximum number of algorithms that can be plotted
     const size_t maxPlots = std::min(SYMBOLS.size(),COLORS.size());
-    if ( listFileNames.size() > maxPlots )
+    if ( n_algo > maxPlots )
     {
         if (SYMBOLS.size() != COLORS.size())
         {
             std::cerr << "\n Warning:  number of colors and symbols do not match." << std::endl;
         }
-        std::cerr << "\n Warning:  not enough symbols/colors for the number of algo. Let's plot only the first " << std::to_string(maxPlots) << " plots." << std::endl;
+
+        std::cerr << "\n Warning:  not enough symbols/colors for all algos. Not all algos displayed." << std::endl;
     }
     
-    size_t nbPlotted = 0;
+    size_t nbAlgosPlotted = 0;
     std::string lineStyle = "solid";
     size_t j = 0;
-    for (size_t i =0 ; i < listFileNames.size()-1 ; i+=2)
+    for (size_t i = 0 ; i < listFileNames.size()-1 ; i+=2)
     {
         // Modify plain file name to include the key "step"
         std::string plain_file_name_step = listFileNames[i] + ".step";
 
-        out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 20, color=" << COLORS[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
+        out_tex << "  \\addplot [" << lineStyle << ", mark="<< SYMBOLS[symbol_index] << ", mark repeat = 20, color=" << COLORS[color_index] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
         out_tex << "\\addlegendentry{" << listLegends[j++] << "};" <<std::endl;
-        nbPlotted++;
-        if (nbPlotted >= maxPlots)
+        
+        if (listAlgos[j] != listAlgos[j-1] )
+        {
+            symbol_index++;
+            color_index++;
+            nbAlgosPlotted++;
+        }
+        
+        if (nbAlgosPlotted >= maxPlots)
         {
             break;
         }
@@ -4277,7 +4554,7 @@ bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output 
 
     symbol_index = 0;
     color_index = 0;
-    nbPlotted = 0;
+    nbAlgosPlotted = 0;
     out_tex << "\\begin{axis}[ " << std::endl;
     out_tex << "       ylabel = {Constraint violation value $h$ (dotted)}," <<std::endl;
     out_tex << "       xmin=1, xmax=" << std::to_string(lastBbe) << "," << std::endl;
@@ -4294,9 +4571,15 @@ bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output 
         out_tex << "  \\addplot [" << lineStyleDotted << ", color=" << COLORS[color_index] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
         
         // Only Marks
-        out_tex << "  \\addplot [only marks, mark="<< SYMBOLS[symbol_index++] << ", mark repeat = 20, color=" << COLORS[color_index++] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
-        nbPlotted++;
-        if (nbPlotted >= maxPlots)
+        out_tex << "  \\addplot [only marks, mark="<< SYMBOLS[symbol_index] << ", mark repeat = 20, color=" << COLORS[color_index] << "] table [x index = 0, y index = 1, header = false ] {" << plain_file_name_step << "}; " << std::endl ;
+        if (listAlgos[j] != listAlgos[j-1] )
+        {
+            symbol_index++;
+            color_index++;
+            nbAlgosPlotted++;
+        }
+        
+        if (nbAlgosPlotted >= maxPlots)
         {
             break;
         }

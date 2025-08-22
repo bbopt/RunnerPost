@@ -35,7 +35,13 @@ public:
         TIME,
         UNDEFINED_X
     };
-    
+    enum FXBest_Select
+    {
+        CROSSINSTANCE,
+        SINGLEINSTANCE,
+        USERPROVIDE,
+        UNDEFINED_FXBestSel
+    };
     enum Plot_Type
     {
         OnlyFFeasible,
@@ -59,7 +65,8 @@ private:
     Profile_Type                       _pType = Profile_Type::UNDEFINED_PROFILE;
     Y_Select                           _ySel = Y_Select::OBJ;
     X_Select                           _xSel = X_Select::EVAL;
-    int                                _xMax;
+    FXBest_Select                      _fxBestSel = FXBest_Select::CROSSINSTANCE;
+    size_t                             _xMax;
     double                             _tau = -1.0; // Default value is not allowed. Must be set explicitly depending on profile type. This is tested.
     std::string                        _plainFileName;
     std::string                        _latexFileName;
@@ -89,9 +96,11 @@ public:
     bool setTau(const std::string & s) { return setTau(std::stod(s));}
     bool setYSelect(const std::string & s);
     void setYSelect(const Output::Y_Select & ys) { _ySel = ys;}
+    bool setFXBestSelect(const std::string & s);
+    void setFXBestSelect(const Output::FXBest_Select & fxb) { _fxBestSel = fxb;}
     bool setXSelect(const std::string & s);
     void setXSelect(const Output::X_Select & xs) { _xSel = xs;}
-    bool setXMax(const int & xMax) { if (xMax<=0) return false; _xMax = xMax ; return true; }
+    void setXMax(const size_t & xMax) { _xMax = xMax; }
     bool setFFFeasMeth(const std::string & s) { _FFFeasM = stringToFFFeasMeth(s); if (_FFFeasM == Fx_First_Feas_Method::UNDEFINED_FFFM) return false; return true; }
     
     bool setPlotSelection(const std::vector<std::string> & s);
@@ -110,7 +119,8 @@ public:
     const Profile_Type &        get_profile_type( ) const { return _pType;}
     const Y_Select &            get_y_select( ) const { return _ySel;}
     const X_Select &            get_x_select( ) const { return _xSel;}
-    const int      &            get_x_max( ) const { return _xMax;}
+    const FXBest_Select &       get_fxBest_select( ) const { return _fxBestSel;}
+    const size_t       &        get_x_max( ) const { return _xMax;}
     const double &              get_tau         ( void ) const { return _tau;}
     const std::string &         get_plain_file_name() const { return _plainFileName;}
     const std::string &         get_latex_file_name() const { return _latexFileName;}

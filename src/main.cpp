@@ -490,14 +490,21 @@ int main ( int argc , char ** argv )
         // display test configs:
         runner.display_selected_algos() ;
         
+        // Read output_selection file
+        if ( !runner.read_output_selection_file ( argv[3] , error_msg ) )
+        {
+            std::cerr << "Cannot read output config file \"" << argv[3] << "\"" << std::endl;
+            std::cerr << "Stop prematurely with error \"" << error_msg << "\"" << std::endl;
+            return 1;
+        }
+        runner.display_selected_outputs();
+        
         if ( !runner.read_problem_selection_file ( argv[2] , error_msg ) )
         {
             std::cerr << std::endl << "Cannot read pbs config file \"" << argv[2] << "\"" << std::endl;
             std::cerr << "Stop prematurely with error \"" << error_msg << "\"" << std::endl;
             return 1;
         }
-        
-        // display test configs:
         runner.display_selected_problems() ;
         
         if (!runner.algo_pb_check_consistency(error_msg))
@@ -507,15 +514,6 @@ int main ( int argc , char ** argv )
             return 1;
         }
         
-        
-        // Read output_selection file
-        if ( !runner.read_output_selection_file ( argv[3] , error_msg ) )
-        {
-            std::cerr << "Cannot read output config file \"" << argv[3] << "\"" << std::endl;
-            std::cerr << "Stop prematurely with error \"" << error_msg << "\"" << std::endl;
-            return 1;
-        }
-        runner.display_selected_outputs();
         
         // Post processing of results is done after reading the outputs.
         // For example, the max bbe can be used for post processing.

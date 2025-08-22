@@ -135,11 +135,10 @@ private:
     // access to the date:
     std::string get_date ( void ) const;
     
-    ArrayOfDouble         get_fx0s(const RUNNERPOST::Output::Fx_First_Feas_Method & fx_first_feas) const;
-    ArrayOfDouble         get_best_fx() const;
+    ArrayOfDouble         get_fx0s(const RUNNERPOST::Output::Fx_First_Feas_Method & fx_first_feas, const RUNNERPOST::Output::FXBest_Select & fxBestSelect) const;
+    ArrayOfDouble         get_best_fx( size_t maxBBE, const RUNNERPOST::Output::X_Select & xSelect, const RUNNERPOST::Output::FXBest_Select & fxBestSelect ) const;
     ArrayOfDouble get_mean_algo_times(size_t i_bbe) const;
     ArrayOfDouble get_relative_algo_times(size_t i_bbe) const;
-//    NOMAD_BASE::ArrayOfDouble get_mean_algo_bbes() const;
     size_t get_bbe_max() const;
     size_t get_bbe_max(size_t i_algo) const;
     size_t get_bbe_max(size_t i_pb, size_t i_algo) const;
