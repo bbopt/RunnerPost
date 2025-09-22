@@ -25,7 +25,8 @@ struct StatOutputType
     enum Type
     {
         OBJ,        ///< Objective value
-        CST,         ///< Constraint value: <=0 is feas >0 is infeas
+        CST,         ///< Inequality constraint value: <=0 is feas >0 is infeas
+        EQCST,       ///< Equality constraint value: >0 is infeasible -> can change threshold for feasibilty detection
         SOL,         ///<  Variable value
         TIME,        ///< Time elapsed since start
         CNT_EVAL,   ///< Evaluation count

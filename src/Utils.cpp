@@ -144,6 +144,10 @@ RUNNERPOST::StatOutputType::StatOutputType(const std::string &sConst)
     {
         _type = RUNNERPOST::StatOutputType::Type::CST;
     }
+    else if (s == "EQCST" || s == "EQCON" || s == "EQCONS" || s == "EQ" || s == "EQCONSTRAINT")
+    {
+        _type = RUNNERPOST::StatOutputType::Type::EQCST;
+    }
     else if (s == "FEAS" || s == "FEA" || s == "FEASIBLE")
     {
         _type = RUNNERPOST::StatOutputType::Type::FEAS;
@@ -280,6 +284,9 @@ std::string RUNNERPOST::StatOutputType::display() const
             break;
         case StatOutputType::Type::CST:
             s = "CST";
+            break;
+        case StatOutputType::Type::EQCST:
+            s = "EQCST";
             break;
         case StatOutputType::Type::TIME:
             s = "TIME";
