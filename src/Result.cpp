@@ -71,7 +71,7 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
     // Number of objectives
     _nb_obj = std::count(sotList.begin(),sotList.end(),StatOutputType::OBJ);
     
-    const size_t m = _nb_obj + std::count(sotList.begin(),sotList.end(),StatOutputType::CST);
+    const size_t m = _nb_obj + std::count(sotList.begin(),sotList.end(),StatOutputType::CST) + std::count(sotList.begin(),sotList.end(),StatOutputType::EQCST);
     if (m == 0)
     {
         std::cerr << "Result::read. Output format has no objective and no constraint." << std::endl;
@@ -120,6 +120,9 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
             break;
         }
 
+        // Replace tabs by spaces
+        std::replace(line.begin(), line.end(), '\t', ' ');
+        
         // Put the line in a string stream for reading values.
         std::istringstream iss(line);
 
@@ -213,7 +216,7 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
             {
                 iss >> time;
             }
-            else if(sot.isOfType(StatOutputType::Type::OBJ) || sot.isOfType(StatOutputType::Type::CST))
+            else if(sot.isOfType(StatOutputType::Type::OBJ) || sot.isOfType(StatOutputType::Type::CST) || sot.isOfType(StatOutputType::Type::EQCST))
             {
                 iss >> bbo[i];
                 if (iss.fail())
@@ -223,7 +226,17 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
                 }
                 if (sot.isOfType(StatOutputType::Type::CST))
                 {
-                    h += pow( std::max( bbo[i], feasibilityThreshold ),2);
+                    if (bbo[i] > feasibilityThreshold)
+                    {
+                        h += pow( bbo[i],2);
+                    }
+                }
+                else if (sot.isOfType(StatOutputType::Type::EQCST))
+                {
+                    if (abs(bbo[i]) > feasibilityThreshold)
+                    {
+                        h += pow( bbo[i],2);
+                    }
                 }
                 else
                 {
@@ -262,7 +275,7 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
         }
 
         // Keep improving feasible evaluations
-        if (h <= feasibilityThreshold)
+        if (h <= 0)
         {
             // For multi-objectif, all evals are kept.
             // Post-processing will create the pareto front
