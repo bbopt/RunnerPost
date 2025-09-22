@@ -15,7 +15,7 @@ _test_id    ( NULL ) ,
 // _use_avg_fx_first_feas( false ) ,
 _use_evals_for_dataprofiles ( false ) ,
 _use_hypervolume_for_profiles ( false ),
-_feasibilityThreshold (0)
+_feasibilityThreshold (1E-12)
 {
 
 }
@@ -776,7 +776,7 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
                 std::cout << " --> no feasible point found " <<std::endl;
             else
             {
-                std::cout << " --> run failed, fix it to get data profile " <<std::endl;
+                std::cout << " --> run failed, fix it to get performance profile " <<std::endl;
                 need_for_fix = true;
             }
         }
@@ -788,9 +788,6 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
             fout.close();
             return false;
         }
-
-        fout.close();
-
     }
 
     // Get fx0s for all problems
@@ -812,41 +809,65 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     // -------------------------
     std::vector<size_t> tpsMin;
     size_t tpsMinTmp;
-    std::vector<size_t> algoHasSolvedFirst(n_pb,0);
+    
+    // Number of problems solved (CROSSINSTANCE vs SINGLEINSTANCE)
+    size_t nbInstPb = n_pb; // Basic case: CROSSINSTANCE
+    if (out.get_fxBest_select() == RUNNERPOST::Output::FXBest_Select::SINGLEINSTANCE)
+    {
+        nbInstPb = 0;
+        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+        {
+            nbInstPb += _selected_pbs[i_pb]->get_nbPbInstances();
+        }
+    }
+    // std::vector<size_t> algoHasSolvedFirst(nbInstPb,0);
+    
+    
     const auto & tau = out.get_tau();
+    size_t fI = 0;
     for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
+        if (out.get_fxBest_select() == RUNNERPOST::Output::FXBest_Select::CROSSINSTANCE)
+        {
+            fI=i_pb;
+        }
         tpsMinTmp = RUNNERPOST::INF_SIZE_T;
-        if ( fx0s[i_pb] < INF )
+        for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
         {
             for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
             {
-                for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
+                if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
                 {
-                    if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
+                    
+                    // Get the improving objs and the corresponding bbes
+                    const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_objs();
+                    const auto & bbes = _results[i_pb][i_algo][i_pb_instance].get_bbes();
+                    
+                    for ( size_t i = 0 ; i < objs.size() ; i++ )
                     {
-                        
-                        // Get the improving objs and the corresponding bbes
-                        const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_objs();
-                        const auto & bbes = _results[i_pb][i_algo][i_pb_instance].get_bbes();
-                        
-                        for ( size_t i = 0 ; i < objs.size() ; i++ )
+                        if (objs[i] <= fxe[fI] + tau *(fx0s[fI]-fxe[fI]) )
                         {
-                            if (objs[i] <= fxe[i_pb] + tau *(fx0s[i_pb]-fxe[i_pb]) )
+                            if (bbes[i]<tpsMinTmp)
                             {
-                                if (bbes[i]<tpsMinTmp)
-                                {
-                                    tpsMinTmp=bbes[i];
-                                    algoHasSolvedFirst[i_pb] = i_algo;
-                                }
-                                break;
+                                tpsMinTmp=bbes[i];
+                                // algoHasSolvedFirst[i_pb] = i_algo;
                             }
+                            break;
                         }
                     }
                 }
             }
+            if (out.get_fxBest_select() == RUNNERPOST::Output::FXBest_Select::SINGLEINSTANCE)
+            {
+                tpsMin.push_back(tpsMinTmp) ;
+                fI ++;
+            }
         }
-        tpsMin.push_back(tpsMinTmp);
+        if (out.get_fxBest_select() == RUNNERPOST::Output::FXBest_Select::CROSSINSTANCE)
+        {
+            tpsMin.push_back(tpsMinTmp) ;
+        }
+        
     }
     
 //    // TMP for testing. Display the number of problems solved first by each algorithm
@@ -859,7 +880,7 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
 //    }
     
     
-    if (tpsMin.size() != n_pb)
+    if (tpsMin.size() != nbInstPb)
     {
         std::cerr << "Error: tpsMin not computed for all problems" << std::endl;
         fout.close();
@@ -872,8 +893,13 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     std::vector<double> alphas;
     for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
     {
+        fI=0;
         for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb)
         {
+            if (out.get_fxBest_select() == RUNNERPOST::Output::FXBest_Select::CROSSINSTANCE)
+            {
+                fI = i_pb;
+            }
             for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
                 if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
@@ -884,12 +910,16 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
                     
                     for ( size_t i = 0 ; i < objs.size() ; i++ )
                     {
-                        if (objs[i] <= fxe[i_pb] + tau *(fx0s[i_pb]-fxe[i_pb]) )
+                        if (objs[i] <= fxe[fI] + tau *(fx0s[fI]-fxe[fI]) )
                         {
-                            alphas.push_back(double(bbes[i])/tpsMin[i_pb]);
+                            alphas.push_back(double(bbes[i])/tpsMin[fI]);
                             break;
                         }
                     }
+                }
+                if (out.get_fxBest_select() == RUNNERPOST::Output::FXBest_Select::SINGLEINSTANCE)
+                {
+                    fI++;
                 }
             }
         }
@@ -916,11 +946,17 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
         {
             cnt = 0;
             int cnt_pb_instance = 0;
+            fI=0;
             for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
             {
+                if (out.get_fxBest_select() == RUNNERPOST::Output::FXBest_Select::CROSSINSTANCE)
+                {
+                    fI = i_pb;
+                }
                 auto n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
                 cnt_pb_instance += n_pb_instance;
                 for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance; ++i_pb_instance )
+                {
                     if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
                     {
                         // Get the improving objs and the corresponding bbes
@@ -929,14 +965,20 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
                         
                         for ( size_t i = 0 ; i < objs.size() ; i++ )
                         {
-                            if (objs[i] <= fxe[i_pb] + tau *(fx0s[i_pb]-fxe[i_pb]) )
+                            if (objs[i] <= fxe[fI] + tau *(fx0s[fI]-fxe[fI]) )
                             {
-                                if (double(bbes[i])/tpsMin[i_pb]<=alpha)
+                                if (double(bbes[i])/tpsMin[fI]<=alpha)
                                     cnt++;
                                 break;
                             }
                         }
                     }
+                    if (out.get_fxBest_select() == RUNNERPOST::Output::FXBest_Select::SINGLEINSTANCE)
+                    {
+                        fI++;
+                    }
+                }
+                
             }
             fout << " ";
             fout << 1.0*cnt/cnt_pb_instance;
@@ -1572,12 +1614,12 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     int max_beta = 0;
     for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
-        size_t dimPb = (_use_evals_for_dataprofiles) ? 0 : _selected_pbs[i_pb]->get_n();
+        size_t dimPb = _selected_pbs[i_pb]->get_n();
         for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
         {
             for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
-                int beta = std::round(_results[i_pb][i_algo][i_pb_instance].get_time()) / double(dimPb);
+                int beta = std::round(_results[i_pb][i_algo][i_pb_instance].get_time());
                 if (beta > max_beta)
                 {
                     max_beta = beta;
@@ -1586,9 +1628,11 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
         }
     }
     size_t cnt, cnt_pb_instance;
-    for (int beta = 0 ; beta <= max_beta ; ++beta )
+    const size_t scaleTime = 10;
+    const double tau = out.get_tau();
+    for (int beta = 0 ; beta <= std::round(max_beta/scaleTime) ; ++beta )
     {
-        fout << beta << " ";
+        fout << beta*scaleTime << " ";
         for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
         {
             cnt = cnt_pb_instance = 0;
@@ -1596,20 +1640,19 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
             {
                 auto n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
                 cnt_pb_instance += n_pb_instance;
-                // Use evals instead of (n+1)*evals
-                size_t dimPb= ( _use_evals_for_dataprofiles ) ? 0 : _selected_pbs[i_pb]->get_n();
+                
                 if ( fx0s[i_pb] < INF && fxe[i_pb] < INF )
                 {
                     for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance ; ++i_pb_instance )
                     {
-                        if (fx0s[i_pb] - _results[i_pb][i_algo][i_pb_instance].get_sol_by_time(beta*(dimPb+1)) >= (1-out.get_tau()) * (fx0s[i_pb]-fxe[i_pb]))
+                        if (fx0s[i_pb] - _results[i_pb][i_algo][i_pb_instance].get_sol_by_time(beta*scaleTime) >= (1.0-tau) * (fx0s[i_pb]-fxe[i_pb]))
                         {
                             ++cnt;
                         }
                     }
                 }
             }
-            fout << (1.0 * cnt ) / (n_pb*cnt_pb_instance) << " " ;
+            fout << (1.0 * cnt ) / (cnt_pb_instance) << " " ;
         }
         fout << std::endl;
     }
@@ -2652,7 +2695,7 @@ bool RUNNERPOST::Runner::construct_list_of_files ( std::list<std::string> & list
         // loop over all files in the directory
         for (const auto& entry : std::filesystem::directory_iterator(directory))
         {
-            if (entry.is_regular_file() && ! entry.path().filename().string().starts_with("."))
+            if (entry.is_regular_file() && ! (entry.path().filename().string().substr(0, 1) == "."))
             {
                 list_of_files.push_back(entry.path().string());
             }
@@ -3655,7 +3698,7 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
     {
         if (out->get_x_select() == RUNNERPOST::Output::X_Select::TIME)
         {
-            // If a single output is selected with x_select == TIME 
+            // If a single output is selected with x_select == TIME
             // no limit for reading. But best fx will be picked according to the situation
             xMaxFactor = RUNNERPOST::INF_SIZE_T;
             break;
