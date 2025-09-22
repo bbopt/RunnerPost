@@ -1614,7 +1614,6 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     int max_beta = 0;
     for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
-        size_t dimPb = _selected_pbs[i_pb]->get_n();
         for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
         {
             for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
@@ -1628,7 +1627,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
         }
     }
     size_t cnt, cnt_pb_instance;
-    const size_t scaleTime = 10;
+    const size_t scaleTime = 10; // Hardcoded. Limit the number of points on the profil. But range is unchanged.ange 
     const double tau = out.get_tau();
     for (int beta = 0 ; beta <= std::round(max_beta/scaleTime) ; ++beta )
     {
