@@ -1611,21 +1611,27 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     // compute the time data profile:
     // -------------------------
     // Compute max time taken by all problems
-    int max_beta = 0;
-    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
+    
+    size_t max_beta = out.get_x_max();
+    
+    if ( max_beta == RUNNERPOST::INF_SIZE_T )
     {
-        for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
+        for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
         {
-            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
+            for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
             {
-                int beta = std::round(_results[i_pb][i_algo][i_pb_instance].get_time());
-                if (beta > max_beta)
+                for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
                 {
-                    max_beta = beta;
+                    int beta = std::round(_results[i_pb][i_algo][i_pb_instance].get_time());
+                    if (beta > max_beta)
+                    {
+                        max_beta = beta;
+                    }
                 }
             }
         }
     }
+    
     size_t cnt, cnt_pb_instance;
     const size_t scaleTime = 10; // Hardcoded. Limit the number of points on the profil. But range is unchanged.ange 
     const double tau = out.get_tau();
