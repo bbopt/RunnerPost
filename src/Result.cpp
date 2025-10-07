@@ -1,9 +1,11 @@
 #include "Result.hpp"
+#include "Output.hpp"
 
 #include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <string>
+
 
 //#ifdef LIB_HYPERVOLUME
 //#include "hv.h"
@@ -22,7 +24,6 @@ void RUNNERPOST::Result::reset (  )
     _last_x.clear();
     
     //_use_hypervolume_for_obj = use_hypervolume_for_obj;
-    // For now use_std_h is always true;      // _use_std_h = use_std_h ;  
     _nb_obj = 0; // Need to be updated
     clear_solution();
 }
@@ -35,23 +36,9 @@ void RUNNERPOST::Result::clear_solution ( void )
     _sol_bbe    = INF_SIZE_T;
     _sol_fx     = INF;
     _sol_xe.clear();
-    _sol_fxe    = INF;
 
-    _has_sol = false;
-    _is_infeas = false;
+    _has_feas_sol = false;
 }
-/*--------------------------------*/
-/*      clear best infeasible     */
-/*--------------------------------*/
-void RUNNERPOST::Result::clear_best_infeas ( void )
-{
-    
-    _bestInf_h  = INF;
-    _bestInf_xe.clear();
-    _bestInf_bbe = INF_SIZE_T;
-
-}
-
 
 /*----------------------------------*/
 /*          read results            */
@@ -304,7 +291,7 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
             
             if (!hasFeasEval)
             {
-                hasFeasEval = true; // Once we have the first feasible eval, we are not interested in infeasible evals
+                hasFeasEval = true; // Once we have the first feasible eval, we are not interested in infeasible evals. Even when y axis plot is for h.
                 _bbeForH.push_back( bbe );
                 _infH.push_back( 0.0 );
                 _timeForH.push_back(time);
@@ -351,10 +338,10 @@ size_t RUNNERPOST::Result::get_last_bbe ( void ) const
 {
     if ( _bbe.empty() && _bbeForH.empty())
         return 0 ;
-    if ( _bbe.empty() )
-        return _bbeForH[_bbeForH.size()-1];
+    if ( _bbe.empty() ) // No feasible solution found. But we have infeasible points (used when h is of interest).
+        return _bbeForH.back();
     else
-        return _bbe[_bbe.size()-1];
+        return _bbe.back();
 }
 
 /*-----------------------------------*/
@@ -362,10 +349,34 @@ size_t RUNNERPOST::Result::get_last_bbe ( void ) const
 /*-----------------------------------*/
 size_t RUNNERPOST::Result::get_last_time ( void ) const
 {
-    if ( _time.empty())
+    if ( _time.empty() && _timeForH.empty())
         return 0 ;
+    
+    if (_time.empty())
+        return _timeForH.back();
     else
-        return _time.size();
+        return _time.back();
+}
+
+double RUNNERPOST::Result::get_first_feas_fx() const
+{
+    double fx=INF;
+    
+    if (! _infH.empty() && _infH[0] == 0.0)
+    {
+        return _obj[0];
+    }
+    else
+    {
+        std::vector<double>::const_iterator it = std::find (_infH.begin(), _infH.end(), 0.0);
+        if (it != _infH.end())
+        {
+            auto index = std::distance(_infH.begin(), it);
+            auto bbe = _bbeForH[index];
+            fx = get_sol(bbe, false);
+        }
+    }
+    return fx;
 }
 
 void RUNNERPOST::Result::writeToStatsFile(size_t i_pb, size_t i_algo, size_t i_pb_inst, size_t pb_size) const
@@ -386,33 +397,33 @@ void RUNNERPOST::Result::writeToStatsFile(size_t i_pb, size_t i_algo, size_t i_p
 }
 
 
-// CHT TEMP FOR DATA MANIPULATION -- DO NOT KEEP -- DANGEROUS
-void RUNNERPOST::Result::TMPtransform()
-{
-
-    // MANIPULATION OF BBE --> for PP in paper
-    for (size_t i=1; i<_obj.size(); i++)
-    {
-        double fact = 0.005*_bbe[i];
-        _bbe[i] = std::floor(_bbe[i] * pow(2.0,fact));
-        if (_bbe[i] < _bbe[i-1])
-        {
-            _bbe[i] = _bbe[i-1];
-        }
-    }
-
-//    // MANUPULATION OF OBJ --> for DP in paper
-//    for (size_t i=0; i<_obj.size(); i++)
+//// CHT TEMP FOR DATA EXPERIMENTAL MANIPULATION -- DO NOT KEEP 
+//void RUNNERPOST::Result::TMPtransform()
+//{
+//
+//    // MANIPULATION OF BBE --> for PP in paper
+//    for (size_t i=1; i<_obj.size(); i++)
 //    {
-//        double fact = 1.0*i/(_obj.size()-1);
-//        double tmp = _obj[i] + 0.14*fact*_obj[i];
-//        if (i>0 && tmp > _obj[i-1])
+//        double fact = 0.005*_bbe[i];
+//        _bbe[i] = std::floor(_bbe[i] * pow(2.0,fact));
+//        if (_bbe[i] < _bbe[i-1])
 //        {
-//            tmp = _obj[i-1]*0.9999999;
+//            _bbe[i] = _bbe[i-1];
 //        }
-//        _obj[i] = tmp;
 //    }
-}
+//
+////    // MANUPULATION OF OBJ --> for DP in paper
+////    for (size_t i=0; i<_obj.size(); i++)
+////    {
+////        double fact = 1.0*i/(_obj.size()-1);
+////        double tmp = _obj[i] + 0.14*fact*_obj[i];
+////        if (i>0 && tmp > _obj[i-1])
+////        {
+////            tmp = _obj[i-1]*0.9999999;
+////        }
+////        _obj[i] = tmp;
+////    }
+//}
 
 
 RUNNERPOST::MOCompareType RUNNERPOST::Result::compMultiObjForDominate(const std::vector<double> & f1, const std::vector<double> & f2)
@@ -773,7 +784,9 @@ bool RUNNERPOST::Result::compute_hypervolume_for_obj ( const size_t bbeMax      
 
     // Update number of pareto points for this
     _nb_pareto_points = pareto.size();
-    _has_sol = true;
+    
+    // For multi-objective we consider only feasible solution
+    _has_feas_sol = true;
 
     return true;
 }
@@ -789,16 +802,13 @@ bool RUNNERPOST::Result::compute_hypervolume_solution ( int n    ,
 {
 
     // NOTE: sol_xe has no sense for multi-obj
-
+    clear_solution();
     if ( _bbe.empty() || _mobj.empty())
     {
         size_t sol_bbe = _sol_bbe;
-        clear_solution();
         _sol_bbe = sol_bbe;
         return false;
     }
-
-    clear_solution();
 
     _sol_bbe = bbe;
     _nb_pareto_points = 0;
@@ -848,111 +858,16 @@ bool RUNNERPOST::Result::compute_hypervolume_solution ( int n    ,
         return false;
     }
 
-    _has_sol = true;
+    // We can compute hypervolume, hence we have a feasible solution
+    _has_feas_sol = true;
+    
     _sol_bbe = _bbe.back();
-    _sol_fxe = _obj.back();
-    _sol_fx  = _sol_fxe;
-
-    return true;
-}
-
-/*-----------------------------------*/
-/*          compute solution         */
-/*-----------------------------------*/
-bool RUNNERPOST::Result::compute_solution_prev ( int n    ,
-                                                size_t  bbe)
-{
-    
-    if ( _bbe.empty() || _obj.empty() )
-    {
-        size_t sol_bbe = _sol_bbe;
-        clear_solution();
-        _sol_bbe = sol_bbe;
-        return false;
-    }
-    
-    clear_solution();
-    
-
-    _nb_pareto_points = 0;
-    
-    size_t p = _bbe.size();
-    
-//    // Test if no feasible point has been obtained
-//    if ( ! _bbe.empty() && ! _obj.empty() && p==_obj.size() )
-//    {
-//        // Cases where the last line of stats file contains "no feasible ...." or if the only line in the file is the initial point and is not feasible
-//        // P
-//        if ( _use_h_for_obj ) // Case where f= h and h != Inf
-//        {
-//            _is_infeas = true;
-//        }
-//        else if ( _obj.back()==INF ) // Case f !=h and h > 0 and f = Inf
-//        {
-//            _is_infeas = true;
-//        }
-//        else
-//        {
-//            _is_infeas  = true ;  // Case where run failed
-//        }
-//        return false;
-//    }
-    
-    if ( _bbe.empty()                           ||
-        _obj.empty()                           ||
-        p != _obj.size()                       ||
-        ( _sol_bbe < INF_SIZE_T && _bbe[0] > _sol_bbe )    )
-    {
-        clear_solution();
-        _sol_bbe = bbe;
-        return false;
-    }
-    
-    if ( _sol_bbe == INF_SIZE_T )
-    {
-        _sol_bbe = _bbe[p-1];
-    }
-
-    _sol_bbe = _bbe.back();
-    
-    // TODO
-//    if ( n != (int)_last_x.size() )
-//    {
-//        clear_solution();
-//        return false;
-//    }
-//    _sol_xe.resize ( n );
-//    n = 0;
-//
-//    _sol_xe[n++] = std::stod(_last_x);
-//    if (_sol_xe[n++] == INF)
-//    {
-//        clear_solution();
-//        return false;
-//    }
-    
-    
-    _has_sol = true;
     _sol_fx = _obj.back();
-    
-//    // get fx
-//    _sol_fx   = _obj[0];
-    
-//    if ( p == 1 )
-//        return true;
-    
-//    for ( size_t k = 1 ; k < p ; ++k )
-//    {
-//        if ( _bbe[k] > _sol_bbe )
-//            return true;
-//        _sol_fx = _obj[k];
-//    }
-//
-    
-//    _sol_fx  = _sol_fxe;
-    
+
     return true;
 }
+
+
 bool RUNNERPOST::Result::compute_solution ( int n    ,
                                            size_t  bbe)
 {
@@ -963,35 +878,28 @@ bool RUNNERPOST::Result::compute_solution ( int n    ,
     }
     
     
+    clear_solution();
     if ( _bbe.empty() )
     {
-        size_t sol_bbe = _sol_bbe;
-        clear_solution();
-        _sol_bbe = sol_bbe;
-    
-        _is_infeas = true;
+        _has_feas_sol = false;
         return false;
     }
     
-    clear_solution();
-    
     _nb_pareto_points = 0;
-    
-    
     
 // More test to identify that no feasible point has been obtained
     if ( _obj.back()==INF ) // Case f = Inf
     {
         clear_solution();
         _sol_bbe = INF_SIZE_T;
-        _is_infeas = true;
+        _has_feas_sol = false;
     }
 
     // We have a feasible solution
     // Update the characteristics of the solution (bbe, f, x)
     
     _sol_bbe = _bbe.back();
-    _has_sol = true;
+    _has_feas_sol = true;
     _sol_fx = _obj.back();
      
     // If last_x is not empty we can extract the solution
@@ -1019,20 +927,21 @@ bool RUNNERPOST::Result::compute_solution ( int n    ,
 bool RUNNERPOST::Result::compute_best_infeasible ( int n    ,
                                                    size_t  bbe)
 {
-    // We already have computed a solution (feasible)
-    if (!_is_infeas)
-    {
-        return true;
-    }
+    clear_solution();
     
-    clear_best_infeas();
+    // We already have computed a solution (feasible)
+    if (_has_feas_sol)
+    {
+        // Something is probably wrong.
+        // compute_best_infeasible is called if compute_solution returns false!
+        return false;
+    }
     
     if (_bbeForH .size() != _infH.size())
     {
         std::cout << "Compute_solution: Inconsistent number of evaluations and infeasibility h" <<std::endl;
         return false;
     }
-    
     
     if ( _bbeForH.empty() )
     {
@@ -1041,38 +950,14 @@ bool RUNNERPOST::Result::compute_best_infeasible ( int n    ,
 
     _nb_pareto_points = 0;
     
-    // More test to identify that no infeasible point has been obtained
-    if ( _infH.back()==INF ) // Case h = Inf
+    // No infeasible point has been obtained
+    if (_infH.back() == INF) // Case h = Inf
     {
-        clear_best_infeas();
-        _bestInf_bbe = INF_SIZE_T;
+        return false;
     }
 
     // We have a valid infeasible solution
-    // Update the characteristics of the best infeasible (bbe, h, x)
-    
-    _bestInf_bbe = _bbeForH.back();
-    _has_sol = false;
-    _bestInf_h = _infH.back();
-     
-    // If last_x is not empty we can extract the solution
-    _bestInf_xe.clear();
-    if (!_last_x.empty())
-    {
-        _bestInf_xe.resize(n);
-        
-        // Extract the last x given as a string with space separated values into a vector of doubles
-        std::istringstream iss(_last_x);
-        for (int i = 0; i < n; i++)
-        {
-            iss >> _bestInf_xe[i];
-            if (iss.fail())
-            {
-                _bestInf_xe.clear();
-                break;
-            }
-        }
-    }
+    _has_feas_sol = false;
     
     return true;
 }
@@ -1084,23 +969,28 @@ bool RUNNERPOST::Result::compute_best_infeasible ( int n    ,
 /*-----------------------------------------------------------------*/
 /*  get the solution (feasible) for a given number of evaluations  */
 /*-----------------------------------------------------------------*/
-double RUNNERPOST::Result::get_sol ( const size_t bbe) const
+double RUNNERPOST::Result::get_sol ( const size_t & tBbe, bool forH) const
 {
     double cur = INF;
-    if (_obj.empty())
+    
+    
+    const auto & sol = (forH)? _infH:_obj;
+    const auto & bbe = (forH)? _bbeForH:_bbe;
+        
+    if (sol.empty())
     {
         return cur;
     }
-    int n = static_cast<int> ( _bbe.size() );
-    if (n > 0 && _bbe[n-1] <= bbe)
+    int n = static_cast<int> ( bbe.size() );
+    if (n > 0 && bbe[n-1] <= tBbe)
     {
-        return _obj[n-1];
+        return sol[n-1];
     }
     for ( int k = 0 ; k < n ; ++k )
     {
-        if ( _bbe[k] > bbe )
+        if ( bbe[k] > tBbe )
             return cur;
-        cur = _obj[k];
+        cur = sol[k];
     }
     
     return cur;
@@ -1109,61 +999,24 @@ double RUNNERPOST::Result::get_sol ( const size_t bbe) const
 /*-----------------------------------------------------------------*/
 /*  get the solution (feasible) for a given time                   */
 /*-----------------------------------------------------------------*/
-double RUNNERPOST::Result::get_sol_by_time ( const double &time) const
+double RUNNERPOST::Result::get_sol_by_time ( const double &tTime, bool forH) const
 {
+    
+    
+    const auto & sol = (forH)? _infH:_obj;
+    const auto & time = (forH)? _timeForH:_time;
+    
     double cur = INF;
     int n = static_cast<int> ( _time.size() );
-    if (n > 0 && _time[n-1] <= time)
+    if (n > 0 && time[n-1] <= tTime)
     {
-        return _obj[n-1];
+        return sol[n-1];
     }
     for ( int k = 0 ; k < n ; ++k )
     {
-        if ( _time[k] > time )
+        if ( time[k] > tTime )
             return cur;
-        cur = _obj[k];
-    }
-    
-    return cur;
-}
-
-/*------------------------------------------------------*/
-/*  get the solution for a given number of evaluations  */
-/*------------------------------------------------------*/
-double RUNNERPOST::Result::get_best_infeas ( const size_t bbe) const
-{
-    double cur = INF;
-    int n = static_cast<int> ( _bbeForH.size() );
-    if (n > 0 && _bbeForH[n-1] <= bbe)
-    {
-        return _infH[n-1];
-    }
-    for ( int k = 0 ; k < n ; ++k )
-    {
-        if ( _bbeForH[k] > bbe )
-            return cur;
-        cur = _infH[k];
-    }
-    
-    return cur;
-}
-
-/*------------------------------------------------------*/
-/*  get the solution for a time                         */
-/*------------------------------------------------------*/
-double RUNNERPOST::Result::get_best_infeas_by_time ( const double & time) const
-{
-    double cur = INF;
-    int n = static_cast<int> ( _timeForH.size() );
-    if (n > 0 && _timeForH[n-1] <= time)
-    {
-        return _infH[n-1];
-    }
-    for ( int k = 0 ; k < n ; ++k )
-    {
-        if ( _timeForH[k] > time )
-            return cur;
-        cur = _infH[k];
+        cur = sol[k];
     }
     
     return cur;
@@ -1174,17 +1027,20 @@ double RUNNERPOST::Result::get_best_infeas_by_time ( const double & time) const
 /*  get the time for a given number of evaluations (bbe)  */
 /*  if bbe = INF, get the maximum (i.e., total) time.      */
 /*--------------------------------------------------------*/
-double RUNNERPOST::Result::get_time(const size_t bbe) const
+double RUNNERPOST::Result::get_time(const size_t & tBbe, bool forH) const
 {
+    const auto & bbe = (forH)? _bbeForH:_bbe;
+    const auto & time = (forH)? _timeForH:_time;
+    
     double cur = 0;
-    if (_time.size() > 0)
+    if (time.size() > 0)
     {
-        int n = static_cast<int>(_bbe.size());
+        int n = static_cast<int>(bbe.size());
         
         for (int k = 0; k < n; ++k)
         {
-            cur = _time[k];
-            if (bbe < INF_SIZE_T && _bbe[k] > bbe)
+            cur = time[k];
+            if (tBbe < INF_SIZE_T && bbe[k] > tBbe)
             {
                 break;
             }
@@ -1193,6 +1049,9 @@ double RUNNERPOST::Result::get_time(const size_t bbe) const
 
     return cur;
 }
+
+
+
 
 
 /*----------------------------------*/

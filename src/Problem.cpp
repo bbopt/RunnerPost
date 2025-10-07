@@ -232,6 +232,14 @@ bool RUNNERPOST::Problem::setSingleAttribute(const std::pair<std::string,std::ve
         }
         return set_m(att.second[0]);
     }
+    else if (att.first =="P")
+    {
+        if (att.second.size() != 1)
+        {
+            return false;
+        }
+        return set_p(att.second[0]);
+    }
     else if (att.first == "PB_INSTANCE")
     {
         return set_pbInstance(att.second);
@@ -397,7 +405,7 @@ void RUNNERPOST::Problem::display ( void ) const
 {
     std::cout << _id << ": "
     << "(" << _name << ") [N " << _n
-    << "] [ M " << _m << "]";
+    << "] [M " << _m << "] [ P " << _p << "]";
     
     if (_pbInstance.size() > 0)
     {

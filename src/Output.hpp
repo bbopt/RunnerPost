@@ -92,7 +92,7 @@ public:
     bool setSingleAttribute(const std::pair<std::string,std::vector<std::string>> & att);
     bool setProfileType(const std::string & s) { _pType = stringToProfileType(s); if (_pType == Profile_Type::UNDEFINED_PROFILE) return false; return true; }
     void setProfileType(const Output::Profile_Type & pt) { _pType = pt; }
-    bool setTau(const double & tau) { if (tau<=0) return false; _tau = tau ; return true; }
+    bool setTau(const double & tau) { if (tau<0) return false; _tau = tau ; return true; }
     bool setTau(const std::string & s) { return setTau(std::stod(s));}
     bool setYSelect(const std::string & s);
     void setYSelect(const Output::Y_Select & ys) { _ySel = ys;}

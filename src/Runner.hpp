@@ -25,21 +25,13 @@ private:
     
     Result                     *** _results;      // results
     std::string                **  _test_id;      // the test names
-    
-//    bool                           _use_avg_fx_first_feas;  // if true, use the average fx value of all the first feasible points instead of the max (default)
-    bool                           _use_evals_for_dataprofiles; // if true, the data profiles use (n+1)*nbevals as x axis
-    bool                           _use_h_for_profiles;  // if true, set the options for data/performance profiles on h
-    
+        
     double                         _feasibilityThreshold;  // if > 0 => changes feasibility detection for data/performance profiles
     
     
-    bool                           _use_hypervolume_for_profiles;  // if true, set the options for data/performance profiles on hypervolume
+    bool                           _use_hypervolume_for_profiles =false ;  // if true, set the options for data/performance profiles on hypervolume. Set true when more than one objective is detected.
     std::vector<std::vector<std::vector<double>>> _combinedParetoAllAlgos; // combined paretos for all runs for a given problem for all algos and seeds
     std::vector<std::vector<double>>              _refParetoIdealPtAllAlgos, _refParetoNadirPtAllAlgos ;   // Pareto reference point: The max for each objective (feasible points only) for a given problem for all algos and seeds.
-    
-    // std::list<int>                 _algoRunSeeds; //The seeds for algo runs are stored as a list of int
-
-    // bool                           _pb_selection_from_dir; // Flag to indicate if the selection of problems is done from the content of the algo directories
     
     // Clear memory
     void clear_memory ( );
@@ -67,15 +59,6 @@ private:
     
     // set a result:
     void set_hypervolume_result ( ) ;
-    
-//    // check if fx is at alpha % relatively close to fxe:
-//    static bool is_within ( const double & fx    ,
-//                           const double & fxe   ,
-//                           const double & alpha   );
-//    
-//    // compute relative error between fx and fxe:
-//    static double compute_alpha ( const double & fx  ,
-//                                        const double & fxe   );
     
     // get the results:
     bool get_results ( const std::string      & test_id  /*not used*/,
@@ -135,13 +118,14 @@ private:
     // access to the date:
     std::string get_date ( void ) const;
     
-    ArrayOfDouble         get_fx0s(const RUNNERPOST::Output::Fx_First_Feas_Method & fx_first_feas, const RUNNERPOST::Output::FXBest_Select & fxBestSelect) const;
-    ArrayOfDouble         get_best_fx( size_t maxBBE, const RUNNERPOST::Output::X_Select & xSelect, const RUNNERPOST::Output::FXBest_Select & fxBestSelect ) const;
-    ArrayOfDouble get_mean_algo_times(size_t i_bbe) const;
-    ArrayOfDouble get_relative_algo_times(size_t i_bbe) const;
-    size_t get_bbe_max() const;
-    size_t get_bbe_max(size_t i_algo) const;
-    size_t get_bbe_max(size_t i_pb, size_t i_algo) const;
+    ArrayOfDouble         get_fx0s(const RUNNERPOST::Output::Fx_First_Feas_Method & fx_first_feas, const RUNNERPOST::Output::FXBest_Select & fxBestSelect, const RUNNERPOST::Output::Y_Select & ySel) const;
+    ArrayOfDouble         get_best_fx( size_t maxBBE, const RUNNERPOST::Output::X_Select & xSelect, const RUNNERPOST::Output::Y_Select & ySelect, const RUNNERPOST::Output::FXBest_Select & fxBestSelect ) const;
+    ArrayOfDouble get_mean_algo_times(const size_t & i_bbe, bool isForH) const;
+    ArrayOfDouble get_relative_algo_times(const size_t & i_bbe, bool isForH) const;
+    
+    size_t get_bbe_max(bool isForH) const;
+    size_t get_bbe_max(const size_t &i_algo, bool isForH) const;
+    size_t get_bbe_max(const size_t &i_pb, const size_t &i_algo, bool isForH) const;
     int get_dimPbMin() const;
     
     
@@ -163,8 +147,7 @@ private:
     
     // void output_problems_unsolved(const double& tau, const double& nbSimplexEval) const;
     
-    StatOutputTypeList composeStatsFileFormat(const StatOutputTypeList & acSotList , const size_t & n, const size_t & m) const;
-
+    StatOutputTypeList composeStatsFileFormat(const StatOutputTypeList & acSotList , const size_t & n, const size_t & m, const size_t & p) const; // M is the total number of outputs: ineq+eq+obs
     
     bool construct_list_of_subdirs ( std::list<std::string> & list_of_dirs ,
                                     const std::string      & directory      ) const ;
@@ -195,56 +178,6 @@ public:
     // display results:
     void display_algo_diff     ( void ) const;
 
-    
-    // Access to selected algo legends (used for data/perf profiles plot legends)
-    // std::vector<std::string> get_selected_algo_options ( void ) const;
-    
-    // Select the seeds for Nomad solvers
-    // ----------------------------------
-//    void clearAlgoRunSeeds ( void ) { _algoRunSeeds.clear() ; }
-//    void appendAlgoRunSeed(int seed){ _algoRunSeeds.push_back(seed);}
-    
-//    // select data/performance profile options:
-//    // ---------------------------------------
-//    void set_use_avg_fx_first_feas() { _use_avg_fx_first_feas = true; }
-    
-    
-    // select data/performance profile using infeasibility h
-    // --> adjust options:
-    // 1 - stats contains all evaluated points
-    // 2 - output value for each constraint
-    // 3 - calculate infeasibility h
-    // 4 - data profile using tau=0, 1E-7,1E-5,1E-3
-    // -------------------------------------------------------------
-//    void set_use_h_for_profiles () { _use_h_for_profiles = true;}
-//
-//    void set_use_hypervolume_for_profiles () { _use_hypervolume_for_profiles = true;}
-//
-//    void set_use_evals_for_dataprofiles () { _use_evals_for_dataprofiles = true; }
-//    bool get_use_evals_for_dataprofiles () { return _use_evals_for_dataprofiles; }
-//
-//    // get flag for data/performance profile options:
-//    bool get_use_h_for_profiles () const { return _use_h_for_profiles ;}
-//    bool get_use_hypervolume_for_profiles () const { return _use_hypervolume_for_profiles ;}
-    
-    // Set feasibility detection threshold. Used when Result read function is called
-    // ----------------
-//    void setFeasibilityThreshold( const double & threshold) { _feasibilityThreshold = threshold; }
-    
-    // select problems:
-    // ----------------
-//    void select_all_problems         ( bool batch_eval=false );
-//    bool select_problem_by_name      ( std::string name , bool batch_eval=false );
-//    bool select_problems_by_keyword  ( std::string kw , bool batch_eval=false );
-//    bool select_problems_by_size     ( int n_min , int n_max , bool batch_eval=false );
-    
-//    bool refine_problems_by_keyword  ( std::string kw   );
-    
-//    bool exclude_problem_by_name     ( std::string name );
-//    bool exclude_problems_by_keyword ( std::string kw   );
-//    bool exclude_problems_with_infeasible_x0 ();
-//    bool exclude_problems_by_size    ( int n_min , int n_max );
-//
     
     
     // TODO: templatize read selection file to avoid duplicated code.

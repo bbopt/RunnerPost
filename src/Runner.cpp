@@ -12,10 +12,7 @@
 RUNNERPOST::Runner::Runner ( ) :
 _results    ( NULL ) ,
 _test_id    ( NULL ) ,
-// _use_avg_fx_first_feas( false ) ,
-_use_evals_for_dataprofiles ( false ) ,
-_use_hypervolume_for_profiles ( false ),
-_feasibilityThreshold (1E-12)
+_feasibilityThreshold (1E-4)
 {
 
 }
@@ -414,17 +411,7 @@ bool RUNNERPOST::Runner::run_post_processing ( std::string & error_msg )
     {
         msg << "s (" << nn << ")";
     }
-    
-//    if ( _use_h_for_profiles )
-//    {
-//        msg << " [ h(x)=sum_j ( max(c_j(x),0)^2) -- > replaces f ]" ;
-//    }
-//
-//    if ( _use_hypervolume_for_profiles )
-//    {
-//        msg << " [ Pareto hypervolume is used for f ]" ;
-//    }
-    
+        
     msg << ": \n";
     std::cout << msg.str();
     
@@ -540,11 +527,6 @@ bool RUNNERPOST::Runner::generate_outputs(std::string &error_msg)
     if ( n_output > 1 )
     {
         msg << "s (" << n_output << ")";
-    }
-    
-    if ( _use_h_for_profiles )
-    {
-        msg << " [ h(x)=sum_j ( max(c_j(x),0)^2) -- > replaces f ]" ;
     }
     
     if ( _use_hypervolume_for_profiles )
@@ -730,6 +712,12 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     std::cout << "\t writing of " << out.get_plain_file_name() << " ..." << std::flush;
 
     size_t i_pb, i_algo, i_pb_instance;
+    
+    
+    // Get the type of output
+    const Output::X_Select & xSel = out.get_x_select();
+    const Output::Y_Select & ySel = out.get_y_select();
+    const bool isForH = (ySel==Output::Y_Select::INFEAS) ;
 
     // check that best solution and all results are available:
     std::list<size_t> miss_list;
@@ -741,14 +729,14 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
             for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
 
-                if ( !_results[i_pb][i_algo][i_pb_instance].has_solution()  )
+                if ( !_results[i_pb][i_algo][i_pb_instance].has_feas_solution(isForH)  )
                 {
                     miss_list.push_back ( i_pb   );
                     miss_list.push_back ( i_algo );
                     miss_list.push_back ( i_pb_instance );
 
-                    // An infeasible run has no solution -> special flag in miss_list is set
-                    if ( _results[i_pb][i_algo][i_pb_instance].is_infeas() )
+                    // An infeasible run should have finite final h value. Otherwise something is wrong
+                    if ( _results[i_pb][i_algo][i_pb_instance].get_sol(INF_SIZE_T, true /*is for H*/) < INF )
                         miss_list.push_back( 1 );
                     else
                         miss_list.push_back( 0 );
@@ -791,7 +779,7 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     }
 
     // Get fx0s for all problems
-    const ArrayOfDouble& fx0s = get_fx0s(out.get_FFFeasMeth(), out.get_fxBest_select());
+    const ArrayOfDouble fx0s = get_fx0s(out.get_FFFeasMeth(), out.get_fxBest_select(), ySel);
     
     // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
     if ( fx0s.empty())
@@ -802,7 +790,7 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
     }
 
     // get the best solution for each problem:
-    const ArrayOfDouble& fxe = get_best_fx( out.get_x_max(), out.get_x_select(), out.get_fxBest_select());
+    const ArrayOfDouble fxe = get_best_fx( out.get_x_max(), xSel, ySel, out.get_fxBest_select());
 
 
     // compute tpsMin (Moré and Wild  2009, eq. 2.1)
@@ -836,12 +824,12 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
         {
             for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
             {
-                if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
+                if ( _results[i_pb][i_algo][i_pb_instance].has_feas_solution(isForH) )
                 {
                     
                     // Get the improving objs and the corresponding bbes
-                    const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_objs();
-                    const auto & bbes = _results[i_pb][i_algo][i_pb_instance].get_bbes();
+                    const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_sols(isForH);
+                    const auto & bbes = _results[i_pb][i_algo][i_pb_instance].get_bbes(isForH);
                     
                     for ( size_t i = 0 ; i < objs.size() ; i++ )
                     {
@@ -902,11 +890,11 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
             }
             for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
-                if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
+                if ( _results[i_pb][i_algo][i_pb_instance].has_feas_solution(isForH) )
                 {
                     // Get the improving objs and the corresponding bbes
-                    const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_objs();
-                    const auto & bbes = _results[i_pb][i_algo][i_pb_instance].get_bbes();
+                    const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_sols(isForH);
+                    const auto & bbes = _results[i_pb][i_algo][i_pb_instance].get_bbes(isForH);
                     
                     for ( size_t i = 0 ; i < objs.size() ; i++ )
                     {
@@ -957,11 +945,11 @@ bool RUNNERPOST::Runner::output_perf_profile_plain ( const Output & out ) const
                 cnt_pb_instance += n_pb_instance;
                 for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance; ++i_pb_instance )
                 {
-                    if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
+                    if ( _results[i_pb][i_algo][i_pb_instance].has_feas_solution(isForH) )
                     {
                         // Get the improving objs and the corresponding bbes
-                        const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_objs();
-                        const auto & bbes = _results[i_pb][i_algo][i_pb_instance].get_bbes();
+                        const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_sols(isForH);
+                        const auto & bbes = _results[i_pb][i_algo][i_pb_instance].get_bbes(isForH);
                         
                         for ( size_t i = 0 ; i < objs.size() ; i++ )
                         {
@@ -1069,14 +1057,14 @@ bool RUNNERPOST::Runner::output_convergence_profile_plain ( const Output & out )
                         continue;
                     
                     double fxBest = INF;
-                    if ( !_results[i_pb][i_algo][i_pb_instance].has_solution()  )
+                    if (! _results[i_pb][i_algo][i_pb_instance].has_feas_solution(false /*for F*/))
                     {
                         miss_list.push_back ( i_pb   );
                         miss_list.push_back ( i_algo );
                         miss_list.push_back ( i_pb_instance );
                         
-                        // An infeasible run has no solution -> special flag in miss_list is set
-                        if ( _results[i_pb][i_algo][i_pb_instance].is_infeas() )
+                        // An infeasible run should have finite final h value. Otherwise something is wrong
+                        if ( _results[i_pb][i_algo][i_pb_instance].get_sol(INF_SIZE_T, true /*is for H*/) < INF )
                             miss_list.push_back( 1 );
                         else
                             miss_list.push_back( 0 );
@@ -1119,14 +1107,10 @@ bool RUNNERPOST::Runner::output_convergence_profile_plain ( const Output & out )
                         for ( size_t bbe = 1 ; bbe < max_bbe+1 ; ++bbe )
                         {
                             double fx =INF;
-                            if (plotF)
+                            if (plotF || plotH)
                             {
                                 
-                                fx = _results[i_pb][i_algo][i_pb_instance].get_sol(bbe);
-                            }
-                            else if (plotH)
-                            {
-                                fx = _results[i_pb][i_algo][i_pb_instance].get_best_infeas(bbe);
+                                fx = _results[i_pb][i_algo][i_pb_instance].get_sol(bbe, plotH);
                             }
                             else
                             {
@@ -1138,7 +1122,7 @@ bool RUNNERPOST::Runner::output_convergence_profile_plain ( const Output & out )
                             if (fx < fxBest )
                             {
                                 fxBest = fx;
-                                fout << ((xSelectIsTime)? _results[i_pb][i_algo][i_pb_instance].get_time(bbe):bbe) << " " << fxBest << std::endl;
+                                fout << ((xSelectIsTime)? _results[i_pb][i_algo][i_pb_instance].get_time(bbe, plotH):bbe) << " " << fxBest << std::endl;
                             }
                         }
                         fout.close();
@@ -1188,7 +1172,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     const size_t n_algo = _selected_algos.size();
     const size_t n_pb = _selected_pbs.size();
     
-    if ( out.get_tau() <= 0 || n_pb == 0 || n_algo == 0 )
+    if ( out.get_tau() < 0 || n_pb == 0 || n_algo == 0 )
     {
         std::cerr << "Error: cannot compute data profile for tau <= 0 or n_pb ==0 or n_algo == 0. Make sure to provide a valid tau value in the output_definition file." << std::endl;
         return false;
@@ -1215,6 +1199,12 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
         fout.close();
         return false;
     }
+    
+    // Get the type of output
+    const Output::X_Select &xSel = out.get_x_select();
+    const Output::Y_Select & ySel = out.get_y_select();
+    const bool isForH = (ySel==Output::Y_Select::INFEAS) ;
+    
 
     std::cout << "\t writing of " << out.get_plain_file_name() << " ..." << std::flush;
 
@@ -1228,19 +1218,17 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
         {
             for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
-                if ( !_results[i_pb][i_algo][i_pb_instance].has_solution()  )
+                if ( !_results[i_pb][i_algo][i_pb_instance].has_feas_solution(isForH)  )
                 {
                     miss_list.push_back ( i_pb   );
                     miss_list.push_back ( i_algo );
                     miss_list.push_back ( i_pb_instance );
 
-                    // An infeasible run has no solution -> special flag in miss_list is set
-                    if ( _results[i_pb][i_algo][i_pb_instance].is_infeas() )
+                    // An infeasible run should have some data in infH. Otherwise we get INF
+                    if ( _results[i_pb][i_algo][i_pb_instance].get_sol(INF_SIZE_T, true /*get H*/) < INF )
                         miss_list.push_back( 1 );
                     else
-                        miss_list.push_back( 0 );
-
-
+                        miss_list.push_back( 0 ); // Something is wrong
                 }
             }
         }
@@ -1280,7 +1268,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     }
 
     // Get fx0s for all problems
-    const auto& fx0s = get_fx0s(out.get_FFFeasMeth(),  out.get_fxBest_select());
+    const auto& fx0s = get_fx0s(out.get_FFFeasMeth(),  out.get_fxBest_select(), ySel);
     
     // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
     if ( fx0s.empty())
@@ -1298,7 +1286,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
 //    }
     
     // get the best solution for each problem:
-    const auto& fxe = get_best_fx(out.get_x_max(), out.get_x_select(), out.get_fxBest_select());
+    const auto& fxe = get_best_fx(out.get_x_max(), xSel, ySel, out.get_fxBest_select());
 
     
     // compute the data profile:
@@ -1354,7 +1342,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
                         
                         if ( fx0s[fI] < INF && fxe[fI] < INF )
                         {
-                            if ( fx0s[fI]-_results[i_pb][i_algo] [i_pb_instance].get_sol(alpha*(dimPb+1)) >= (1.0-out.get_tau())*(fx0s[fI]-fxe[fI]) )
+                            if ( fx0s[fI]-_results[i_pb][i_algo] [i_pb_instance].get_sol(alpha*(dimPb+1), isForH) >= (1.0-out.get_tau())*(fx0s[fI]-fxe[fI]) )
                             {
                                 ++cnt;
                             }
@@ -1378,7 +1366,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
                     {
                         for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance ; ++i_pb_instance )
                         {
-                            if ( fx0s[i_pb]-_results[i_pb][i_algo] [i_pb_instance].get_sol(alpha*(dimPb+1)) >= (1.0-out.get_tau())*(fx0s[i_pb]-fxe[i_pb]) )
+                            if ( fx0s[i_pb]-_results[i_pb][i_algo] [i_pb_instance].get_sol(alpha*(dimPb+1), isForH) >= (1.0-out.get_tau())*(fx0s[i_pb]-fxe[i_pb]) )
                             {
                                 ++cnt;
                             }
@@ -1422,6 +1410,12 @@ bool RUNNERPOST::Runner::output_time_profile_plain(const Output& out) const
         std::cerr << "Error: cannot compute " << profileName << " for n_pb == 0 or n_algo == 0" << std::endl;
         return false;
     }
+    
+    // Get the type of output
+    const Output::X_Select &xSel = out.get_x_select();
+    const Output::Y_Select & ySel = out.get_y_select();
+    const bool isForH = (ySel==Output::Y_Select::INFEAS) ;
+    
     // check that best solution and all results are available:
     std::list<size_t> miss_list;
     for (size_t i_pb = 0; i_pb < n_pb; ++i_pb)
@@ -1430,13 +1424,14 @@ bool RUNNERPOST::Runner::output_time_profile_plain(const Output& out) const
         {
             for (size_t i_pb_instance = 0; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances(); ++i_pb_instance)
             {
-                if (!_results[i_pb][i_algo][i_pb_instance].has_solution())
+                if (!_results[i_pb][i_algo][i_pb_instance].has_feas_solution(isForH))
                 {
                     miss_list.push_back (i_pb  );
                     miss_list.push_back (i_algo);
                     miss_list.push_back (i_pb_instance);
-                    // An infeasible run has no solution -> special flag in miss_list is set
-                    if (_results[i_pb][i_algo][i_pb_instance].is_infeas())
+                    
+                    // An infeasible run should have some data in infH. Otherwise we get INF-> something is wrong
+                    if ( _results[i_pb][i_algo][i_pb_instance].get_sol(INF_SIZE_T, true /*get H*/) < INF )
                     {
                         miss_list.push_back(1);
                     }
@@ -1525,6 +1520,12 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
         std::cerr << "Error: cannot compute time data profile for tau < 0 or n_pb ==0 or n_algo == 0" << std::endl;
         return false;
     }
+    
+    // Get the type of output
+    const Output::X_Select &xSel = out.get_x_select();
+    const Output::Y_Select & ySel = out.get_y_select();
+    const bool isForH = (ySel==Output::Y_Select::INFEAS) ;
+    
     std::ofstream fout ( out.get_plain_file_name() );
     fout << std::setprecision(10);
     if ( fout.fail() ) {
@@ -1542,13 +1543,14 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
         {
             for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
-                if ( !_results[i_pb][i_algo][i_pb_instance].has_solution()  )
+                if ( !_results[i_pb][i_algo][i_pb_instance].has_feas_solution(isForH)  )
                 {
                     miss_list.push_back ( i_pb   );
                     miss_list.push_back ( i_algo );
                     miss_list.push_back ( i_pb_instance );
-                    // An infeasible run has no solution -> special flag in miss_list is set
-                    if ( _results[i_pb][i_algo][i_pb_instance].is_infeas() )
+                    
+                    // An infeasible run should have finite final h value. Otherwise something is wrong
+                    if ( _results[i_pb][i_algo][i_pb_instance].get_sol(INF_SIZE_T, true /*is for H*/) < INF )
                         miss_list.push_back( 1 );
                     else
                         miss_list.push_back( 0 );
@@ -1588,7 +1590,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
         }
     }
     // Get fx0s for all problems
-    ArrayOfDouble fx0s = get_fx0s(out.get_FFFeasMeth(), out.get_fxBest_select());
+    ArrayOfDouble fx0s = get_fx0s(out.get_FFFeasMeth(), out.get_fxBest_select(), ySel);
     
     // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
     if ( fx0s.empty())
@@ -1606,7 +1608,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
         }
     }
     // get the best solution for each problem for selected max time
-    ArrayOfDouble fxe = get_best_fx( out.get_x_max(), out.get_x_select(), out.get_fxBest_select());
+    ArrayOfDouble fxe = get_best_fx( out.get_x_max(), out.get_x_select(), out.get_y_select(), out.get_fxBest_select());
 
     // compute the time data profile:
     // -------------------------
@@ -1622,7 +1624,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
             {
                 for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
                 {
-                    int beta = std::round(_results[i_pb][i_algo][i_pb_instance].get_time());
+                    int beta = std::round(_results[i_pb][i_algo][i_pb_instance].get_time(INF_SIZE_T, isForH));
                     if (beta > max_beta)
                     {
                         max_beta = beta;
@@ -1650,7 +1652,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
                 {
                     for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance ; ++i_pb_instance )
                     {
-                        if (fx0s[i_pb] - _results[i_pb][i_algo][i_pb_instance].get_sol_by_time(beta*scaleTime) >= (1.0-tau) * (fx0s[i_pb]-fxe[i_pb]))
+                        if (fx0s[i_pb] - _results[i_pb][i_algo][i_pb_instance].get_sol_by_time(beta*scaleTime, isForH) >= (1.0-tau) * (fx0s[i_pb]-fxe[i_pb]))
                         {
                             ++cnt;
                         }
@@ -1703,6 +1705,11 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
         fout.close();
         return false;
     }
+    
+    // Get the type of output
+    const Output::X_Select &xSel = out.get_x_select();
+    const Output::Y_Select & ySel = out.get_y_select();
+    const bool isForH = (ySel==Output::Y_Select::INFEAS) ;
 
     std::cout << "\t writing of " << out.get_plain_file_name() << " ..." << std::flush;
 
@@ -1716,14 +1723,14 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
         {
             for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
-                if ( !_results[i_pb][i_algo][i_pb_instance].has_solution()  )
+                if ( !_results[i_pb][i_algo][i_pb_instance].has_feas_solution(isForH)  )
                 {
                     miss_list.push_back ( i_pb   );
                     miss_list.push_back ( i_algo );
                     miss_list.push_back ( i_pb_instance );
 
-                    // An infeasible run has no solution -> special flag in miss_list is set
-                    if ( _results[i_pb][i_algo][i_pb_instance].is_infeas() )
+                    // An infeasible run should have finite final h value. Otherwise something is wrong
+                    if ( _results[i_pb][i_algo][i_pb_instance].get_sol(INF_SIZE_T, true /*is for H*/) < INF )
                         miss_list.push_back( 1 );
                     else
                         miss_list.push_back( 0 );
@@ -1769,7 +1776,7 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
 
     // Get fx0s for all problems
     auto fx_first_feas_method = out.get_FFFeasMeth();
-    const auto& fx0s = get_fx0s(fx_first_feas_method,  out.get_fxBest_select());
+    const auto fx0s = get_fx0s(fx_first_feas_method,  out.get_fxBest_select(), ySel);
     
     // Failsafe for Fx0. A single run without valid x0 and fx0s is empty
     if ( fx0s.empty())
@@ -1787,7 +1794,7 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
     }
 
     // get the best solution for each problem:
-    const auto& fxe = get_best_fx( out.get_x_max(), out.get_x_select(), out.get_fxBest_select());
+    const auto fxe = get_best_fx( out.get_x_max(), xSel, ySel, out.get_fxBest_select());
 
     // Compute list of ds = - log10(1-(fx(nmax)-fx0)/(fx* - fx0))
     // -------------------------
@@ -1798,10 +1805,10 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
         {
             for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
-                if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
+                if ( _results[i_pb][i_algo][i_pb_instance].has_feas_solution(isForH) )
                 {
                     // Get the improving objs and the corresponding bbes
-                    const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_objs();
+                    const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_sols(isForH);
                     if (objs.empty())
                     {
                         continue;
@@ -1855,10 +1862,10 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
                 auto n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
                 cnt_pb_instance += n_pb_instance;
                 for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance; ++i_pb_instance )
-                    if ( _results[i_pb][i_algo][i_pb_instance].has_solution() )
+                    if ( _results[i_pb][i_algo][i_pb_instance].has_feas_solution(isForH) )
                     {
                         // Get the improving objs and the corresponding bbes
-                        const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_objs();
+                        const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_sols(isForH);
                         if (objs.empty())
                         {
                             continue;
@@ -1882,102 +1889,6 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
     return true;
 }
 
-//void RUNNERPOST::Runner::output_problems_unsolved ( const double & tau , const double & nbSimplexEval ) const
-//{
-//    const size_t n_algo = _selected_algos.size();
-//    const size_t n_pb = _selected_pbs.size();
-//
-//    if ( tau < 0 || n_pb == 0 || n_algo == 0 )
-//    {
-//        std::cerr << "Error: cannot compute data profile for tau < 0 or n_pb ==0 or n_algo == 0" << std::endl;
-//        return ;
-//    }
-//
-//    std::cout << "Detecting unsolved problems at precision tau=" << tau << " for " << ((nbSimplexEval<0) ? "max": std::to_string(nbSimplexEval)) << " nb simplex evals" << std::endl;
-//
-//    size_t i_pb, i_algo, i_pb_instance;
-//
-//    // check that best solution and all results are available:
-//    std::list<size_t> miss_list;
-//    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
-//    {
-//        for ( i_algo = 0 ; i_algo < n_algo ; ++i_algo )
-//        {
-//            for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances(); ++i_pb_instance )
-//            {
-//                if ( !_results[i_pb][i_algo][i_pb_instance].has_solution()  )
-//                {
-//                    miss_list.push_back ( i_pb   );
-//                    miss_list.push_back ( i_algo );
-//                    miss_list.push_back ( i_pb_instance );
-//
-//                    // An infeasible run has no solution -> special flag in miss_list is set
-//                    if ( _results[i_pb][i_algo][i_pb_instance].is_infeas() )
-//                        miss_list.push_back( 1 );
-//                    else
-//                        miss_list.push_back( 0 );
-//                }
-//            }
-//        }
-//    }
-//
-//    // Get fx0s for all problems
-//    ArrayOfDouble fx0s = get_fx0s();
-//    for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
-//    {
-//        if ( fx0s[i_pb]==INF )
-//        {
-//            std::cout << "pb #" << i_pb+1 << " ---> fx0=Inf --> un-resolved"<<std::endl;
-//        }
-//    }
-//
-//    // get the best solution for each problem:
-//    ArrayOfDouble fxe = get_best_fx();
-//
-//    // Search for unsolved problems:
-//    // -------------------------
-//    int alpha = (nbSimplexEval < 0 ) ?  Problem::getNbSimplexEvals(): std::round(nbSimplexEval) ;
-//    std::vector<size_t> nbUnsolved(n_algo,0);
-//    for (i_pb = 0 ; i_pb < n_pb ; ++i_pb)
-//    {
-//        std::vector<size_t> nbUnsolvedByPb(n_algo,0);
-//        if ( fx0s[i_pb] < INF && fxe[i_pb] < INF )
-//        {
-//            size_t dimPb= _selected_pbs[i_pb]->get_n();
-//            size_t n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
-//            for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
-//            {
-//                for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance ; ++i_pb_instance )
-//                {
-//                    if ( fx0s[i_pb]-_results[i_pb][i_algo] [i_pb_instance].get_sol(alpha*(dimPb+1)) < (1-tau)*(fx0s[i_pb]-fxe[i_pb]) )
-//                    {
-//                        display_instance_name ( *_selected_pbs[i_pb] , *_selected_algos[i_algo] );
-//                        if ( n_pb_instance > 1)
-//                        {
-//                            std::cout << " pb run instance #" << i_pb_instance << std::endl;
-//                        }
-//                        nbUnsolved[i_algo]++;
-//                        nbUnsolvedByPb[i_algo]++;
-//                    }
-//                }
-//            }
-//            for (size_t i_algo=0; i_algo < n_algo ; i_algo++  )
-//            {
-//                if (nbUnsolvedByPb[i_algo] > 0)
-//                {
-//                    std::cout << "     ->  Algo #" << i_algo+1 << " -> " << nbUnsolvedByPb[i_algo] << " unsolved instances for pb #" << i_pb+1 << std::endl;
-//                }
-//            }
-//        }
-//    }
-//    for (size_t i_algo=0; i_algo < n_algo ; i_algo++  )
-//    {
-//        std::cout << "  Algo #" << i_algo+1 << " -> " << nbUnsolved[i_algo] << " overall unsolved instances" << std::endl;
-//    }
-//    std::cout << "... done" << std::endl << std::endl;
-//}
-
-
 /*-------------------------------------------------------*/
 /* get the value of f at x0 for all problems (private)   */
 /*-------------------------------------------------------*/
@@ -1986,13 +1897,15 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
 /* or average value of first feasible eval of all        */
 /* algo/instances                                        */
 /*-------------------------------------------------------*/
-RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output::Fx_First_Feas_Method & fx_first_feas , const RUNNERPOST::Output::FXBest_Select & fxBestSelect) const
+RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output::Fx_First_Feas_Method & fx_first_feas , const RUNNERPOST::Output::FXBest_Select & fxBestSelect, const RUNNERPOST::Output::Y_Select & ySel) const
 {
     if (fxBestSelect == RUNNERPOST::Output::FXBest_Select::USERPROVIDE )
     {
         std::cerr << "Runner::get_fx0s: Option FX Best select provided by user is not yet implemented" << std::endl;
         return ArrayOfDouble();
     }
+    
+    const bool isForH = (ySel==Output::INFEAS);
     
     const size_t n_pb = _selected_pbs.size();
     const size_t n_algo = _selected_algos.size();
@@ -2017,11 +1930,11 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output:
     {
         for (size_t i_pb_instance=0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance)
         {
-            fx0s[fI] = _results[i_pb][0][i_pb_instance].get_sol(1);
+            fx0s[fI] = _results[i_pb][0][i_pb_instance].get_sol(1, ySel);
             for (size_t i_algo = 1 ; i_algo < n_algo ; ++i_algo )
             {
                 
-                fx0 = _results[i_pb][i_algo][i_pb_instance].get_sol(1);
+                fx0 = _results[i_pb][i_algo][i_pb_instance].get_sol(1, isForH);
                 
                 if ( (fx0s[fI] == INF && fx0 != INF) || (fx0s[fI] != INF && fx0 == INF) )
                 {
@@ -2070,9 +1983,9 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output:
                         // between the algos. Set a flag for that.
                         checkConsistency = (nbConstraints == 0);
                         
-                        if ( !_results[i_pb][i_algo][i_pb_instance].is_infeas() )
+                        if ( _results[i_pb][i_algo][i_pb_instance].has_feas_solution(isForH) )
                         {
-                            first_fx = _results[i_pb][i_algo][i_pb_instance].get_first_fx();
+                            first_fx = _results[i_pb][i_algo][i_pb_instance].get_sols(isForH)[0];
                             
                             if (checkConsistency)
                             {
@@ -2177,9 +2090,9 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output:
                 
                 for (size_t i_pb_instance=0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance)
                 {
-                    if ( !_results[i_pb][i_algo][i_pb_instance].is_infeas() )
+                    if ( _results[i_pb][i_algo][i_pb_instance].has_feas_solution(isForH) )
                     {
-                        first_fx = _results[i_pb][i_algo][i_pb_instance].get_first_fx();
+                        first_fx = _results[i_pb][i_algo][i_pb_instance].get_sols(isForH)[0];
                         
                         if (checkConsistency)
                         {
@@ -2261,7 +2174,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output:
 /*-------------------------------------------------------*/
 /* get the best solution for all problems (private)      */
 /*-------------------------------------------------------*/
-RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx( size_t maxBBE, const RUNNERPOST::Output::X_Select & xSelect, const RUNNERPOST::Output::FXBest_Select & fxBestSelect ) const
+RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx( size_t maxBBE, const RUNNERPOST::Output::X_Select & xSelect, const RUNNERPOST::Output::Y_Select & ySelect, const RUNNERPOST::Output::FXBest_Select & fxBestSelect ) const
 {
     if (fxBestSelect == RUNNERPOST::Output::FXBest_Select::USERPROVIDE )
     {
@@ -2281,6 +2194,13 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx( size_t maxBBE, const 
         {
             n_fx += _selected_pbs[i_pb]->get_nbPbInstances() ;
         }
+    }
+    
+    // Fx is h. The best h possible is 0.
+    // h=0 is the ideal target. 
+    if (ySelect == RUNNERPOST::Output::Y_Select::INFEAS)
+    {
+        return ArrayOfDouble(n_fx,0.0);
     }
     
     ArrayOfDouble fxe(n_fx, INF);
@@ -2313,7 +2233,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx( size_t maxBBE, const 
                     for (size_t i_algo = 0 ; i_algo < n_algo ; ++i_algo )
                     {
                         // For now we consider all evaluations stored in results
-                        fxe_tmp = _results[i_pb][i_algo][i_pb_instance].get_sol ( maxBBE );
+                        fxe_tmp = _results[i_pb][i_algo][i_pb_instance].get_sol ( maxBBE, false /*is for F*/ );
                         
                         if ( fxe_tmp < INF &&
                             ( fxe[fI] == INF || fxe_tmp < fxe[fI] ) )
@@ -2343,7 +2263,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx( size_t maxBBE, const 
 /*------------------------------------------------------*/
 /* get the mean value of elapsed time over all problems */
 /*------------------------------------------------------*/
-RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_mean_algo_times(size_t bbe) const
+RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_mean_algo_times(const size_t & bbe, const bool isForH) const
 {
     const size_t n_pb = _selected_pbs.size();
     const size_t n_algo = _selected_algos.size();
@@ -2356,14 +2276,14 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_mean_algo_times(size_t bbe) co
         size_t totalNbPbAndSeeds = 0;
         for (size_t i_pb = 0; i_pb < n_pb; ++i_pb)
         {
-            if (get_bbe_max(i_pb, i_algo) < bbe)
+            if (get_bbe_max(i_pb, i_algo, isForH) < bbe)
             {
                 // time for this problem and algo should not be counted for this bbe.
                 continue;
             }
             for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances(); ++i_pb_instance)
             {
-                totalAlgoTime += _results[i_pb][i_algo][i_pb_instance].get_time(bbe);
+                totalAlgoTime += _results[i_pb][i_algo][i_pb_instance].get_time(bbe, isForH);
                 totalNbPbAndSeeds++;
             }
         }
@@ -2384,7 +2304,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_mean_algo_times(size_t bbe) co
 /*---------------------------------------------------------------------------*/
 /* get the time values, relative to first algo, mean value over all problems */
 /*---------------------------------------------------------------------------*/
-RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_relative_algo_times(size_t bbe) const
+RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_relative_algo_times(const size_t &bbe, bool isForH) const
 {
     
     const size_t n_pb = _selected_pbs.size();
@@ -2392,7 +2312,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_relative_algo_times(size_t bbe
     
     ArrayOfDouble relTimes(n_algo, 0);
     relTimes[0] = 100;
-    if (get_bbe_max(0) < bbe)
+    if (get_bbe_max(0, isForH) < bbe)
     {
         std::cerr << "Warning: Algo #0 has less than " << bbe << " evaluations" << std::endl;
         return relTimes;
@@ -2405,15 +2325,15 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_relative_algo_times(size_t bbe
         double meanTime0 = 0;
         for (size_t i_pb = 0; i_pb < n_pb; ++i_pb)
         {
-            if (get_bbe_max(i_pb, i_algo) < bbe)
+            if (get_bbe_max(i_pb, i_algo, isForH) < bbe)
             {
                 // time for this problem and algo should not be counted for this bbe.
                 continue;
             }
             for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances(); ++i_pb_instance)
             {
-                totalAlgoTime += _results[i_pb][i_algo][i_pb_instance].get_time(bbe);
-                meanTime0     += _results[i_pb][0][i_pb_instance].get_time(bbe);
+                totalAlgoTime += _results[i_pb][i_algo][i_pb_instance].get_time(bbe,isForH);
+                meanTime0     += _results[i_pb][0][i_pb_instance].get_time(bbe,isForH);
                 totalNbPbAndSeeds++;
             }
         }
@@ -2434,7 +2354,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_relative_algo_times(size_t bbe
 /*----------------------------------------------------------------------*/
 /* get the overall maximum of iteration for all problems (private)      */
 /*----------------------------------------------------------------------*/
-size_t RUNNERPOST::Runner::get_bbe_max() const
+size_t RUNNERPOST::Runner::get_bbe_max(bool isForH) const
 {
     const size_t n_pb = _selected_pbs.size();
     const size_t n_algo = _selected_algos.size();
@@ -2447,7 +2367,7 @@ size_t RUNNERPOST::Runner::get_bbe_max() const
         {
             for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
-                tmp = _results[i_pb][i_algo][i_pb_instance].get_last_bbe();
+                tmp = _results[i_pb][i_algo][i_pb_instance].get_bbes(isForH).back();
                 if ( tmp > bbe_max )
                 {
                     bbe_max = tmp;
@@ -2463,7 +2383,7 @@ size_t RUNNERPOST::Runner::get_bbe_max() const
 /* get the maximum number of evals for a specific algorithm */
 /* for all problems and all instances                       */
 /*----------------------------------------------------------*/
-size_t RUNNERPOST::Runner::get_bbe_max(size_t i_algo) const
+size_t RUNNERPOST::Runner::get_bbe_max(const size_t & i_algo, bool isForH) const
 {
     
     const size_t n_pb = _selected_pbs.size();
@@ -2472,7 +2392,7 @@ size_t RUNNERPOST::Runner::get_bbe_max(size_t i_algo) const
     size_t bbe_max = 0;
     for (size_t i_pb = 0 ; i_pb < n_pb ; ++i_pb )
     {
-        tmp = get_bbe_max(i_pb, i_algo);
+        tmp = get_bbe_max(i_pb, i_algo, isForH);
         if (tmp > bbe_max)
         {
             bbe_max = tmp;
@@ -2487,14 +2407,14 @@ size_t RUNNERPOST::Runner::get_bbe_max(size_t i_algo) const
 /* get the maximum of evals for a specific problem and specific algorithm */
 /* for all run instances                                                  */
 /*------------------------------------------------------------------------*/
-size_t RUNNERPOST::Runner::get_bbe_max(size_t i_pb, size_t i_algo) const
+size_t RUNNERPOST::Runner::get_bbe_max(const size_t & i_pb, const size_t & i_algo, bool isForH) const
 {
 
     size_t tmp = 0;
     size_t bbe_max = 0;
     for (size_t i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance)
     {
-        tmp = _results[i_pb][i_algo][i_pb_instance].get_sol_bbe();
+        tmp = _results[i_pb][i_algo][i_pb_instance].get_bbes(isForH).back();
         if (tmp > bbe_max)
         {
             bbe_max = tmp;
@@ -2749,6 +2669,8 @@ bool RUNNERPOST::Runner::construct_list_of_subdirs ( std::list<std::string> & li
 /*   solution info.                               */
 /*   Single objective only                        */
 /*------------------------------------------------*/
+// NOTE: Check all the evaluations available. Not
+// limited by the max eval for a profile.
 void RUNNERPOST::Runner::set_result (const std::string        & test_id /*not used*/ ,
                          Result                     result[],
                          const Problem            & pb      ,
@@ -2759,8 +2681,7 @@ void RUNNERPOST::Runner::set_result (const std::string        & test_id /*not us
     if ( ac.getNbObjectives() > 1 )
         return;
     
-    // For now we consider all evaluations available
-    // size_t  bbe = pb.getMaxBBEvals();
+    // We consider all evaluations available
     size_t  bbe = INF_SIZE_T;
     
     // bbe corresponds to the desired max number of bb evaluations,
@@ -2776,33 +2697,51 @@ void RUNNERPOST::Runner::set_result (const std::string        & test_id /*not us
         if ( result[i_pb_instance].compute_solution ( pb.get_n() ,
                                                      bbe        ))
         {
-            auto time = result[i_pb_instance].get_time(result[i_pb_instance].get_sol_bbe());
-            std::string time_str = "";
-            if (time > 0)
+            size_t bbe = result[i_pb_instance].get_sol_bbe ();
+            if (bbe < INF_SIZE_T)
             {
-                time_str = " time=" + std::to_string(time);
+                
+                auto time = result[i_pb_instance].get_time(bbe, false);
+                std::string time_str = "";
+                if (time > 0)
+                {
+                    time_str = " time=" + std::to_string(time);
+                }
+                
+                std::cout << "bbe="   << bbe
+                << " f="    << result[i_pb_instance].get_sol(INF_SIZE_T, false)
+                << " fx0=" << result[i_pb_instance].get_sol(1, false)
+                << " ffx=" << result[i_pb_instance].get_first_feas_fx();
+                std::cout << std::endl;
             }
-            std::cout << "bbe="   << result[i_pb_instance].get_sol_bbe ()
-            << time_str
-            << " f="    << result[i_pb_instance].get_sol_fx  ()
-            << " fx0=" << result[i_pb_instance].get_sol(1)
-            << " ffx=" << result[i_pb_instance].get_first_fx();
-            std::cout << std::endl;
+            else
+            {
+                std::cout << " No feas. results available. Something is wrong with this run." << std::endl;
+            }
         }
         else if ( result[i_pb_instance].compute_best_infeasible( pb.get_n() ,
                                                                  bbe        ))
         {
-            auto time = result[i_pb_instance].get_time(result[i_pb_instance].get_sol_bbe());
-            std::string time_str = "";
-            if (time > 0)
+            size_t bbe = result[i_pb_instance].get_bbes(true).back();
+            if (bbe < INF_SIZE_T)
             {
-                time_str = " time=" + std::to_string(time);
+                auto time = result[i_pb_instance].get_time(bbe, true);
+                std::string time_str = "";
+                if (time > 0)
+                {
+                    time_str = " time=" + std::to_string(time);
+                }
+                std::cout << "bbe="   << bbe
+                << time_str
+                << " No feas. "
+                << " h="    << result[i_pb_instance].get_sol(INF_SIZE_T, true)
+                << " hx0=" << result[i_pb_instance].get_sol(1, true);
+                std::cout << std::endl;
             }
-            std::cout << "bbe="   << result[i_pb_instance].get_sol_bbe ()
-            << time_str
-            << " h="    << result[i_pb_instance].get_sol_fx  ()
-            << " hx0=" << result[i_pb_instance].get_sol(1);
-            std::cout << std::endl;
+            else
+            {
+                std::cout << " No infeas. results available. Something is wrong with this run." << std::endl;
+            }
         }
         else
         {
@@ -2937,11 +2876,11 @@ void RUNNERPOST::Runner::set_hypervolume_result ()
                 {
                     time(&t1);
                     std::cout << "bbe="   << result->get_sol_bbe ()
-                    << " optim time=" << result->get_time(result->get_sol_bbe())
+                    << " optim time=" << result->get_time(result->get_sol_bbe(), false)
                     << " nb_pareto_points="    << result->get_nb_pareto_points  ()
                     << " pareto_dominating_ref_obj="    << result->get_nb_dominating_ref_obj()
-                    << " HV_f="    << result->get_sol_fx  ()
-                    << " HV_fx0=" << result->get_sol(1)
+                    << " HV_f="    << result->get_sol(INF_SIZE_T, false)
+                    << " HV_fx0=" << result->get_sol(1, false)
                     << " compute time=" << difftime(t1,t0) << " s" << std::endl;
                 }
                 else
@@ -2952,178 +2891,6 @@ void RUNNERPOST::Runner::set_hypervolume_result ()
         }
     }
 }
-
-///*-------------------------------------------------------*/
-///*               read and add algo parameter file        */
-///*                   (read id file 1/4)                  */
-///*-------------------------------------------------------*/
-//bool Runner::read_algo_params_file ( const std::string  & algo_params_file_name ,
-//                                    std::string        & error_msg        )
-//{
-//
-//    error_msg.clear();
-//
-//    std::ifstream fin ( algo_params_file_name.c_str() );
-//
-//    if ( fin.fail() )
-//    {
-//        fin.close();
-//        error_msg = "cannot read file " + algo_params_file_name;
-//        return false;
-//    }
-//
-//    std::string s , runner_version;
-//
-//    while ( s != "RUNNER" && !fin.eof() )
-//    {
-//        fin >> s;
-//        NOMAD_BASE::toupper(s);
-//
-//        if ( fin.fail() )
-//        {
-//            fin.close();
-//            error_msg = "error(1) in file " + algo_params_file_name;
-//            return false;
-//        }
-//    }
-//
-//    fin >> runner_version;
-//    if ( fin.fail() )
-//    {
-//        fin.close();
-//        error_msg = "error(2) in file " + algo_params_file_name;
-//        return false;
-//    }
-//
-//    if ( runner_version != RUNNER_VERSION )
-//    {
-//        fin.close();
-//        error_msg = "error(3) in file " + algo_params_file_name + " (runner version incompatible with this runner)";
-//        return false;
-//    }
-//
-//    std::string file_solver_name , file_solver_version;
-//
-//    while ( s != "SOLVER" && !fin.eof() )
-//    {
-//
-//        fin >> s;
-//        NOMAD_BASE::toupper(s);
-//
-//        if ( fin.fail() )
-//        {
-//            fin.close();
-//            error_msg = "error(4) in file " + algo_params_file_name;
-//            return false;
-//        }
-//    }
-//    if ( fin.eof() )
-//    {
-//        fin.close();
-//        error_msg = "error(5) in file " + algo_params_file_name + ": SOLVER keyword absent";
-//        return false;
-//    }
-//    fin >> file_solver_name >> file_solver_version; // Read line "# SOLVER SOLVER_NAME SOLVER_VERSION"
-//
-//    if ( fin.fail() )
-//    {
-//        fin.close();
-//        error_msg = "error(6) in file " + algo_params_file_name + ": no solver name/version after keyword SOLVER";
-//        return false;
-//    }
-//    NOMAD_BASE::toupper(file_solver_name);
-//
-//    std::string algo_legend;
-//    while ( s != "ALGO_LEGEND" && !fin.eof() )
-//    {
-//
-//        fin >> s;
-//        NOMAD_BASE::toupper(s);
-//
-//        if ( fin.fail() )
-//        {
-//            fin.close();
-//            error_msg = "error(5) in file " + algo_params_file_name + ": ALGO_LEGEND keyword absent";
-//            return false;
-//        }
-//    }
-//    if ( fin.eof() )
-//    {
-//        fin.close();
-//        error_msg = "error(5) in file " + algo_params_file_name + ": ALGO_LEGEND keyword absent";
-//        return false;
-//    }
-//    getline ( fin , algo_legend );
-//
-//    if ( fin.fail() )
-//    {
-//        fin.close();
-//        error_msg = "error(6) in file " + algo_params_file_name + ": no legend after keyword ALGO_LEGEND";
-//        return false;
-//    }
-//
-//    fin.close();
-//
-//    // create the algorithm parameters from the id file:
-//    if ( file_solver_name.compare("NOMAD")==0 )
-//    {
-//    }
-//#ifdef USE_FMS_INTERFACE_1_0
-//    else if ( file_solver_name.compare("FMS_INTERFACE")==0 )
-//    {
-//        if ( _use_h_for_profiles )
-//        {
-//            error_msg = "error(8) FMS solver does not support data profiles on h";
-//            return false;
-//        }
-//        if ( file_solver_version.compare("1.0")==0 )
-//        {
-//            size_t n_seed_run= _algoRunSeeds.size();
-//            if ( n_seed_run > 1 )
-//            {
-//                error_msg = "error(8) FMS solver does not support multiple seeds ";
-//                return false;
-//            }
-//            ap = new Algo( ) ;
-//        }
-//    }
-//#endif
-//#ifdef USE_GRIDNM_INTERFACE_1_0
-//    else if ( file_solver_name.compare("GRIDNM_INTERFACE")==0 )
-//    {
-//        if ( _use_h_for_profiles )
-//        {
-//            error_msg = "error(8) GRIDNM solver does not support data profiles on h";
-//            return false;
-//        }
-//        if ( file_solver_version.compare("1.0")==0 )
-//        {
-//            size_t n_seed_run= _algoRunSeeds.size() ;
-//            if ( n_seed_run > 1 )
-//            {
-//                error_msg = "error(8) GridNM solver does not support multiple seeds ";
-//                return false;
-//            }
-//            ap = new GridNM_Interface_1_0::Parameters( ) ;
-//        }
-//    }
-//#endif
-//    else
-//    {
-//        fin.close();
-//        error_msg = "error(8) Solver " +file_solver_name +" not supported ";
-//        return false;
-//    }
-//
-//
-//
-//    _selected_algos.push_back ( new AlgoParameters ( file_solver_name , file_solver_version , algo_params_file_name  , _n_algo ) );
-//    _selected_algo_legends.push_back( algo_legend );
-//
-//    _n_algo++ ;
-//
-//    return true;
-//}
 
 
 /*-------------------------------------------------------*/
@@ -3739,7 +3506,7 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
         }
         
         // Prepare the stats file complete format from the pb info and the algo stat output type
-        StatOutputTypeList statsFileFormat = composeStatsFileFormat(ac.get_stats_output_type_list(), pb.get_n(), pb.get_m());
+        StatOutputTypeList statsFileFormat = composeStatsFileFormat(ac.get_stats_output_type_list(), pb.get_n(), pb.get_m(), pb.get_p());
         
         // Read the stats file into results
         // Limit the reading to the max bbe allowed by all outputs
@@ -3770,64 +3537,6 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
     return true;
 }
 
-///*----------------------------------------------*/
-///*  find a problem in the list of all problems  */
-///*  (private)                                   */
-///*----------------------------------------------*/
-//Problem * Runner::find_problem ( const std::string & problem_id ) const
-//{
-//    size_t n = _all_pbs.size();
-//    for ( size_t k = 0 ; k < n ; ++k )
-//        if ( _all_pbs[k]->get_id() == problem_id )
-//            return _all_pbs[k];
-//    return NULL;
-//}
-
-
-
-//// Partial: for all seeds of a single algo (provided indirectly by test_id)
-//void Runner::writePartialCombinedPareto(const std::string      & test_id ,
-//                                        const Problem           & pb     ,
-//                                        const AlgoParameters    & ap     ,
-//                                        std::vector<NOMAD_BASE::Point> & partialCombinedPareto) const
-//{
-//    // No partial combined pareto. Get the data from the results.
-//    // This section can be run in parallel before going to getResults.
-//    if (partialCombinedPareto.empty())
-//    {
-//        Result result;
-//
-//        std::ifstream fin;
-//        size_t i_seed = 0;
-//        for ( const auto & seed : _algoRunSeeds )
-//        {
-//            i_seed++;
-//            std::string statsFileName = Runner::get_stats_file_name(test_id, pb, seed, true, true /*full path */);
-//            fin.open(statsFileName.c_str());
-//            if (fin.fail())
-//            {
-//                std::cout<<"Cannot open stats file" << statsFileName << " for pb " << pb.get_id() << std::endl;
-//                break;
-//            }
-//            result.reset(_use_hypervolume_for_profiles, _use_h_for_profiles);
-//            result.read ( fin , pb.getMaxBBEvals ( ) , pb.get_m() , pb.get_bbot() , pb.get_n() , _feasibilityThreshold );
-//            fin.close();
-//            std::vector<NOMAD_BASE::Point> temp;
-//            result.update_pareto (  pb.getMaxBBEvals ( ),
-//                                    partialCombinedPareto    );
-//            std::cout << "\t pb #"  << pb.get_index() +1 << " algo #" << ap.getIndex()+1 << ". Partial combined pareto for seeds 1->" << i_seed << ": " << partialCombinedPareto.size() << " pts" << std::endl;
-//        }
-//    }
-//
-//    std::string combinedParetoFile = pb.get_tests_dir() + test_id + "/combinedPareto.txt";
-//    std::cout << "\t pb #"  << pb.get_index() +1 << " algo #" << ap.getIndex()+1 << ". Write combined pareto output: " << combinedParetoFile << std::endl;
-//    std::ofstream fout( combinedParetoFile.c_str(), std::ofstream::trunc );
-//    for (const auto & pt: partialCombinedPareto )
-//    {
-//        fout << pt.displayNoPar() << std::endl;
-//    }
-//    fout.close();
-//}
 
 
 /*-----------------------------------------*/
@@ -4782,7 +4491,7 @@ bool RUNNERPOST::Runner::algo_pb_check_consistency(std::string       & error_msg
 
 
 
-RUNNERPOST::StatOutputTypeList RUNNERPOST::Runner::composeStatsFileFormat(const RUNNERPOST::StatOutputTypeList & acSotList , const size_t & n, const size_t & m) const
+RUNNERPOST::StatOutputTypeList RUNNERPOST::Runner::composeStatsFileFormat(const RUNNERPOST::StatOutputTypeList & acSotList , const size_t & n, const size_t & m, const size_t & p) const
 {
     RUNNERPOST::StatOutputTypeList completeSotList;
     for (const auto & acSot: acSotList)
@@ -4794,13 +4503,24 @@ RUNNERPOST::StatOutputTypeList RUNNERPOST::Runner::composeStatsFileFormat(const 
         }
         else if (acSot.isOfType(StatOutputType::CST))
         {
-            const size_t numberOfConstraints = m - RUNNERPOST::getNbObj(acSotList);
-            if (numberOfConstraints <= 0)
+            const size_t numberOfIneqConstraints = m -p - RUNNERPOST::getNbObj(acSotList);
+            if (numberOfIneqConstraints <= 0)
             {
                 completeSotList.clear();
                 return completeSotList;
             }
-            RUNNERPOST::StatOutputTypeList tmp(numberOfConstraints, StatOutputType::CST);
+            RUNNERPOST::StatOutputTypeList tmp(numberOfIneqConstraints, StatOutputType::CST);
+            completeSotList.insert(completeSotList.end(), tmp.begin(), tmp.end());
+        }
+        else if (acSot.isOfType(StatOutputType::EQCST))
+        {
+            const size_t numberOfIneqConstraints = m -p -RUNNERPOST::getNbObj(acSotList);
+            if (numberOfIneqConstraints <= 0)
+            {
+                completeSotList.clear();
+                return completeSotList;
+            }
+            RUNNERPOST::StatOutputTypeList tmp(p, StatOutputType::EQCST);
             completeSotList.insert(completeSotList.end(), tmp.begin(), tmp.end());
         }
         else

@@ -14,7 +14,8 @@ private:
     std::string                        _id="";
     std::string                        _name="";
     int                                _n =-1;  // Pb dimension. Must be set.
-    int                                _m =-1;  // Number of output. Must be set.
+    int                                _m =-1;  // Number of outputs (ineq + eq + objs). Must be set.
+    int                                _p = 0; // Number of equality constraints. May not be set.
     
     std::vector<std::string>           _pbInstance; // Can be undefined (single instance, no id -> not used in history name)
     size_t                             _nbPbInstances;
@@ -75,66 +76,25 @@ public:
     bool set_n(const std::string & s) {return set_n(std::stoi(s));}
     bool set_m(const int & m) { if (m<=0) return false; _m = m ; return true; }
     bool set_m(const std::string & s) {return set_m(std::stoi(s));}
+    bool set_p(const int & p) { if (p<0) return false; _p = p ; return true; }
+    bool set_p(const std::string & s) {return set_p(std::stoi(s));}
     bool set_pbInstance (const std::vector<std::string> & vs);
     bool set_pbInstance (const std::string & s);
     
-    
-    // void set_xe_file_name( std::string f){ _xe_file_name = f ;}
-    
-    
     void display ( void ) const;
-    
-//    void display_keywords ( ) const
-//    {
-//        Problem::display_keywords ( _keywords );
-//    }
-//    
-//    static void display_all_keywords ( )
-//    {
-//        Problem::display_keywords ( Problem::_all_keywords );
-//    }
+
     
     // GET methods:
     std::string         get_id        ( ) const {return _id;}
     const std::string & get_name    ( void ) const { return _name;           }
-    // std::string         get_tests_dir ( void ) const { return _pb_dir+TESTS_DIR; }
     int                 get_n         ( void ) const { return _n;                }
     int                 get_m         ( void ) const { return _m;                }
+    int                 get_p         ( void ) const { return _p;                }
     const std::vector<std::string> & get_pbInstance( void) const { return _pbInstance; }
     const size_t get_nbPbInstances( void) const { return _nbPbInstances; }
     
     bool get_pbFromParse( void ) const { return _pbFromParse; }
     
-//    const NOMAD_BASE::Point  & get_x0          ( void ) const { return _x0;               }
-//    bool hasX0FeasInfo( void ) const { return _x0_feas_info ; }
-//    bool x0Feas( void ) const { return _x0_is_feas ; }
-//    const NOMAD_BASE::Point  & get_xe          ( void ) const { return _xe;               }
-//    const NOMAD_BASE::Double & get_fxe         ( void ) const { return _fxe;              }
-//    const NOMAD_BASE::Point  & get_lb          ( void ) const { return _lb;               }
-//    const NOMAD_BASE::Point  & get_ub          ( void ) const { return _ub;               }
-//
-//    const NOMAD_BASE::BBInputTypeList & get_bbit ( void ) const { return _bbit; }
-//
-//    const NOMAD_BASE::BBOutputTypeList & get_bbot ( void ) const { return _bbot; }
-//
-//    const std::string & getBbotAsString ( void ) const { return _bbotS; }
-//
-//    bool has_bounds      ( void ) const { return _lb.isComplete() || _ub.isComplete(); }
-//
-//    bool has_constraints ( void ) const { return _has_constraints;   }
-//
-//    size_t getNbObj ( void ) const { return NOMAD_BASE::getNbObj(_bbot); }
-//
-//    bool has_keyword ( const std::string & kw );
-//
-//    bool is_batch ( void ) const { return _batch_eval; }
-    
-// int getMaxBBEvals() const;
-    
-//    static void setOverallMaxBBEvals ( int overallMaxBBEvals ) { _overallMaxBBEvals = overallMaxBBEvals; }
-//    static void setNbSimplexEvals ( int nbSimplexEvals )  { _nbSimplexEvals = nbSimplexEvals; }
-//
-//    static int getNbSimplexEvals ( void ) { return _nbSimplexEvals; }
 
 private:
     
@@ -142,25 +102,6 @@ private:
     
     bool setSingleAttribute(const std::pair<std::string,std::vector<std::string>> & att);
     
-protected:
-//    // Set bb executable name (batch mode if _batch_eval)
-//    void set_bb_exe ( const std::string & s );
-//
-//    bool set_bbit ( int i , NOMAD_BASE::BBInputType t );
-//
-//    bool set_bbot ( int i , NOMAD_BASE::BBOutputType t );
-//
-//    bool set_trend_matrix ( int i , const NOMAD_BASE::Point & T);
-//
-//    void set_x0 ( const NOMAD_BASE::Point & x ) { _x0 = x; }
-//
-//    void set_x0_feas( bool feas ){ _x0_feas_info = true; _x0_is_feas = feas ; }
-//
-//    void read_x0 ( const std::string & input_file_name , NOMAD_BASE::Point & x0 );
-//
-//    void set_bounds ( const NOMAD_BASE::Point & lb , const NOMAD_BASE::Point & ub );
-//
-//    void add_keyword ( std::string s );
 };
 
 #include "runnerpost_nsend.hpp"

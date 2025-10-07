@@ -44,27 +44,19 @@ private:
    
     std::string                _last_x;
     
-    bool                       _has_sol;
-    bool                       _is_infeas;
+    bool                       _has_feas_sol; // Tag to indicate feasibility of result. Set in compute_solution.
     
     // Option to compute f (hypervolume) and h
     // bool                       _use_hypervolume_for_obj;
     bool                       _use_std_h;
-    bool                       _use_h_for_obj; // NOT USED. KEEP IT FOR NOW (for prev version of functions!)
     
     size_t                     _nb_obj;  // Used for multi objective
     
     // A solution is feasible
     size_t                     _sol_bbe;
-    double                     _sol_fx;
-    double                     _sol_fxe;
+    double                     _sol_fx; // Not used. For now, let's keep it and update its value (compute_solution).
     size_t                     _nb_pareto_points;
-    ArrayOfDouble              _sol_xe;
-    
-    // If we have no solution, we can have a best infeasible point (min h)
-    size_t                     _bestInf_bbe;
-    double                     _bestInf_h;
-    ArrayOfDouble              _bestInf_xe;
+    ArrayOfDouble              _sol_xe; // Not used. For now, let's keep it and update its value (compute_solution).
     
     // clear solution (feas):
     void clear_solution ( void );
@@ -100,8 +92,6 @@ public:
     // compute solution:
     bool compute_solution ( int                   n     ,
                             size_t                bbe );
-    bool compute_solution_prev ( int              n     ,
-                                 size_t           bbe );
     bool compute_best_infeasible ( int            n ,
                                    size_t         bbe);
     
@@ -139,36 +129,30 @@ public:
     size_t                     get_last_bbe   ( void    ) const;
     size_t                     get_last_time   ( void    ) const;
     size_t                     getTotalBbe() const { return _totalBbe; }
-    bool                       has_solution   ( void    ) const { return _has_sol;    }
-    bool                       is_infeas      ( void    ) const { return _is_infeas;  }
+    bool                       has_feas_solution   ( bool isForH    ) const { return (isForH)? (_infH.size()> 0 && _infH.back()<INF):_has_feas_sol;    }
+    double                     get_first_feas_fx() const ;
+    
     size_t                     get_sol_bbe    ( void    ) const { return _sol_bbe;    }
-    const double &             get_sol_fx     ( void    ) const { return _sol_fx;     }
-    const double &             get_first_fx   ( void    ) const { return _obj[0];     }
     
-    const double &             get_sol_fxe    ( void    ) const { return _sol_fxe;    }
-    
-//    // CHT TEMP FOR DATA MANIPULATION -- DO NOT KEEP -- DANGEROUS
-    void TMPtransform() ;
+//    // CHT TEMP FOR SOME EXPERIMENTAL DATA MANIPULATION -- DO NOT KEEP
+//     void TMPtransform() ;
     
     void writeToStatsFile(size_t i_pb, size_t i_algo, size_t i_pb_inst, size_t pb_size) const;
     
     
     // Getter for the improving objs and the corresponding bbe.
-    const std::vector<size_t> & get_bbes ( void ) const { return _bbe; }
-    const std::vector<double> & get_objs ( void ) const { return _obj; }
+    const std::vector<size_t> & get_bbes ( bool forH ) const { return (forH)? _bbeForH:_bbe; }
+    const std::vector<double> & get_sols ( bool forH ) const { return (forH)? _infH:_obj; }
     
     // Getter for multi-objs
     size_t get_nbNbObjs( void ) const { if (_mobj.empty()) return 0 ; return _mobj[0].size(); }
     
     size_t                     get_nb_pareto_points   ( void    ) const { return _nb_pareto_points; }
     size_t                     get_nb_dominating_ref_obj   ( void    ) const { return _nb_dominating_ref_obj.back(); }
-//    const ArrayOfDouble  & get_sol_xe     ( void    ) const { return _sol_xe;     }
     
-    double         get_sol        ( size_t bbe ) const;
-    double         get_best_infeas( size_t bbe ) const;
-    double         get_time       (const size_t bbe = INF_SIZE_T) const;
-    double         get_sol_by_time(const double& time) const;
-    double         get_best_infeas_by_time(const double&  time) const;
+    double         get_sol        ( const size_t & bbe, bool forH ) const;
+    double         get_time       (const size_t &bbe, bool forH) const;
+    double         get_sol_by_time(const double& time, bool forH) const;
     double         getTotalTime() const { return _totalTime; }
     
     // display:
