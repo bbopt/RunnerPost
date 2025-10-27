@@ -26,7 +26,7 @@ private:
     Result                     *** _results;      // results
     std::string                **  _test_id;      // the test names
         
-    double                         _feasibilityThreshold;  // if > 0 => changes feasibility detection for data/performance profiles
+    double                         _ineqConsFeasibilityThreshold, _eqConsFeasibilityThreshold;  // if > 0 => changes feasibility detection for data/performance profiles
     
     
     bool                           _use_hypervolume_for_profiles =false ;  // if true, set the options for data/performance profiles on hypervolume. Set true when more than one objective is detected.

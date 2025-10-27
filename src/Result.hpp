@@ -123,7 +123,7 @@ public:
                                                  const std::vector<double> & point2) ;
     
     // read results:
-    bool read ( std::ifstream & in , size_t max_bbe , const StatOutputTypeList & sotList, const double & feasibilityThreshold );
+    bool read ( std::ifstream & in , size_t max_bbe , const StatOutputTypeList & sotList, const double & ineqConsfeasibilityThreshold, const double & eqConsFeasibilityThreshold );
     
     // GET methods:
     size_t                     get_last_bbe   ( void    ) const;

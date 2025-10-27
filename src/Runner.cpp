@@ -12,7 +12,8 @@
 RUNNERPOST::Runner::Runner ( ) :
 _results    ( NULL ) ,
 _test_id    ( NULL ) ,
-_feasibilityThreshold (1E-4)
+_ineqConsFeasibilityThreshold (1E-4),
+_eqConsFeasibilityThreshold (1E-4)
 {
 
 }
@@ -3516,7 +3517,7 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
         {
             max_bbe = (factorNP1Found) ? xMaxFactor * (pb.get_n()+1): xMaxFactor;
         }
-        if ( !result[i_pb_instance].read ( fin , max_bbe , statsFileFormat, _feasibilityThreshold )  )
+        if ( !result[i_pb_instance].read ( fin , max_bbe , statsFileFormat, _ineqConsFeasibilityThreshold, _eqConsFeasibilityThreshold )  )
         {
             fin.close();
             result[i_pb_instance].reset();

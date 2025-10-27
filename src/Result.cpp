@@ -43,7 +43,7 @@ void RUNNERPOST::Result::clear_solution ( void )
 /*----------------------------------*/
 /*          read results            */
 /*----------------------------------*/
-bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNNERPOST::StatOutputTypeList & sotList , const double & feasibilityThreshold )
+bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNNERPOST::StatOutputTypeList & sotList , const double & ineqConsFeasibilityThreshold, const double & eqConsFeasibilityThreshold  )
 {
 
     std::string   s, line;
@@ -89,17 +89,30 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
     
     double *bbo = new double[m];
     
-    while ( !in.eof() )
+    // Read entire file into a single string
+    std::string buf;
+    in.seekg(0, std::ios::end);
+    buf.reserve(static_cast<size_t>(in.tellg()));
+    in.seekg(0);
+    buf.assign((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    
+    
+    
+    std::istringstream iss(buf);
+    while (std::getline(iss, line))
     {
-        if (!std::getline(in, line))
-        {
-            if (first_line)
-            {
-                std::cout << "Result file is empty" <<std::endl;
-                delete [] bbo;
-                return false;
-            }
-        }
+    
+//    while ( !in.eof() )
+//    {
+//        if (!std::getline(in, line))
+//        {
+//            if (first_line)
+//            {
+//                std::cout << "Result file is empty" <<std::endl;
+//                delete [] bbo;
+//                return false;
+//            }
+//        }
         
         // No more lines to read.
         if (line.empty())
@@ -213,14 +226,14 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
                 }
                 if (sot.isOfType(StatOutputType::Type::CST))
                 {
-                    if (bbo[i] > feasibilityThreshold)
+                    if (bbo[i] > ineqConsFeasibilityThreshold)
                     {
                         h += pow( bbo[i],2);
                     }
                 }
                 else if (sot.isOfType(StatOutputType::Type::EQCST))
                 {
-                    if (abs(bbo[i]) > feasibilityThreshold)
+                    if (abs(bbo[i]) > eqConsFeasibilityThreshold)
                     {
                         h += pow( bbo[i],2);
                     }
@@ -323,6 +336,17 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
         if ( first_line )
         {
             first_line = false;
+        }
+    }
+    
+    
+    if (!std::getline(in, line))
+    {
+        if (first_line)
+        {
+            std::cout << "Result file is empty" <<std::endl;
+            delete [] bbo;
+            return false;
         }
     }
     
