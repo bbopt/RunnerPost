@@ -12,8 +12,8 @@
 RUNNERPOST::Runner::Runner ( ) :
 _results    ( NULL ) ,
 _test_id    ( NULL ) ,
-_ineqConsFeasibilityThreshold (1E-4),
-_eqConsFeasibilityThreshold (1E-4)
+_ineqConsFeasibilityThreshold (0),
+_eqConsFeasibilityThreshold (0)
 {
 
 }
@@ -1700,13 +1700,6 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
         return false;
     }
     
-    if (out.get_x_select() != Output::X_Select::EVAL)
-    {
-        std::cerr << "Error: Option X_SELECT EVAL must be selected in output_definition file." << std::endl;
-        fout.close();
-        return false;
-    }
-    
     // Get the type of output
     const Output::X_Select &xSel = out.get_x_select();
     const Output::Y_Select & ySel = out.get_y_select();
@@ -1804,24 +1797,28 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
     {
         for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb)
         {
+            // Get the maxBBE considered
+            size_t maxBBE = out.get_x_max();
+            if (maxBBE < RUNNERPOST::INF_SIZE_T && xSel == RUNNERPOST::Output::X_Select::NP1EVAL)
+            {
+                // WARNING: Let's cross fingers that maxBBE*(n+1) <= INF_SIZE_T
+                // Case when maxBBE must be multiplied by n+1
+                maxBBE *= (static_cast<size_t>(_selected_pbs[i_pb]->get_n())+1);
+            }
             for ( i_pb_instance = 0 ; i_pb_instance < _selected_pbs[i_pb]->get_nbPbInstances() ; ++i_pb_instance )
             {
                 if ( _results[i_pb][i_algo][i_pb_instance].has_feas_solution(isForH) )
                 {
-                    // Get the improving objs and the corresponding bbes
-                    const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_sols(isForH);
-                    if (objs.empty())
-                    {
-                        continue;
-                    }
-                    if (objs.back() == fxe[i_pb])
+                    // Get the best obj for maxBBE considered for this run
+                    const auto objMaxBBE = _results[i_pb][i_algo][i_pb_instance].get_sol(maxBBE, isForH);
+                    if (objMaxBBE == fxe[i_pb])
                     {
                         ds.push_back(INF);
                     }
                     else
                     {
                         // Relative accuracy greater than 16 are not considered
-                        double accuracy = -log10(1.0-(objs.back()-fx0s[i_pb])/(fxe[i_pb]-fx0s[i_pb]));
+                        double accuracy = -log10(1.0-(objMaxBBE-fx0s[i_pb])/(fxe[i_pb]-fx0s[i_pb]));
                         if (accuracy < 16)
                         {
                             ds.push_back(accuracy);
@@ -1860,18 +1857,23 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
             int cnt_pb_instance = 0;
             for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
             {
+                // Get the maxBBE considered
+                size_t maxBBE = out.get_x_max();
+                if (maxBBE < RUNNERPOST::INF_SIZE_T && xSel == RUNNERPOST::Output::X_Select::NP1EVAL)
+                {
+                    // WARNING: Let's cross fingers that maxBBE*(n+1) <= INF_SIZE_T
+                    // Case when maxBBE must be multiplied by n+1
+                    maxBBE *= (static_cast<size_t>(_selected_pbs[i_pb]->get_n())+1);
+                }
+                
                 auto n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
                 cnt_pb_instance += n_pb_instance;
                 for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance; ++i_pb_instance )
                     if ( _results[i_pb][i_algo][i_pb_instance].has_feas_solution(isForH) )
                     {
                         // Get the improving objs and the corresponding bbes
-                        const auto & objs = _results[i_pb][i_algo][i_pb_instance].get_sols(isForH);
-                        if (objs.empty())
-                        {
-                            continue;
-                        }
-                        if (objs.back() == fxe[i_pb] || -log10(1.0-(objs.back()-fx0s[i_pb])/(fxe[i_pb]-fx0s[i_pb])) >= d)
+                        double objMaxBBE = _results[i_pb][i_algo][i_pb_instance].get_sol(maxBBE, isForH);
+                        if (objMaxBBE == fxe[i_pb] || -log10(1.0-(objMaxBBE-fx0s[i_pb])/(fxe[i_pb]-fx0s[i_pb])) >= d)
                         {
                                 cnt++;
                         }
@@ -2207,15 +2209,16 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx( size_t maxBBE, const 
     ArrayOfDouble fxe(n_fx, INF);
     double fxe_tmp;
     size_t nbDomRefObj; // not used here
-    size_t fI = 0;
+    size_t fI = 0, tBBE = maxBBE;
     for (size_t i_pb = 0; i_pb < n_pb ; ++i_pb)
     {
+        
         if (maxBBE < RUNNERPOST::INF_SIZE_T && xSelect == RUNNERPOST::Output::X_Select::NP1EVAL)
         {
             // WARNING: Let's cross fingers that maxBBE*(n+1) <= INF_SIZE_T
             
             // Case when maxBBE must be multiplied by n+1
-            maxBBE *= (static_cast<size_t>(_selected_pbs[i_pb]->get_n())+1);
+            tBBE = maxBBE * (static_cast<size_t>(_selected_pbs[i_pb]->get_n())+1);
         }
         
         if ( _use_hypervolume_for_profiles )
@@ -2234,7 +2237,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_best_fx( size_t maxBBE, const 
                     for (size_t i_algo = 0 ; i_algo < n_algo ; ++i_algo )
                     {
                         // For now we consider all evaluations stored in results
-                        fxe_tmp = _results[i_pb][i_algo][i_pb_instance].get_sol ( maxBBE, false /*is for F*/ );
+                        fxe_tmp = _results[i_pb][i_algo][i_pb_instance].get_sol ( tBBE, false /*is for F*/ );
                         
                         if ( fxe_tmp < INF &&
                             ( fxe[fI] == INF || fxe_tmp < fxe[fI] ) )
