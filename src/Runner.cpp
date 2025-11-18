@@ -1867,15 +1867,24 @@ bool RUNNERPOST::Runner::output_accuracy_profile_plain ( const Output & out) con
                 }
                 
                 auto n_pb_instance = _selected_pbs[i_pb]->get_nbPbInstances();
+                
+                // if fxe=f0 the accuracy is meaningless for the problem
+                // Do not account these problems
+                if (fxe[i_pb] == fx0s[i_pb])
+                {
+                    continue;
+                }
+                
                 cnt_pb_instance += n_pb_instance;
                 for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance; ++i_pb_instance )
                     if ( _results[i_pb][i_algo][i_pb_instance].has_feas_solution(isForH) )
                     {
                         // Get the improving objs and the corresponding bbes
                         double objMaxBBE = _results[i_pb][i_algo][i_pb_instance].get_sol(maxBBE, isForH);
+                        // Counting problem solved whithin accuracy
                         if (objMaxBBE == fxe[i_pb] || -log10(1.0-(objMaxBBE-fx0s[i_pb])/(fxe[i_pb]-fx0s[i_pb])) >= d)
                         {
-                                cnt++;
+                            cnt++;
                         }
                     }
             }
@@ -2009,7 +2018,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output:
                                 if ( fx_first_feas == Output::Fx_First_Feas_Method::max )
                                 {
                                     if ( nb_first_fx == 0 )
-                                        fx0s[fI] = first_fx;
+                                        fx0s[fI] = first_fx ;
                                     else
                                         fx0s[fI] = std::max( first_fx , fx0s[fI] );
                                     
@@ -3642,6 +3651,7 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
 
     // The loop for reading plain_file_name and writing to plain_file_name_step
     std::string line, prevLine, prevLineToken, lineFirstToken, nextLine, lineToken;
+    bool lineFirstTokenEmpty = false;
     while (std::getline(infile, line))
     {
         if (line.empty())
@@ -3684,16 +3694,34 @@ bool RUNNERPOST::Runner::output_dataperf_profile_pgfplots(const Output & out ) c
             if (!lineFirstToken.empty())
             {
                 outfile_step << lineFirstToken << " ";
-
+                lineFirstTokenEmpty = false;
             }
             else
             {
-                outfile_step << "0 ";
+                lineFirstTokenEmpty = true;
             }
+            
+            
             // Read the line token by token
             std::istringstream iss(line);
 
             iss >> lineFirstToken;
+            
+            // Convert first token. Is it below zero or not. Add a line.
+            if(lineFirstTokenEmpty)
+            {
+                const char* s = lineFirstToken.c_str();
+                char* end = nullptr;
+                double d = std::strtod(s, &end);
+                if (d < 0)
+                {
+                    outfile_step << d*1.01 << " ";
+                }
+                else
+                {
+                    outfile_step << "0 ";
+                }
+            }
 
             // Write all tokens of line, except the first one (already done)
             while (std::getline(iss, lineToken, ' '))
