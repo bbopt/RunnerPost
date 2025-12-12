@@ -4,7 +4,9 @@
 #include <algorithm>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <string>
+#include <system_error>
 
 
 //#ifdef LIB_HYPERVOLUME
@@ -39,6 +41,39 @@ void RUNNERPOST::Result::clear_solution ( void )
 
     _has_feas_sol = false;
 }
+
+std::string RUNNERPOST::Result::read_file_to_string_fast(const std::string& filename)
+{
+    std::ifstream ifs(filename, std::ios::binary | std::ios::ate);
+    if (!ifs)
+    {
+        throw std::system_error(errno, std::generic_category(), "opening file failed: " + filename);
+    }
+
+    std::ifstream::pos_type end = ifs.tellg();
+    if (end < 0)
+    {
+        // Could not determine size; fall back to streambuf method below
+        ifs.close();
+        std::ostringstream ss;
+        std::ifstream ifs2(filename, std::ios::binary);
+        ss << ifs2.rdbuf();
+        return ss.str();
+    }
+
+    const std::size_t file_size = static_cast<std::size_t>(end);
+    std::string contents;
+    contents.resize(file_size);
+
+    ifs.seekg(0, std::ios::beg);
+    if (!ifs.read(&contents[0], static_cast<std::streamsize>(file_size)))
+    {
+        // If read fails but some bytes were read, contents may be partially filled.
+        throw std::system_error(errno, std::generic_category(), "reading file failed: " + filename);
+    }
+    return contents;
+}
+
 
 /*----------------------------------*/
 /*          read results            */
@@ -96,23 +131,9 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
     in.seekg(0);
     buf.assign((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     
-    
-    
-    std::istringstream iss(buf);
+    std::istringstream iss(std::move(buf));
     while (std::getline(iss, line))
     {
-    
-//    while ( !in.eof() )
-//    {
-//        if (!std::getline(in, line))
-//        {
-//            if (first_line)
-//            {
-//                std::cout << "Result file is empty" <<std::endl;
-//                delete [] bbo;
-//                return false;
-//            }
-//        }
         
         // No more lines to read.
         if (line.empty())

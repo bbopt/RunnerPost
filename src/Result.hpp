@@ -71,6 +71,8 @@ private:
                                 std::vector<std::vector<double>> & combinedPareto,
                                 bool sort) const;
     
+    std::string read_file_to_string_fast(const std::string& filename);
+    
 public:
     
     // constructor:

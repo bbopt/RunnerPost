@@ -12,7 +12,7 @@
 RUNNERPOST::Runner::Runner ( ) :
 _results    ( NULL ) ,
 _test_id    ( NULL ) ,
-_ineqConsFeasibilityThreshold (1E-8),
+_ineqConsFeasibilityThreshold (0),
 _eqConsFeasibilityThreshold (1E-8)
 {
 
