@@ -3056,6 +3056,50 @@ bool RUNNERPOST::Runner::read_problem_selection_file ( const std::string  & pb_s
     return true;
 }
 
+/*--------------------------------------------------------------------*/
+/*          read and add problems from formatted selection string     */
+/*--------------------------------------------------------------------*/
+bool RUNNERPOST::Runner::read_problem_selection     ( const std::string  & pb_selection_formatted ,
+                                                      std::string        & error_msg        )
+{
+    error_msg.clear();
+
+    if ( pb_selection_formatted.empty() )
+    {
+        error_msg = "Error(0). Cannot read formatted string. It is empty. " ;
+        return false;
+    }
+
+    // Read the algo selection from formatted string
+    std::stringstream in ( pb_selection_formatted.c_str(), std::ios::in );
+
+    while(!in.eof())
+    {
+        std::string line;
+        getline (in , line);
+        
+        if (line.empty())
+        {
+            continue;
+        }
+        
+        _selected_pbs.push_back(new Problem(line, error_msg));
+        if (!error_msg.empty())
+        {
+            return false;
+        }
+    }
+    
+    if (_selected_pbs.empty())
+    {
+        error_msg = "Error(1) in formatted " + pb_selection_formatted + ". Cannot read a single pb config. First line in string must contain a pb config." ;
+        return false;
+    }
+
+    return true;
+
+}
+
 bool RUNNERPOST::Runner::read_problem_selection_from_algo_dir ( std::string        & error_msg        )
 {
     error_msg.clear();

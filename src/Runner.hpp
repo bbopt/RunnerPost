@@ -184,6 +184,8 @@ public:
     // Maybe we need to make Output, Problem and Algo derive from Selection class.
     bool read_problem_selection_file    ( const std::string & pb_selection_file_name ,
                                          std::string       & error_msg          );
+    bool read_problem_selection         ( const std::string & pb_selection_formatted ,
+                                         std::string       & error_msg          );
 
     bool read_problem_selection_from_algo_dir(std::string       & error_msg          );
 

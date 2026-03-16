@@ -25,6 +25,11 @@ env_runnerpost_src = os.environ.get('RUNNERPOST_SRC')
 env_runnerpost_build_dir = os.environ.get('RUNNERPOST_BUILD_DIR')
 env_runnerpost_msvc_flag = os.environ.get('RUNNERPOST_MSVC_FLAG')
 env_runnerpost_msvc_conf = os.environ.get('RUNNERPOST_MSVC_CONF')
+env_runnerpost_sysroot = os.environ.get('SYSROOT')
+env_runnerpost_archflags = os.environ.get('ARCHFLAGS')
+
+if env_runnerpost_archflags:
+    print('Building RunnerPost with ARCHFLAGS: ',os.environ.get('ARCHFLAGS'))
 
 if not(env_runnerpost_src):
     print('Missing RUNNERPOST_SRC env.')
@@ -39,6 +44,9 @@ if not(env_runnerpost_msvc_flag):
 
 if not(env_runnerpost_msvc_conf):
     print('Missing RUNNERPOST_MSVC_CONF, assuming Release configuration.')
+    
+if env_runnerpost_sysroot:
+    print('Building RunnerPost with isysroot set.')
 
 # Construct base paths
 
@@ -47,6 +55,16 @@ path_library_runnerpost = os.path.join(env_runnerpost_build_dir, 'src')
 
 # Compiler and linker configuration
 setup_compile_args = []
+setup_link_args = []
+
+if env_runnerpost_sysroot:
+    clean_sysroot = env_runnerpost_sysroot.strip('"').strip("'")
+    setup_compile_args.append('-isysroot')
+    setup_compile_args.append(clean_sysroot)
+    setup_link_args.append('-isysroot')
+    setup_link_args.append(clean_sysroot)
+
+
 if env_runnerpost_msvc_flag:
     setup_compile_args.append('/std:c++14')
 else:
@@ -122,6 +140,7 @@ setuptools.setup(
         sources = [ 'runnerPost.pyx' ],
         include_dirs = [ path_include ],
         extra_compile_args = setup_compile_args,
+        extra_link_args = setup_link_args,
         extra_objects = setup_extra_objects,
         libraries = setup_libraries,
         library_dirs = setup_library_dirs,

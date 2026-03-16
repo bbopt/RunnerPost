@@ -1,7 +1,14 @@
 
 import os
 import json
-import pkg_resources
+
+try:
+    from importlib.resources import files
+except ImportError:
+    from importlib_resources import files
+
+# In run_test():
+json_file_name = str(files(__package__) / 'Data' / 'post_selection.json')
 
 from . import RunnerPost
 from . import postProcess
@@ -26,7 +33,7 @@ def run(json_file):
 # Run on test data set included
 def run_test():
 
-    json_file_name = pkg_resources.resource_filename(__name__, f'Data/post_selection.json')
+    json_file_name = str(files(__package__) / 'Data' / 'post_selection.json')
 
     # Get the current directory
     current_directory = os.getcwd()
