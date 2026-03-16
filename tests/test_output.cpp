@@ -10,8 +10,8 @@ TEST(OutputTest, DefaultConstructor) {
     std::string error_msg;
     Output output("", error_msg);
     EXPECT_EQ(output.get_profile_type(), Output::Profile_Type::UNDEFINED_PROFILE);
-    EXPECT_EQ(output.get_y_select(), Output::Y_Select::UNDEFINED_Y);
-    EXPECT_EQ(output.get_x_select(), Output::X_Select::UNDEFINED_X);
+    EXPECT_EQ(output.get_y_select(), Output::Y_Select::OBJ);
+    EXPECT_EQ(output.get_x_select(), Output::X_Select::EVAL);
 }
 
 TEST(OutputTest, SetProfileType) {
@@ -23,8 +23,8 @@ TEST(OutputTest, SetProfileType) {
     output.setProfileType(Output::Profile_Type::PERFORMANCE_PROFILE);
     EXPECT_EQ(output.get_profile_type(), Output::Profile_Type::PERFORMANCE_PROFILE);
 
-    output.setProfileType(Output::Profile_Type::HISTORY);
-    EXPECT_EQ(output.get_profile_type(), Output::Profile_Type::HISTORY);
+    output.setProfileType(Output::Profile_Type::CONVERGENCE_PROFILE);
+    EXPECT_EQ(output.get_profile_type(), Output::Profile_Type::CONVERGENCE_PROFILE);
 
     output.setProfileType(Output::Profile_Type::ACCURACY_PROFILE);
     EXPECT_EQ(output.get_profile_type(), Output::Profile_Type::ACCURACY_PROFILE);

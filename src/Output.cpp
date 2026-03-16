@@ -442,6 +442,19 @@ bool RUNNERPOST::Output::setPlotSelection(const std::vector<std::string> & s)
     return true;
 }
 
+bool RUNNERPOST::Output::singlePbSelected() const
+{
+    if (_plotSelection.empty())
+    {
+        std::cerr << "Error: PLOT_SELECTION requires at least one argument." << std::endl;
+        return false;
+    }
+    
+    bool allSelected = (_plotSelection[1] == "ALLPB" || _plotSelection[1] == "*" );
+    
+    return ! allSelected;
+}
+
 bool RUNNERPOST::Output::plotIsSelected(const std::string & algoId, const std::string & pbId, size_t i_pbInstance) const
 {
     if (_plotSelection.empty())

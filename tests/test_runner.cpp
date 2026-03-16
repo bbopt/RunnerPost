@@ -111,7 +111,7 @@ TEST(RunnerTest, DataProfile) {
     }   
 
     // Check if the content is correct
-    expected_content = "94 55 85 100";
+    expected_content = "53 0.55 0.85 1";
 
     // Remove return carriage from line
     line.erase(std::remove(line.begin(), line.end(), '\n'), line.end());

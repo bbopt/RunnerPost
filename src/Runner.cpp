@@ -3520,6 +3520,11 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
         
         // Prepare the stats file complete format from the pb info and the algo stat output type
         StatOutputTypeList statsFileFormat = composeStatsFileFormat(ac.get_stats_output_type_list(), pb.get_n(), pb.get_m(), pb.get_p());
+        if (statsFileFormat.size()==0)
+        {
+            std::cerr << " Error: the stats fie format is empty. There is an inconsistency between the problem " << pb.get_name() << " definition and the algorithm " << ac.get_name() << "  STATS_FILE_OUTPUT " << RUNNERPOST::StatOutputTypeListToString(ac.get_stats_output_type_list()) << std::endl;
+            return false;
+        }
         
         // Read the stats file into results
         // Limit the reading to the max bbe allowed by all outputs
@@ -4163,7 +4168,7 @@ bool RUNNERPOST::Runner::output_combo_convergence_profile_pgfplots(const Output 
     const size_t n_pb = _selected_pbs.size();
     const size_t n_algo = _selected_algos.size();
     
-    if (n_pb > 1)
+    if (n_pb > 1 && ! out.singlePbSelected())
     {
         std::cerr << "\n Error in output_convergence_profile_pgfplots: More than one problem is selected. Only several instances of the same problem is accepted." << std::endl;
         return false;
@@ -4535,6 +4540,11 @@ RUNNERPOST::StatOutputTypeList RUNNERPOST::Runner::composeStatsFileFormat(const 
         }
         else if (acSot.isOfType(StatOutputType::CST))
         {
+            if (m==1)
+            {
+                std::cerr << "\n Warning: Probable inconsistency between the number of outputs (m=1 -> just OBJ) in problem and the presence of constraints in algo STAT_FILE_OUTPUT: " << RUNNERPOST::StatOutputTypeListToString(acSotList) << std::endl;
+            }
+            
             const size_t numberOfIneqConstraints = m -p - RUNNERPOST::getNbObj(acSotList);
             if (numberOfIneqConstraints <= 0)
             {

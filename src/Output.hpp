@@ -66,7 +66,7 @@ private:
     Y_Select                           _ySel = Y_Select::OBJ;
     X_Select                           _xSel = X_Select::EVAL;
     FXBest_Select                      _fxBestSel = FXBest_Select::CROSSINSTANCE;
-    size_t                             _xMax;
+    size_t                             _xMax = RUNNERPOST::INF_SIZE_T;
     double                             _tau = -1.0; // Default value is not allowed. Must be set explicitly depending on profile type. This is tested.
     std::string                        _plainFileName;
     std::string                        _latexFileName;
@@ -130,6 +130,7 @@ public:
     const std::vector<std::string> & get_plot_selection() const { return _plotSelection;}
     const Plot_Type &           get_plot_type() const { return _plotType;}
     
+    bool singlePbSelected() const;
     bool plotIsSelected(const std::string & algoId, const std::string & pbId, size_t i_pbInstance) const ;
     
     const std::vector<std::string> & get_profile_type_options() const { return _profile_type_options;}
