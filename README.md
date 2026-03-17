@@ -293,7 +293,7 @@ In the RunnerPost, to quantify the quality of Pareto front approximations we hav
 For now, the RunnerPost is limited to bi-objective problems post-processing only.
 
 Based on the `STATS_FILE_OUTPUT` of algorithm definition, the RunnerPost detects that more than one objective is considered and uses the hypervolume indicator instead of the objective function value:
-````
+```
 algo2 (Algo 2) [DISPLAY_ALL_EVAL yes][STATS_FILE_OUTPUT OBJ OBJ ]  [STATS_FILE_NAME stats.txt][ADD_PBINSTANCE_TO_STATS_FILE yes]
 ```
 
