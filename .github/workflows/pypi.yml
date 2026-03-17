@@ -88,8 +88,9 @@ jobs:
           package-dir: pythonInterface
 
       - name: Collect wheels for processing
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
+          name: binary-${{ matrix.target.name }}
           path: wheelhouse/*.whl
 
   # We use pypa/gh-action-pypi-publish to upload the binary wheels onto PyPi.
@@ -108,7 +109,8 @@ jobs:
       - name: Collect wheels for publication
         uses: actions/download-artifact@v4
         with:
-          name: artifact
+          pattern: binary-*
+          merge-multiple: true
           path: dist
 
       - name: Publish wheels to TestPyPi
