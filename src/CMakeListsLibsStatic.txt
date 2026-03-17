@@ -20,15 +20,6 @@ target_include_directories(
     >
 )
 
-
-if(OpenMP_CXX_FOUND)
-    target_link_libraries(
-      runnerPostStatic 
-      PUBLIC
-        OpenMP::OpenMP_CXX
-    )
-endif()
-
 set_target_properties(
     runnerPostStatic 
     PROPERTIES

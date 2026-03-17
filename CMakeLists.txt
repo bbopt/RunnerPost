@@ -93,21 +93,6 @@ else()
    message(STATUS "  Unit tests NOT built")
 endif()
 
-#
-# Test openMP package
-#
-option(ENABLE_OPENMP "Option to build with OpenMP" ON)
-if(ENABLE_OPENMP MATCHES ON)
-   find_package(OpenMP QUIET)
-   if(OpenMP_FOUND)
-      message(STATUS "  Test OpenMP for parallel functionalities  -- found ")
-   else()
-      message(STATUS "  OpenMP not available. Forcefully disabled")
-   endif()
-else()
-    message(STATUS "  OpenMP disabled")
-endif()
-
 
 #
 # Choose to build the Python interface
