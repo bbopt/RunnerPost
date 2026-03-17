@@ -32,7 +32,7 @@
       "name": "DAMON X: Default",
       "parameters": {
         "STATS_FILE_NAME": "history.txt",
-        "STATS_FILE_OUTPUT": "SOL OBJ CST",
+        "STATS_FILE_OUTPUT": "SOL OBJ",
         "ADD_PBINSTANCE_TO_STATS_FILE": "yes"
       }
     },
