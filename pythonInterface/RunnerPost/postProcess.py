@@ -2,7 +2,7 @@ import os
 import json
 import argparse
 
-import RunnerPost.RunnerPost as RunnerPost
+import RunnerPost.RunnerPost as rp
 
 
 try:
@@ -105,7 +105,7 @@ def postProcess(json_file):
         #print(output_selection)
 
     # Encode strings before calling RunnerPost
-    RunnerPost.run(algo_selection.encode(), problem_selection.encode(), output_selection.encode())
+    rp.run(algo_selection.encode(), problem_selection.encode(), output_selection.encode())
 
 
 def plot(file_path,tau):
