@@ -214,8 +214,7 @@ With:
 
 The following parameters are mandatory:
 - `N`, the number of variables must be provided. 
-- `M`, the number of outputs must be provided. Outputs include objectives and constraints. M must be greater than or equal to 1.
-The number of equality constraints is given by `P`. The default is zero.
+- `M`, the number of outputs must be provided. Outputs include objectives and constraints (inequality and equality). M must be greater than or equal to 1. The number of equality constraints is given by parameter `P`. The default is zero.
 
 In addition, the following parameter is optional:
 
@@ -261,7 +260,7 @@ CONVERGENCE_PROFILE (Convergence plots) [output_plain convergenceCombo.txt][outp
 
 ### Convergence plots with constraint violation and objective function improvments
 Convergence plots allow a comparison of algorithms on a few instances of a problem. To obtain on the same plot a y-axis for constraint violation and a y-axis for the best objective function value one can specify a plot type `ComboHInfAndFFeas` for that purpose: 
-````
+```
 CONVERGENCE_PROFILE (Convergence plots) [output_plain convergenceCombo.txt][output_latex convergenceCombo.tex] [x_max 200][plot_selection * 1][plot_type ComboHInfAndFFeas]
 ```
 
