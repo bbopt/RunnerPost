@@ -40,6 +40,9 @@ else()
     message(WARNING "You are using an unsupported compiler. Compilation has only been tested with Clang, GCC, and MSVC.")
 endif()
 
+# Minimum osx deployment target is 10.15 to have a recent C++ standard library
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15")
+
 # Load some modules
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
