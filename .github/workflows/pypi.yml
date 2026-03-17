@@ -33,10 +33,10 @@ jobs:
     runs-on: ${{ matrix.target.os }}
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.8'
+          python-version: '3.14'
           
       - name: Prepare Python environment
         run: >-
@@ -63,7 +63,7 @@ jobs:
           cmake --version
 
       - name: Build binary wheels
-        uses: pypa/cibuildwheel@v2.16.5
+        uses: pypa/cibuildwheel@v3.3.1
         env:
           CIBW_ARCHS: >-
             ${{ matrix.target.archs }}
@@ -76,7 +76,7 @@ jobs:
             RUNNERPOST_MSVC_FLAG=${{ matrix.target.msvc }}
             RUNNERPOST_MSVC_CONF=Release
           CIBW_PROJECT_REQUIRES_PYTHON: >-
-            >=3.8
+            >=3.9
           CIBW_BUILD_FRONTEND: >-
             build
           CIBW_BUILD_VERBOSITY: >-
@@ -106,7 +106,7 @@ jobs:
 
     steps:
       - name: Collect wheels for publication
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: artifact
           path: dist
