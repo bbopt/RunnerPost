@@ -460,21 +460,6 @@ bool RUNNERPOST::Runner::run_post_processing ( std::string & error_msg )
                 return false;
             }
             
-//            // CHT TEMP for data manipulation (PAPER) --- DANGEROUS ---- DO NOT KEEP-
-//             if (i_algo == 0)
-            {
-//                for (size_t i_pb_inst = 0 ; i_pb_inst < n_pb_inst ; i_pb_inst++)
-//                {
-//                    _results[i_pb][i_algo][i_pb_inst].TMPtransform();
-//                }
-//                for (size_t i_pb_inst = 0 ; i_pb_inst < n_pb_inst ; i_pb_inst++)
-//                {
-//                    _results[i_pb][i_algo][i_pb_inst].writeToStatsFile(i_pb,i_algo,i_pb_inst,_selected_pbs         [i_pb]->get_n() );
-//                }
-                
-            }
-            
-            
             // set the result:
             set_result ( _test_id              [i_pb][i_algo] ,
                         _results               [i_pb][i_algo] ,
@@ -3551,7 +3536,6 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
         
         std::string stats_file_name = Runner::get_test_dir(ac, pb) + Runner::get_stats_file_name(ac, pb, pbInstance);
         
-
         // check the results (stats file):
         fin.open ( stats_file_name.c_str() );
 

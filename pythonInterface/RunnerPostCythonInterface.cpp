@@ -55,6 +55,9 @@ static int readAndPostprocess( const std::string & algo_selection, const std::st
 
         RUNNERPOST::Runner runner;
         
+        //
+        // Algorithms
+        //
         std::string error_msg;
         if ( !runner.read_algo_selection ( algo_selection , error_msg ) )
         {
@@ -63,9 +66,13 @@ static int readAndPostprocess( const std::string & algo_selection, const std::st
             return 1;
         }
         
-        // display test configs:
+        // display algos:
         runner.display_selected_algos() ;
         
+
+        //
+        // Problems
+        //
         if ( !runner.read_problem_selection ( pb_selection , error_msg ) )
         {
             std::cerr << "Cannot read pbs config file \"" << pb_selection << "\"" << std::endl;
@@ -73,8 +80,27 @@ static int readAndPostprocess( const std::string & algo_selection, const std::st
             return 1;
         }
         
-        // display test configs:
+        // display pbs:
         runner.display_selected_problems() ;
+
+        if (!runner.algo_pb_check_consistency(error_msg))
+        {
+            std::cout << "runner check failed: \n" << error_msg << std::endl;
+            std::cout << "runner is stopped prematurely" << std::endl;
+            return 1;
+        }
+
+        //
+        // Output
+        //
+        // Read output_selection file
+        if ( !runner.read_output_selection ( output_selection , error_msg ) )
+        {
+            std::cerr << "Cannot read output config file \"" << output_selection << "\"" << std::endl;
+            std::cerr << "Stop prematurely with error \"" << error_msg << "\"" << std::endl;
+            return 1;
+        }
+        runner.display_selected_outputs();
         
         
         // run:
@@ -85,18 +111,6 @@ static int readAndPostprocess( const std::string & algo_selection, const std::st
             return 1;
         }
         
-        
-        // Output
-        
-        // Read output_selection file
-        if ( !runner.read_output_selection ( output_selection , error_msg ) )
-        {
-            std::cerr << "Cannot read output config file \"" << output_selection << "\"" << std::endl;
-            std::cerr << "Stop prematurely with error \"" << error_msg << "\"" << std::endl;
-            return 1;
-        }
-        
-        runner.display_selected_outputs();
         
         if ( !runner.generate_outputs( error_msg ) )
         {

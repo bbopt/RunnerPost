@@ -78,8 +78,6 @@ RUNNERPOST::Output::Output (std::string s, std::string & error_msg)
             tmp += v + " ";
         }
         _profile_type_options.push_back(tmp);
-
-
     }
     
     // TODO: check inconsistencies. Example: tau provided but default output file name are used. At least give a warning

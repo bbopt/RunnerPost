@@ -343,12 +343,6 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
                 h_prev = h;
             }
         }
-        
-        // No need to parse for more eval than required
-        if (bbe > max_bbe)
-        {
-            break;
-        }
 
          // Total time and total bbe - for time stats.
         _totalBbe = bbe;
@@ -357,6 +351,12 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
         if ( first_line )
         {
             first_line = false;
+        }
+        
+        // No need to parse for more eval than required
+        if (bbe > max_bbe)
+        {
+            break;
         }
     }
     
