@@ -76,6 +76,7 @@ jobs:
             -DCMAKE_CC_COMPILER=${{matrix.config.cc}} \
             -DCMAKE_CXX_COMPILER=${{matrix.config.cxx}} \
             -DBUILD_INTERFACE_PYTHON=ON \
+            -DBUILD_TESTS=ON \
             -DCMAKE_INSTALL_PREFIX=../instdir \
             ..
 
@@ -86,7 +87,7 @@ jobs:
           mkdir instdir
           mkdir build
           cd build
-          cmake .. -DBUILD_INTERFACE_PYTHON=ON -DCMAKE_INSTALL_PREFIX=../instdir
+          cmake .. -DBUILD_INTERFACE_PYTHON=ON -DBUILD_TESTS=ON -DCMAKE_INSTALL_PREFIX=../instdir
 
       - name: Build
         shell: bash
