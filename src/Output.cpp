@@ -403,15 +403,6 @@ void RUNNERPOST::Output::display ( void ) const
 {
     std::cout << "Output selection display --- TODO " << std::endl;
     
-//    std::cout << _type << ": "
-//    << "(tau=" << _tau << ") [output=" << _output << "]";;
-//    << "] [bnds=" << has_bounds()
-//    << "] [cstr=" << _has_constraints
-//    << "] [trend=" << _has_trend_matrix
-//    << "] [int=" << _has_integers
-//    << "] [bin=" << _has_binaries << "] ["
-//    << ( is_batch() ? "batch" : "lib" )
-//    << "] [f*=" << _fxe << "]";
 }
 
 

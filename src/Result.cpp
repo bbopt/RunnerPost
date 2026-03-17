@@ -8,13 +8,6 @@
 #include <string>
 #include <system_error>
 
-
-//#ifdef LIB_HYPERVOLUME
-//#include "hv.h"
-//#endif
-
-
-
 /*----------------------------------*/
 /*               reset              */
 /*----------------------------------*/
@@ -24,8 +17,6 @@ void RUNNERPOST::Result::reset (  )
     _obj.clear();
     _mobj.clear();
     _last_x.clear();
-    
-    //_use_hypervolume_for_obj = use_hypervolume_for_obj;
     _nb_obj = 0; // Need to be updated
     clear_solution();
 }
@@ -442,33 +433,6 @@ void RUNNERPOST::Result::writeToStatsFile(size_t i_pb, size_t i_algo, size_t i_p
 }
 
 
-//// CHT TEMP FOR DATA EXPERIMENTAL MANIPULATION -- DO NOT KEEP 
-//void RUNNERPOST::Result::TMPtransform()
-//{
-//
-//    // MANIPULATION OF BBE --> for PP in paper
-//    for (size_t i=1; i<_obj.size(); i++)
-//    {
-//        double fact = 0.005*_bbe[i];
-//        _bbe[i] = std::floor(_bbe[i] * pow(2.0,fact));
-//        if (_bbe[i] < _bbe[i-1])
-//        {
-//            _bbe[i] = _bbe[i-1];
-//        }
-//    }
-//
-////    // MANUPULATION OF OBJ --> for DP in paper
-////    for (size_t i=0; i<_obj.size(); i++)
-////    {
-////        double fact = 1.0*i/(_obj.size()-1);
-////        double tmp = _obj[i] + 0.14*fact*_obj[i];
-////        if (i>0 && tmp > _obj[i-1])
-////        {
-////            tmp = _obj[i-1]*0.9999999;
-////        }
-////        _obj[i] = tmp;
-////    }
-//}
 
 
 RUNNERPOST::MOCompareType RUNNERPOST::Result::compMultiObjForDominate(const std::vector<double> & f1, const std::vector<double> & f2)
@@ -658,39 +622,6 @@ double RUNNERPOST::Result::compute_hv (const std::vector<std::vector<double>> & 
     }
     
     
-    // TEMP for testing hv computation
-    //    std::ifstream fin ( "viennet.txt" );
-    //    size_t lines=0;
-    //    double l,m,r,lmax=-100000000,mmax=-10000000,rmax=-1000000000;
-    //
-    //    while ( !fin.eof() )
-    //    {
-    //        lines ++;
-    //        fin >> l  ;
-    //        fin >> m  ;
-    //        fin >> r  ;
-    //        dpareto[k++] = l;
-    //        dpareto[k++] = m;
-    //        dpareto[k++] = r;
-    //        if ( l > lmax)
-    //        {
-    //            lmax = l;
-    //        }
-    //        if ( m > mmax)
-    //        {
-    //            mmax = m;
-    //        }
-    //        if ( r > rmax)
-    //        {
-    //            rmax = r;
-    //        }
-    //
-    //    }
-    //    fin.close();
-    //    double reference[3] = { lmax, mmax, rmax };
-    //    scaledHV = fpli_hv(dpareto, 3, 874, reference);
-    //    if (std::fabs(scaledHV - 3.86877) > 0.01)
-    //      std::cout << "ERROR in hv compuation" <<std::endl;
     
     scaledHV = fpli_hv(dpareto, static_cast<int>(nb_obj), static_cast<int>(pareto.size()), reference);
     delete[] dpareto;
@@ -860,24 +791,6 @@ bool RUNNERPOST::Result::compute_hypervolume_solution ( int n    ,
 
     size_t p = _bbe.size();
 
-//    // Test if no feasible point has been obtained
-//    if (! _bbe.empty() && ! _mobj.empty() && p==_mobj.size() )
-//    {
-//        // Cases where the last line of stats file contains "no feasible ...." or if the only line in the file is the initial point and is not feasible
-//        if ( _use_h_for_obj ) // Case where f= h and h != Inf
-//        {
-//            _is_infeas = true;
-//        }
-//        else if ( _mobj.back()[0]==RUNNERPOST::INF)
-//        {
-//            _is_infeas  = true ; // Case multi obj, h > 0 and f[0] = Inf
-//        }
-//        else
-//        {
-//            _is_infeas  = true ;  // Case where run failed
-//        }
-//        return false;
-//    }
 
     if (_bbe.empty()                           ||
         _mobj.empty()                          ||

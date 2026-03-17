@@ -46,8 +46,6 @@ private:
     
     bool                       _has_feas_sol; // Tag to indicate feasibility of result. Set in compute_solution.
     
-    // Option to compute f (hypervolume) and h
-    // bool                       _use_hypervolume_for_obj;
     bool                       _use_std_h;
     
     size_t                     _nb_obj;  // Used for multi objective
@@ -79,7 +77,6 @@ public:
     Result ( bool use_hypervolume_for_obj =false ):
         _totalBbe(0),
         _totalTime(0),
-        // _use_hypervolume_for_obj(use_hypervolume_for_obj),
         _use_std_h(true) // For now use_std_h is always true
     {
         clear_solution();
@@ -135,9 +132,7 @@ public:
     double                     get_first_feas_fx() const ;
     
     size_t                     get_sol_bbe    ( void    ) const { return _sol_bbe;    }
-    
-//    // CHT TEMP FOR SOME EXPERIMENTAL DATA MANIPULATION -- DO NOT KEEP
-//     void TMPtransform() ;
+
     
     void writeToStatsFile(size_t i_pb, size_t i_algo, size_t i_pb_inst, size_t pb_size) const;
     

@@ -26,13 +26,6 @@ private:
     static int                         _nbSimplexEvals; // if <=0 ==> other termination criterions will be used
     static int                         _overallMaxBBEvals; // if <= 0 ==> other termination criterions will be used
     
-    // TODO
-    // std::set<std::string>              _keywords;
-    // static std::set<std::string>       _all_keywords;
-    
-    // display keywords:
-    // TODO
-    // static void display_keywords ( const std::set<std::string> & keywords );
     
 public:
     
@@ -52,11 +45,13 @@ public:
     Problem ( const std::string & id          ,
              const std::string & name         ,
              int                 n            ,
-             int                 m            )
+             int                 m            ,
+             int                 p        )
     : _id              ( id     ) ,
       _name            ( name   ) ,
       _n               ( n      ) ,
-      _m               ( m      )
+      _m               ( m      ) ,
+      _p               (p       )
     {};
     
     // Constructor #4
