@@ -3,6 +3,8 @@ RunnerPost is a C++ and Python interface for post-processing and profiling avail
 
 For plotting and visualization, Matplotlib library is an option (TODO: script). Also, LaTeX can produce pdf files from tex files created during post-processing.
 
+The graphes presented in the technical paper [1] were produced using the RunnerPost. RunnerPost uses the concepts and notation of the paper which we suggest to read before using the tool.
+
 
 ## Table of Contents
 
@@ -22,7 +24,7 @@ To install RunnerPost, follow these steps:
 ### From TestPyPI
 
 
-Ensure you have Python 3.8 or higher:
+Ensure you have Python 3.9 or higher:
 
 ```sh
 python --version 
@@ -32,7 +34,7 @@ or
 python3 --version
 ```
 
-If you don't have Python 3.8 or higher, you can download and install it from https://www.python.org/downloads/
+If you don't have Python 3.9 or higher, you can download and install it from https://www.python.org/downloads/
 
 You may want to create a virtual environment:
 ```sh
@@ -66,7 +68,7 @@ Follow these steps for getting the source and build RunnerPost:
     ```
 3. Configure and build the project:
     ```bash
-    cmake -DBUILD_INTERFACE_PYTHON=ON -DTEST_OPENMP=OFF -S . -B build/release
+    cmake -DBUILD_INTERFACE_PYTHON=ON -S . -B build/release
     cmake --build build/release --config Release
     cmake --install build/release
     ```
@@ -152,7 +154,7 @@ The `STATS_FILE_NAME` parameter is used to specify the name of the files contain
 
 The files must be in directories constructed with the algorithm and the problem id-s. The given file name is the same for all problems and for all instances of a problem. An instance number is automatically added to the file name.
 
-The `ADD_PBINSTANCE_TO_STATS_FILE` is a boolean parameter (`True` or `Yes` or `1` values are interpreted as True, other values are interpreted as False) is used to specify if the instance names should be automatically added when reading the optimization stats file. If the flag is False (default), the stats file name are not modified and a single instance for each problem run is considered.
+The `ADD_PBINSTANCE_TO_STATS_FILE` is a boolean parameter (`True` or `Yes` or `1` values are interpreted as True, other values are interpreted as False) is used to specify if the instance names should be automatically added when reading the optimization stats file. If the flag is False (default), the stats file name are not modified and a single instance for each problem run is considered. The problem instance names can be provided in the problem definition (See below).
 
 With this option enabled, The structure of the run directories follows the pattern:
 ```
@@ -187,11 +189,11 @@ A column type must be among the following:
 - `SOL`: the vector of input variables; the number of variables is given in the problem selection file,
 - `OBJ`: the objective function value (can be more than one),   
 - `CST`: the constraints functions value. Even if the problem has several constraints, a single `CST` is required. Indeed the number of constraint can depend on the problem. The number of constraints is given in the problem selection file. 
-- `TIME`: the time of the evaluation (in seconds),
+- `TIME`: the time stamp of the evaluation (in seconds),
 - `FEAS`: the infeasibility flag of an evaluation (0: infeasible, 1: feasible),
-- `OTHER`: other information (e.g., the number of function evaluations, the number of iterations, the number of constraints evaluations, the number of gradient evaluations, the number of hessian evaluations, the number of hessian-vector evaluations, the number of jacobian evaluations, the number of jacobian-vector evaluations, the number of jacobian
+- `OTHER`: other information that will not be considered in the post-processing (e.g., a user-defined counter).
 
-When `STATS_FILE_OUTPUT` is NOT provided, the column types must be deduced. The stats files can contain all evaluations of an optimization (no need to specify the evaluation counter `CNT_EVAL`) or only the best solutions (the evaluation counter `CNT_EVAL`must be provided). 
+When `STATS_FILE_OUTPUT` is NOT provided, the column types must be deduced. The stats files can contain all evaluations of an optimization (no need to specify the evaluation counter `CNT_EVAL`) or only the best solution. In the later case, the evaluation counter `CNT_EVAL` must be provided. 
 
 Hence, the stats file can minimally contain the following columns: `CTN_EVAL OBJ CST` or only `OBJ CST` (the `CST` column is optional).
 This is determined from the `DISPLAY_ALL_EVAL` parameter. If `DISPLAY_ALL_EVAL` is set to `yes`, the stats file contains all evaluations of an optimization. If `DISPLAY_ALL_EVAL` is set to `no` (column types are `CNT_EVAL OBJ CST` by default), the stats file contains only the best solutions (column types are `OBJ CST`). The default for `DISPLAY_ALL_EVAL` is `false`.
@@ -213,6 +215,7 @@ With:
 The following parameters are mandatory:
 - `N`, the number of variables must be provided. 
 - `M`, the number of outputs must be provided. Outputs include objectives and constraints. M must be greater than or equal to 1.
+The number of equality constraints is given by `P`. The default is zero.
 
 In addition, the following parameter is optional:
 
@@ -237,23 +240,67 @@ With:
 
 Comments can be added at the end of each line starting with the # character.
 
-The current beta version only supports `DATA_PROFILE`, other types will be available in the first release.
+The current version supports `DATA_PROFILE`, `PERFORMANCE_PROFILE`, `CONVERGENCE_PROFILE` and `ACCURACY_PROFILE`.
 
-The following parameters are all mandatory:
-- `x_select`, the type of x-axis:  `NP1Eval` or   
-- `y_select`, the type of y-axis: `OBJ`
+The following parameters have default value but it is recommended to provide them for more clarity of the output selection file:
+- `x_select`, the type of x-axis:  `NP1Eval` (default) or `EVAL` or `TIME`(algorithm must output the time).  
+- `y_select`, the type of y-axis: `OBJ`, `INFEAS` (the infeasibility is computed from the constraints h(x)=Sum_j(max(g_j,0)^2))
 - `tau`, the value of the tolerance with respect to the best solution: typical values are 0.1, 0.00001.
 - `output_plain`, the plain output file name. A good practice is to name it according to the tau value. For example, `tau 0.1` - > `output_plain dp1.txt`.
 - `output_latex`, the latex output file name. 
--`x_max`, the x-axis max value for plotting. `INF` can be used to parse all the runs of a problem and deduce the maximum value.
-
+- `x_max`, the x-axis max value for plotting. `INF` can be used to parse all the evaluations of a problem and deduce the correct maximum value.
+- `plot_selection`, to select a specific combination of algorithms, problems and problem instances or select them all (default). The keyword must be followed by an algo name or `*` (or `ALLALGO`), followed by a problem name or `*`(or `ALLPB`), followed by an instance name or `*`(or `ALLINST`). 
+- `plot_type` for the convergence profiles (mandatory): can be selected among the following: `OnlyFFeasible`, `OnlyF`, `OnlyHInfeasible`, `ComboHInfAndFFeas` (see the below for the `ComboHInfAndFFeas').  
 
 Example of output_selection file:
 ```
 DATA_PROFILE (Data profile on 10 pbs with $\tau\; 10^{-1}$) [x_select NP1Eval] [y_select OBJ] [tau 0.1] [output_plain dp1.txt] [output_latex dp1.tex] [x_max INF]
 DATA_PROFILE (Data profile on 10 pbs with $\tau\; 10^{-3}$) [x_select NP1Eval] [y_select OBJ] [tau 0.001] [output_plain dp3.txt] [output_latex dp3.tex] [x_max INF]
+CONVERGENCE_PROFILE (Convergence plots) [output_plain convergenceCombo.txt][output_latex convergenceCombo.tex] [x_max 200][plot_selection * 1]
+```
+
+### Convergence plots with constraint violation and objective function improvments
+Convergence plots allow a comparison of algorithms on a few instances of a problem. To obtain on the same plot a y-axis for constraint violation and a y-axis for the best objective function value one can specify a plot type `ComboHInfAndFFeas` for that purpose: 
+````
+CONVERGENCE_PROFILE (Convergence plots) [output_plain convergenceCombo.txt][output_latex convergenceCombo.tex] [x_max 200][plot_selection * 1][plot_type ComboHInfAndFFeas]
+```
+
+### Profiling with several problem instances
+As previously mentionned, the RunnerPost can manage more than one instance for a given problem. Problem instances can be obtained using different initial points or by changing the optimizer seed.
+For the different types of profiles, this can impact what value is considered for `f_*` and the accuray value.
+
+It is possible to consider that all problem instances are different problems. So, we will have the same `f_0` for all problem instances of the same problem but different `f_*`.
+
+But, when using different seeds, all the runs of all algorithms on this problem can be considered to determine `f_*`.
+
+This distinction can be specified whithin the output selection with the keyword `FXBEST_SELECT`. The possible values are `CROSSINSTANCE`, `SINGLEINSTANCE` or `USERPROVIDE` (not yet implemented), the default is to consider all problem instances to determine `f_*` (`CROSSINSTANCE`). 
+
+
+### Profiling constrained problems
+Profiling algorithms on constrained problems with infeasible initial points requires to properly define the accuracy value, which depends on `f_0` and `f_*`. Using `f(x_0)` for `f_0` is not appropriate because this value can be lower than `f_*`. We have three approaches for defining `f_0` that respect that all algorithms and test problem instances are treated equally. We can consider the minimum, the maximum or the average of the first feasible values obtained by all algorithms on the problem instance.
+
+The keyword `FX_FIRST_FEAS` can be used to select the desired approach. The default is `MAX` approach.
+
+```
+ACCURACY_PROFILE (Accuracy profiles)[ y_select  OBJ][FX_FIRST_FEAS MIN][output_plain ap_min.txt][output_latex ap_min.tex] [x_max INF]
+```
+
+
+### Profiling for bi-objective optimization 
+Several elaborate strategies exist for benchmarking multi-objective optimization algorithms. The set of non-dominated points forms the solution set of a multi-objective problem, known as the Pareto set. Its image in the objectives space is called the Pareto front.
+
+In the RunnerPost, to quantify the quality of Pareto front approximations we have selected the hypervolume indicator. At each evaluation of an algorithm,on a problem we compute the hypervolume indicator. This volume indicator replaces the objective function value to plot any type of profiles.
+
+For now, the RunnerPost is limited to bi-objective problems post-processing only.
+
+Based on the `STATS_FILE_OUTPUT` of algorithm definition, the RunnerPost detects that more than one objective is considered and uses the hypervolume indicator instead of the objective function value:
+````
+algo2 (Algo 2) [DISPLAY_ALL_EVAL yes][STATS_FILE_OUTPUT OBJ OBJ ]  [STATS_FILE_NAME stats.txt][ADD_PBINSTANCE_TO_STATS_FILE yes]
+```
+
 
 ### LaTeX outputs
+
 This step requires to have a LaTeX distribution installed on your machine.
 
 To obtained pdf files from tex file:
@@ -262,7 +309,16 @@ pdflatex dp1.tex
 ```
 
 ## Tests
-TODO. In progress.
+
+Unit tests for the Algorithm, Output, Problem and Runner classes are available. To build them, when configuring we must enable it:
+```bash
+    cmake -DBUILD_TESTS=ON -S . -B build/release
+```
+Once the project is built, tests are performed in the build/release directory:
+```bash
+    ctest
+```
+
 
 ## Contributing
 
@@ -272,6 +328,10 @@ We welcome contributions! Please read our [contributing guidelines](CONTRIBUTING
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## References
+
+[1] Technical paper on RunnerPost. Available at: https://www.gerad.ca/en/papers/G-2025-36
 
 ## Contact
 
