@@ -15,28 +15,28 @@ jobs:
             archs: AMD64
             msvc: 1
 
-#          - name: Ubuntu
-#            os: ubuntu-latest
-#            archs: x86_64
+          - name: Ubuntu
+            os: ubuntu-latest
+            archs: x86_64
 
-#          - name: macOS_X86
-#            os: macos-latest
-#            archs: x86_64
-#            extra_option: -DCMAKE_OSX_ARCHITECTURES=x86_64
+          - name: macOS_X86
+            os: macos-latest
+            archs: x86_64
+            extra_option: -DCMAKE_OSX_ARCHITECTURES=x86_64
 
-#          - name: macOS_ARM
-#            os: macos-latest
-#            archs: arm64
-#            extra_option: -DCMAKE_OSX_ARCHITECTURES=arm64
+          - name: macOS_ARM
+            os: macos-latest
+            archs: arm64
+            extra_option: -DCMAKE_OSX_ARCHITECTURES=arm64
 
     name: Wheels for ${{ matrix.target.name }}
     runs-on: ${{ matrix.target.os }}
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.8'
+          python-version: '3.14'
           
       - name: Prepare Python environment
         run: >-
@@ -63,12 +63,12 @@ jobs:
           cmake --version
 
       - name: Build binary wheels
-        uses: pypa/cibuildwheel@v2.16.5
+        uses: pypa/cibuildwheel@v3.3.1
         env:
           CIBW_ARCHS: >-
             ${{ matrix.target.archs }}
           CIBW_BEFORE_ALL: >-
-            cmake -DBUILD_INTERFACE_PYTHON=ON -DTEST_OPENMP=OFF ${{ matrix.target.extra_option }} -S . -B build &&       
+            cmake -DBUILD_INTERFACE_PYTHON=ON ${{ matrix.target.extra_option }} -S . -B build &&       
             cmake --build build --config Release --clean-first --target runnerPostStatic
           CIBW_ENVIRONMENT: >-
             RUNNERPOST_SRC=../src
@@ -76,7 +76,7 @@ jobs:
             RUNNERPOST_MSVC_FLAG=${{ matrix.target.msvc }}
             RUNNERPOST_MSVC_CONF=Release
           CIBW_PROJECT_REQUIRES_PYTHON: >-
-            >=3.8
+            >=3.9
           CIBW_BUILD_FRONTEND: >-
             build
           CIBW_BUILD_VERBOSITY: >-
@@ -88,8 +88,9 @@ jobs:
           package-dir: pythonInterface
 
       - name: Collect wheels for processing
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
+          name: binary-${{ matrix.target.name }}
           path: wheelhouse/*.whl
 
   # We use pypa/gh-action-pypi-publish to upload the binary wheels onto PyPi.
@@ -106,9 +107,10 @@ jobs:
 
     steps:
       - name: Collect wheels for publication
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: artifact
+          pattern: binary-*
+          merge-multiple: true
           path: dist
 
       - name: Publish wheels to TestPyPi
