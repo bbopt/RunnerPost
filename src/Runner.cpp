@@ -3518,7 +3518,10 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
             break;
         }
         // Get the max value for xMaxFactor
-        xMaxFactor = fmax(out->get_x_max(),xMaxFactor);
+        if (out->get_x_max() < RUNNERPOST::INF_SIZE_T)
+            xMaxFactor = fmax(out->get_x_max(),xMaxFactor);
+        else
+            xMaxFactor = RUNNERPOST::INF_SIZE_T;
         if ( out->get_x_select() == RUNNERPOST::Output::X_Select::NP1EVAL )
         {
             factorNP1Found = true;
