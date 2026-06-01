@@ -195,7 +195,7 @@ A column type must be among the following:
 
 When `STATS_FILE_OUTPUT` is NOT provided, the column types must be deduced. The stats files can contain all evaluations of an optimization (no need to specify the evaluation counter `CNT_EVAL`) or only the best solution. In the later case, the evaluation counter `CNT_EVAL` must be provided. 
 
-Hence, the stats file can minimally contain the following columns: `CTN_EVAL OBJ CST` or only `OBJ CST` (the `CST` column is optional).
+Hence, the stats file can minimally contain the following columns: `CNT_EVAL OBJ CST` or only `OBJ CST` (the `CST` column is optional).
 This is determined from the `DISPLAY_ALL_EVAL` parameter. If `DISPLAY_ALL_EVAL` is set to `yes`, the stats file contains all evaluations of an optimization. If `DISPLAY_ALL_EVAL` is set to `no` (column types are `CNT_EVAL OBJ CST` by default), the stats file contains only the best solutions (column types are `OBJ CST`). The default for `DISPLAY_ALL_EVAL` is `false`.
 
 
