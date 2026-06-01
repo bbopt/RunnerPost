@@ -987,7 +987,7 @@ bool RUNNERPOST::Runner::output_convergence_profile_plain ( const Output & out )
     }
 
     // F, H or both?
-    bool plotF = ( out.get_plot_type() == Output::Plot_Type::OnlyFFeasible || out.get_plot_type() == Output::Plot_Type::ComboHInfAndFFeas );
+    bool plotF = ( out.get_plot_type() == Output::Plot_Type::OnlyF || out.get_plot_type() == Output::Plot_Type::OnlyFFeasible || out.get_plot_type() == Output::Plot_Type::ComboHInfAndFFeas );
     bool plotH = ( out.get_plot_type() == Output::Plot_Type::OnlyHInfeasible || out.get_plot_type() == Output::Plot_Type::ComboHInfAndFFeas );
     bool plotFAndH = ( out.get_plot_type() == Output::Plot_Type::ComboHInfAndFFeas );
     
@@ -4102,7 +4102,7 @@ bool RUNNERPOST::Runner::output_convergence_profile_pgfplots(const Output & out 
     {
         out_tex << "       ylabel = {Objective function}," <<std::endl;
     }
-    if (RUNNERPOST::Output::Plot_Type::OnlyFFeasible == out.get_plot_type())
+    else if (RUNNERPOST::Output::Plot_Type::OnlyFFeasible == out.get_plot_type())
     {
         out_tex << "       ylabel = {Objective function (feasible)}," <<std::endl;
     }
