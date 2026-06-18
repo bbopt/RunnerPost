@@ -134,6 +134,7 @@ bool RUNNERPOST::Result::read ( std::ifstream & in , size_t max_bbe , const RUNN
 
         // Replace tabs by spaces
         std::replace(line.begin(), line.end(), '\t', ' ');
+        std::replace(line.begin(), line.end(), '\r', ' ');
         
         // Put the line in a string stream for reading values.
         std::istringstream iss(line);
