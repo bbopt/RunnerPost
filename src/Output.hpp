@@ -64,7 +64,7 @@ private:
     
     Profile_Type                       _pType = Profile_Type::UNDEFINED_PROFILE;
     Y_Select                           _ySel = Y_Select::OBJ;
-    X_Select                           _xSel = X_Select::EVAL;
+    X_Select                           _xSel = X_Select::NP1EVAL;
     FXBest_Select                      _fxBestSel = FXBest_Select::CROSSINSTANCE;
     size_t                             _xMax = RUNNERPOST::INF_SIZE_T;
     double                             _tau = -1.0; // Default value is not allowed. Must be set explicitly depending on profile type. This is tested.
