@@ -1187,7 +1187,7 @@ bool RUNNERPOST::Runner::output_data_profile_plain ( const Output & out) const
     }
     
     // Get the type of output
-    const Output::X_Select &xSel = out.get_x_select();
+    const Output::X_Select & xSel = out.get_x_select();
     const Output::Y_Select & ySel = out.get_y_select();
     const bool isForH = (ySel==Output::Y_Select::INFEAS) ;
     
@@ -1398,7 +1398,6 @@ bool RUNNERPOST::Runner::output_time_profile_plain(const Output& out) const
     }
     
     // Get the type of output
-    const Output::X_Select &xSel = out.get_x_select();
     const Output::Y_Select & ySel = out.get_y_select();
     const bool isForH = (ySel==Output::Y_Select::INFEAS) ;
     
@@ -1508,7 +1507,6 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     }
     
     // Get the type of output
-    const Output::X_Select &xSel = out.get_x_select();
     const Output::Y_Select & ySel = out.get_y_select();
     const bool isForH = (ySel==Output::Y_Select::INFEAS) ;
     
@@ -1622,11 +1620,15 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     }
     
     size_t cnt, cnt_pb_instance;
-    const size_t scaleTime = 10; // Hardcoded. Limit the number of points on the profil. But range is unchanged.ange 
     const double tau = out.get_tau();
-    for (int beta = 0 ; beta <= std::round(max_beta/scaleTime) ; ++beta )
+    
+    std::stringstream ftmp_alpha,ftmp_cnt,ftmp_cnt_prev;
+    ftmp_cnt << std::setprecision(10);
+    ftmp_cnt_prev << std::setprecision(10);
+    
+    for (int beta = 0 ; beta <= max_beta ; ++beta )
     {
-        fout << beta*scaleTime << " ";
+        ftmp_alpha << beta << " ";
         for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
         {
             cnt = cnt_pb_instance = 0;
@@ -1639,16 +1641,25 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
                 {
                     for ( i_pb_instance = 0 ; i_pb_instance < n_pb_instance ; ++i_pb_instance )
                     {
-                        if (fx0s[i_pb] - _results[i_pb][i_algo][i_pb_instance].get_sol_by_time(beta*scaleTime, isForH) >= (1.0-tau) * (fx0s[i_pb]-fxe[i_pb]))
+                        if (fx0s[i_pb] - _results[i_pb][i_algo][i_pb_instance].get_sol_by_time(beta, isForH) >= (1.0-tau) * (fx0s[i_pb]-fxe[i_pb]))
                         {
                             ++cnt;
                         }
                     }
                 }
             }
-            fout << (1.0 * cnt ) / (cnt_pb_instance) << " " ;
+            ftmp_cnt << (1.0 * cnt ) / (cnt_pb_instance) << " " ;
         }
-        fout << std::endl;
+        
+        // This is used to avoid writing lines with no changes in the counts
+        if (ftmp_cnt_prev.str() != ftmp_cnt.str())
+        {
+            fout << ftmp_alpha.str() << ftmp_cnt.str() << std::endl;
+            ftmp_cnt_prev.str(ftmp_cnt.str());
+        }
+        // Clear fmtp
+        ftmp_alpha.str(std::string());
+        ftmp_cnt.str(std::string());
     }
     fout.close();
     std::cout << "... done" << std::endl << std::endl;
