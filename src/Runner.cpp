@@ -1604,6 +1604,7 @@ bool RUNNERPOST::Runner::output_time_data_profile_plain ( const Output & out  ) 
     
     if ( max_beta == RUNNERPOST::INF_SIZE_T )
     {
+        max_beta = 0;
         for ( i_pb = 0 ; i_pb < n_pb ; ++i_pb )
         {
             for (i_algo = 0 ; i_algo < n_algo ; ++i_algo)
