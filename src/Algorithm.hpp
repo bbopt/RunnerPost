@@ -75,9 +75,11 @@ public:
     
     const StatOutputTypeList &       get_stats_output_type_list() const { return _sotList;}
     
-    bool hasConstraint() const { return (std::count(_sotList.begin(),_sotList.end(),StatOutputType::CST) > 0);}
+    bool hasConstraint() const { return getNbConstraints() > 0;}
     bool hasMultiObjective() const { return (std::count(_sotList.begin(),_sotList.end(),StatOutputType::OBJ) > 1);}
-    size_t getNbConstraints() const { return std::count(_sotList.begin(),_sotList.end(),StatOutputType::CST);}
+    size_t getNbConstraints() const { return getNbEqConstraints()+getNbIneqConstraints();}
+    size_t getNbIneqConstraints() const { return std::count(_sotList.begin(),_sotList.end(),StatOutputType::CST);}
+    size_t getNbEqConstraints() const { return std::count(_sotList.begin(),_sotList.end(),StatOutputType::EQCST);}
     size_t getNbObjectives() const { return std::count(_sotList.begin(),_sotList.end(),StatOutputType::OBJ);}
 };
 

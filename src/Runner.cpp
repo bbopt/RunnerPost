@@ -2166,7 +2166,7 @@ RUNNERPOST::ArrayOfDouble RUNNERPOST::Runner::get_fx0s(const RUNNERPOST::Output:
             }
             else
             {
-                std::cout << "pb #"<< i_pb+1 << " has not constraint but no first point in stats ---> Let's use the first valid fx value: " << fx0s[fI] << std::endl;
+                std::cout << "pb #"<< i_pb+1 << " has no constraint but no first point in stats ---> Let's use the first valid fx value: " << fx0s[fI] << std::endl;
             }
         }
         
@@ -3565,7 +3565,7 @@ bool RUNNERPOST::Runner::get_results(const std::string    & test_id /*not used*/
         StatOutputTypeList statsFileFormat = composeStatsFileFormat(ac.get_stats_output_type_list(), pb.get_n(), pb.get_m(), pb.get_p());
         if (statsFileFormat.size()==0)
         {
-            std::cerr << " Error: the stats fie format is empty. There is an inconsistency between the problem " << pb.get_name() << " definition and the algorithm " << ac.get_name() << "  STATS_FILE_OUTPUT " << RUNNERPOST::StatOutputTypeListToString(ac.get_stats_output_type_list()) << std::endl;
+            std::cerr << " Error: the stats file format is empty. There is an inconsistency between the problem " << pb.get_name() << " definition and the algorithm " << ac.get_name() << "  STATS_FILE_OUTPUT " << RUNNERPOST::StatOutputTypeListToString(ac.get_stats_output_type_list()) << std::endl;
             return false;
         }
         
@@ -4600,7 +4600,7 @@ RUNNERPOST::StatOutputTypeList RUNNERPOST::Runner::composeStatsFileFormat(const 
         else if (acSot.isOfType(StatOutputType::EQCST))
         {
             const size_t numberOfIneqConstraints = m -p -RUNNERPOST::getNbObj(acSotList);
-            if (numberOfIneqConstraints <= 0)
+            if (numberOfIneqConstraints < 0)
             {
                 completeSotList.clear();
                 return completeSotList;
